@@ -3077,20 +3077,22 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
           </div>
 
           {/* ── Service line tab strip ── */}
-          <div style={{ display:"flex", gap:2, marginTop:12, alignItems:"flex-end", overflowX:"auto" }}>
-            <ServiceLineTab label="🏢 Whole Company" active={isWholeCompany}
-              onClick={() => setActiveKey("WHOLE_COMPANY")} />
-            {visibleSLs.map(sl => (
-              <ServiceLineTab key={sl.id}
-                label={sl.name || getShortLabel(sl.type)}
-                active={activeKey === sl.id}
-                onClick={() => setActiveKey(sl.id)}
-                onRemove={() => handleRemoveServiceLine(sl.id)}/>
-            ))}
-            <AddServiceLineButton
-              existingTypes={visibleSLs.map(sl => sl.type)}
-              onAdd={handleAddServiceLine}/>
-            <div style={{ marginLeft:"auto", paddingBottom:8, display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+          <div style={{ display:"flex", gap:2, marginTop:12, alignItems:"flex-end", overflow:"visible", position:"relative", zIndex:100 }}>
+            <div style={{ display:"flex", gap:2, alignItems:"flex-end", overflowX:"auto", flex:1, overflow:"visible" }}>
+              <ServiceLineTab label="🏢 Whole Company" active={isWholeCompany}
+                onClick={() => setActiveKey("WHOLE_COMPANY")} />
+              {visibleSLs.map(sl => (
+                <ServiceLineTab key={sl.id}
+                  label={sl.name || getShortLabel(sl.type)}
+                  active={activeKey === sl.id}
+                  onClick={() => setActiveKey(sl.id)}
+                  onRemove={() => handleRemoveServiceLine(sl.id)}/>
+              ))}
+              <AddServiceLineButton
+                existingTypes={visibleSLs.map(sl => sl.type)}
+                onAdd={handleAddServiceLine}/>
+            </div>
+            <div style={{ paddingBottom:8, display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
               <div style={{ width:1, height:16, background:"#b5c8de" }}/>
               <span style={{ fontSize:9, color:"#64748b", letterSpacing:2, textTransform:"uppercase", ...M }}>
                 Powered by <span style={{ color:"#D4A520" }}>Intrinsic Inc</span>
