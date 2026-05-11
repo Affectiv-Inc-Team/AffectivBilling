@@ -2601,11 +2601,24 @@ function PortfolioComparison() {
 // SERVICE LINE STRIP COMPONENTS
 // ════════════════════════════════════════════════════════════════════
 
-function ServiceLineTab({ label, active, onClick, onRemove }) {
+function ServiceLineTab({ label, active, onRemove, containerRef, isDragging, onPointerDown, onPointerMove, onPointerUp }) {
   return (
-    <div style={{ position:"relative", display:"inline-flex", alignItems:"stretch" }}>
-      <button onClick={onClick} style={{
-        padding:"7px 14px", borderRadius:"7px 7px 0 0", border:"none", cursor:"pointer",
+    <div
+      ref={containerRef}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      style={{
+        position:"relative", display:"inline-flex", alignItems:"stretch",
+        cursor: isDragging ? "grabbing" : "grab",
+        userSelect:"none", touchAction:"none",
+        opacity: isDragging ? 0.45 : 1,
+        transition:"opacity 80ms",
+      }}
+    >
+      <button style={{
+        padding:"7px 14px", borderRadius:"7px 7px 0 0", border:"none",
+        cursor:"inherit", pointerEvents:"none",
         fontSize:11, fontWeight:700, whiteSpace:"nowrap",
         background: active ? "#141d2c" : "transparent",
         color: active ? "#D4A520" : "#5a7498",
@@ -2617,11 +2630,26 @@ function ServiceLineTab({ label, active, onClick, onRemove }) {
       }}>
         {label}
         {active && onRemove && (
-          <span onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          <span
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onRemove(); }}
             style={{ marginLeft:8, color:"#cf6e6e", fontSize:10, opacity:0.7 }}
             title="Remove service line">✕</span>
         )}
       </button>
+    </div>
+  );
+}
+
+// Animated gap that appears between tabs during a drag to show the drop target.
+function GapIndicator({ width }) {
+  return (
+    <div style={{
+      display:"inline-flex", alignItems:"center", justifyContent:"center",
+      width, minWidth:2, alignSelf:"stretch",
+      transition:"width 120ms ease", flexShrink:0,
+    }}>
+      <div style={{ width:2, height:20, background:"#D4A520", borderRadius:1, opacity:0.85 }} />
     </div>
   );
 }
@@ -2790,6 +2818,13 @@ function getDefaultSubTab(slType) {
   return tabs[0]?.id || "placeholder";
 }
 
+// Returns sub-tabs in savedOrder sequence, falling back to defaults for any unknown ids.
+function applyTabOrder(defaults, savedOrder) {
+  if (!savedOrder || savedOrder.length === 0) return defaults;
+  const map = Object.fromEntries(defaults.map(t => [t.id, t]));
+  return savedOrder.map(id => map[id]).filter(Boolean);
+}
+
 // ════════════════════════════════════════════════════════════════════
 // MAIN APP
 // ════════════════════════════════════════════════════════════════════
@@ -2830,6 +2865,157 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
           : sl
       ),
     }));
+  };
+
+  // ── Service line tab drag-to-reorder ──
+  const slDragState  = useRef({ dragId:null, startX:0, didMove:false, dragTabWidth:80, originalIndex:0 });
+  const slTabRefs    = useRef(new Map());
+  const slRafId      = useRef(null);
+  const slInsertRef  = useRef(null);
+  const [slDragId,         setSlDragId]         = useState(null);
+  const [slInsertionIndex, setSlInsertionIndex] = useState(null);
+
+  const handleSLPointerDown = (e, sl, index, currentVisibleSLs) => {
+    if (currentVisibleSLs.length <= 1) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const rect = slTabRefs.current.get(sl.id)?.getBoundingClientRect();
+    slDragState.current = { dragId:sl.id, startX:e.clientX, didMove:false, dragTabWidth:rect?.width ?? 80, originalIndex:index };
+  };
+
+  const handleSLPointerMove = (e, sl, currentVisibleSLs) => {
+    const ds = slDragState.current;
+    if (!ds.dragId) return;
+    if (!ds.didMove) {
+      if (Math.abs(e.clientX - ds.startX) < 5) return;
+      ds.didMove = true;
+      setSlDragId(ds.dragId);
+      setSlInsertionIndex(ds.originalIndex);
+    }
+    const node = slTabRefs.current.get(ds.dragId);
+    if (node) {
+      node.style.transform  = `translateX(${e.clientX - ds.startX}px) translateY(-3px)`;
+      node.style.zIndex     = "200";
+      node.style.boxShadow  = "0 6px 20px rgba(0,0,0,0.22)";
+      node.style.transition = "box-shadow 80ms";
+    }
+    if (slRafId.current) cancelAnimationFrame(slRafId.current);
+    const clientX = e.clientX;
+    slRafId.current = requestAnimationFrame(() => {
+      let idx = 0;
+      currentVisibleSLs.forEach((s, i) => {
+        const r = slTabRefs.current.get(s.id)?.getBoundingClientRect();
+        if (r && clientX > r.left + r.width / 2) idx = i + 1;
+      });
+      slInsertRef.current = idx;
+      setSlInsertionIndex(idx);
+    });
+  };
+
+  const handleSLPointerUp = (e, sl, currentVisibleSLs) => {
+    const ds = slDragState.current;
+    if (!ds.dragId) return;
+    const node = slTabRefs.current.get(ds.dragId);
+    if (node) { node.style.transform = ""; node.style.zIndex = ""; node.style.boxShadow = ""; node.style.transition = ""; }
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    if (!ds.didMove) {
+      setActiveKey(sl.id);
+    } else {
+      const fromIdx = currentVisibleSLs.findIndex(s => s.id === ds.dragId);
+      let toIdx = slInsertRef.current ?? fromIdx;
+      if (toIdx > fromIdx) toIdx--;
+      toIdx = Math.max(0, Math.min(toIdx, currentVisibleSLs.length - 1));
+      if (fromIdx !== toIdx && company) {
+        const reordered = [...currentVisibleSLs];
+        const [moved] = reordered.splice(fromIdx, 1);
+        reordered.splice(toIdx, 0, moved);
+        const archived = company.serviceLines.filter(s => s.archived);
+        updateCompany(company.id, co => ({ ...co, serviceLines: [...reordered, ...archived] }));
+      }
+    }
+    slDragState.current = { dragId:null, startX:0, didMove:false, dragTabWidth:80, originalIndex:0 };
+    setSlDragId(null);
+    setSlInsertionIndex(null);
+    slInsertRef.current = null;
+  };
+
+  // ── Sub-tab drag-to-reorder ──
+  const stDragState  = useRef({ dragId:null, startX:0, didMove:false, dragTabWidth:80, originalIndex:0 });
+  const stTabRefs    = useRef(new Map());
+  const stRafId      = useRef(null);
+  const stInsertRef  = useRef(null);
+  const [stDragId,         setStDragId]         = useState(null);
+  const [stInsertionIndex, setStInsertionIndex] = useState(null);
+
+  const handleSTPointerDown = (e, tabId, index, currentSubTabs) => {
+    if (currentSubTabs.length <= 1) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const rect = stTabRefs.current.get(tabId)?.getBoundingClientRect();
+    stDragState.current = { dragId:tabId, startX:e.clientX, didMove:false, dragTabWidth:rect?.width ?? 80, originalIndex:index };
+  };
+
+  const handleSTPointerMove = (e, tabId, currentSubTabs) => {
+    const ds = stDragState.current;
+    if (!ds.dragId) return;
+    if (!ds.didMove) {
+      if (Math.abs(e.clientX - ds.startX) < 5) return;
+      ds.didMove = true;
+      setStDragId(ds.dragId);
+      setStInsertionIndex(ds.originalIndex);
+    }
+    const node = stTabRefs.current.get(ds.dragId);
+    if (node) {
+      node.style.transform  = `translateX(${e.clientX - ds.startX}px) translateY(-2px)`;
+      node.style.zIndex     = "200";
+      node.style.boxShadow  = "0 4px 14px rgba(0,0,0,0.18)";
+      node.style.transition = "box-shadow 80ms";
+    }
+    if (stRafId.current) cancelAnimationFrame(stRafId.current);
+    const clientX = e.clientX;
+    stRafId.current = requestAnimationFrame(() => {
+      let idx = 0;
+      currentSubTabs.forEach((t, i) => {
+        const r = stTabRefs.current.get(t.id)?.getBoundingClientRect();
+        if (r && clientX > r.left + r.width / 2) idx = i + 1;
+      });
+      stInsertRef.current = idx;
+      setStInsertionIndex(idx);
+    });
+  };
+
+  const handleSTPointerUp = (e, tabId, currentSubTabs) => {
+    const ds = stDragState.current;
+    if (!ds.dragId) return;
+    const node = stTabRefs.current.get(ds.dragId);
+    if (node) { node.style.transform = ""; node.style.zIndex = ""; node.style.boxShadow = ""; node.style.transition = ""; }
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    if (!ds.didMove) {
+      setSubTab(tabId);
+    } else {
+      const fromIdx = currentSubTabs.findIndex(t => t.id === ds.dragId);
+      let toIdx = stInsertRef.current ?? fromIdx;
+      if (toIdx > fromIdx) toIdx--;
+      toIdx = Math.max(0, Math.min(toIdx, currentSubTabs.length - 1));
+      if (fromIdx !== toIdx && company) {
+        const reordered = [...currentSubTabs];
+        const [moved] = reordered.splice(fromIdx, 1);
+        reordered.splice(toIdx, 0, moved);
+        const reorderedIds = reordered.map(t => t.id);
+        if (isWholeCompany) {
+          updateShared("wholeCompanySubTabOrder", reorderedIds);
+        } else {
+          updateCompany(company.id, co => ({
+            ...co,
+            serviceLines: co.serviceLines.map(sl =>
+              sl.id === activeKey ? { ...sl, subTabOrder: reorderedIds } : sl
+            ),
+          }));
+        }
+      }
+    }
+    stDragState.current = { dragId:null, startX:0, didMove:false, dragTabWidth:80, originalIndex:0 };
+    setStDragId(null);
+    setStInsertionIndex(null);
+    stInsertRef.current = null;
   };
 
   const handleAddServiceLine = (type) => {
@@ -3001,7 +3187,9 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
 
   // ── Service line strip data ──
   const visibleSLs = company.serviceLines.filter(sl => !sl.archived);
-  const subTabs = getSubTabsFor(activeSLType);
+  const subTabs = isWholeCompany
+    ? applyTabOrder(getSubTabsFor("WHOLE_COMPANY"), company.shared.wholeCompanySubTabOrder)
+    : applyTabOrder(getSubTabsFor(activeSLType), activeSL?.subTabOrder);
 
   return (
     <>
@@ -3079,15 +3267,34 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
           {/* ── Service line tab strip ── */}
           <div style={{ display:"flex", gap:2, marginTop:12, alignItems:"flex-end", overflow:"visible", position:"relative", zIndex:100 }}>
             <div style={{ display:"flex", gap:2, alignItems:"flex-end", overflowX:"auto", flex:1, overflow:"visible" }}>
+              {/* Whole Company — pinned, no drag */}
               <ServiceLineTab label="🏢 Whole Company" active={isWholeCompany}
-                onClick={() => setActiveKey("WHOLE_COMPANY")} />
-              {visibleSLs.map(sl => (
-                <ServiceLineTab key={sl.id}
-                  label={sl.name || getShortLabel(sl.type)}
-                  active={activeKey === sl.id}
-                  onClick={() => setActiveKey(sl.id)}
-                  onRemove={() => handleRemoveServiceLine(sl.id)}/>
-              ))}
+                onPointerDown={() => setActiveKey("WHOLE_COMPANY")} />
+              {/* Draggable service line tabs */}
+              {(() => {
+                const items = [];
+                visibleSLs.forEach((sl, i) => {
+                  if (slDragId && slInsertionIndex === i) {
+                    items.push(<GapIndicator key="__sl_gap__" width={slDragState.current.dragTabWidth} />);
+                  }
+                  items.push(
+                    <ServiceLineTab key={sl.id}
+                      label={sl.name || getShortLabel(sl.type)}
+                      active={activeKey === sl.id}
+                      onRemove={() => handleRemoveServiceLine(sl.id)}
+                      containerRef={node => { if (node) slTabRefs.current.set(sl.id, node); else slTabRefs.current.delete(sl.id); }}
+                      isDragging={slDragId === sl.id}
+                      onPointerDown={e => handleSLPointerDown(e, sl, i, visibleSLs)}
+                      onPointerMove={e => handleSLPointerMove(e, sl, visibleSLs)}
+                      onPointerUp={e => handleSLPointerUp(e, sl, visibleSLs)}
+                    />
+                  );
+                });
+                if (slDragId && slInsertionIndex === visibleSLs.length) {
+                  items.push(<GapIndicator key="__sl_gap__" width={slDragState.current.dragTabWidth} />);
+                }
+                return items;
+              })()}
               <AddServiceLineButton
                 existingTypes={visibleSLs.map(sl => sl.type)}
                 onAdd={handleAddServiceLine}/>
@@ -3118,18 +3325,47 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
                 display:"flex", gap:2, alignItems:"flex-end",
                 borderBottom:"1px solid #e2e8f0", flexShrink:0, overflowX:"auto",
               }}>
-                {subTabs.map(t => (
-                  <button key={t.id} onClick={() => setSubTab(t.id)} style={{
-                    padding:"6px 14px", borderRadius:"6px 6px 0 0", border:"none", cursor:"pointer",
-                    fontSize:11, fontWeight:600, whiteSpace:"nowrap",
-                    background: subTab === t.id ? "#fff" : "transparent",
-                    color:      subTab === t.id ? "#5a3800" : "#64748b",
-                    borderTop:    subTab === t.id ? "1px solid #c8d4e4" : "none",
-                    borderLeft:   subTab === t.id ? "1px solid #c8d4e4" : "none",
-                    borderRight:  subTab === t.id ? "1px solid #c8d4e4" : "none",
-                    marginBottom: subTab === t.id ? "-1px" : "0",
-                  }}>{t.label}</button>
-                ))}
+                {(() => {
+                  const items = [];
+                  subTabs.forEach((t, i) => {
+                    if (stDragId && stInsertionIndex === i) {
+                      items.push(<GapIndicator key="__st_gap__" width={stDragState.current.dragTabWidth} />);
+                    }
+                    const isDraggingThis = stDragId === t.id;
+                    items.push(
+                      <div
+                        key={t.id}
+                        ref={node => { if (node) stTabRefs.current.set(t.id, node); else stTabRefs.current.delete(t.id); }}
+                        onPointerDown={e => handleSTPointerDown(e, t.id, i, subTabs)}
+                        onPointerMove={e => handleSTPointerMove(e, t.id, subTabs)}
+                        onPointerUp={e => handleSTPointerUp(e, t.id, subTabs)}
+                        style={{
+                          display:"inline-flex", alignItems:"stretch",
+                          cursor: isDraggingThis ? "grabbing" : "grab",
+                          userSelect:"none", touchAction:"none",
+                          opacity: isDraggingThis ? 0.45 : 1,
+                          transition:"opacity 80ms",
+                        }}
+                      >
+                        <button style={{
+                          padding:"6px 14px", borderRadius:"6px 6px 0 0", border:"none",
+                          cursor:"inherit", pointerEvents:"none",
+                          fontSize:11, fontWeight:600, whiteSpace:"nowrap",
+                          background: subTab === t.id ? "#fff" : "transparent",
+                          color:      subTab === t.id ? "#5a3800" : "#64748b",
+                          borderTop:    subTab === t.id ? "1px solid #c8d4e4" : "none",
+                          borderLeft:   subTab === t.id ? "1px solid #c8d4e4" : "none",
+                          borderRight:  subTab === t.id ? "1px solid #c8d4e4" : "none",
+                          marginBottom: subTab === t.id ? "-1px" : "0",
+                        }}>{t.label}</button>
+                      </div>
+                    );
+                  });
+                  if (stDragId && stInsertionIndex === subTabs.length) {
+                    items.push(<GapIndicator key="__st_gap__" width={stDragState.current.dragTabWidth} />);
+                  }
+                  return items;
+                })()}
               </div>
             )}
 
