@@ -2610,7 +2610,7 @@ function ServiceLineTab({ label, active, onRemove, containerRef, isDragging, onP
       onPointerUp={onPointerUp}
       style={{
         position:"relative", display:"inline-flex", alignItems:"stretch",
-        cursor: isDragging ? "grabbing" : "grab",
+        cursor: "pointer",
         userSelect:"none", touchAction:"none",
         opacity: isDragging ? 0.45 : 1,
         transition:"opacity 80ms",
@@ -2876,6 +2876,7 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
   const [slInsertionIndex, setSlInsertionIndex] = useState(null);
 
   const handleSLPointerDown = (e, sl, index, currentVisibleSLs) => {
+    setActiveKey(sl.id);  // activate immediately on press, like Chrome
     if (currentVisibleSLs.length <= 1) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     const rect = slTabRefs.current.get(sl.id)?.getBoundingClientRect();
@@ -2917,9 +2918,7 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
     const node = slTabRefs.current.get(ds.dragId);
     if (node) { node.style.transform = ""; node.style.zIndex = ""; node.style.boxShadow = ""; node.style.transition = ""; }
     e.currentTarget.releasePointerCapture(e.pointerId);
-    if (!ds.didMove) {
-      setActiveKey(sl.id);
-    } else {
+    if (ds.didMove) {
       const fromIdx = currentVisibleSLs.findIndex(s => s.id === ds.dragId);
       let toIdx = slInsertRef.current ?? fromIdx;
       if (toIdx > fromIdx) toIdx--;
@@ -2947,6 +2946,7 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
   const [stInsertionIndex, setStInsertionIndex] = useState(null);
 
   const handleSTPointerDown = (e, tabId, index, currentSubTabs) => {
+    setSubTab(tabId);  // activate immediately on press
     if (currentSubTabs.length <= 1) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     const rect = stTabRefs.current.get(tabId)?.getBoundingClientRect();
@@ -2988,9 +2988,7 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
     const node = stTabRefs.current.get(ds.dragId);
     if (node) { node.style.transform = ""; node.style.zIndex = ""; node.style.boxShadow = ""; node.style.transition = ""; }
     e.currentTarget.releasePointerCapture(e.pointerId);
-    if (!ds.didMove) {
-      setSubTab(tabId);
-    } else {
+    if (ds.didMove) {
       const fromIdx = currentSubTabs.findIndex(t => t.id === ds.dragId);
       let toIdx = stInsertRef.current ?? fromIdx;
       if (toIdx > fromIdx) toIdx--;
@@ -3341,7 +3339,7 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
                         onPointerUp={e => handleSTPointerUp(e, t.id, subTabs)}
                         style={{
                           display:"inline-flex", alignItems:"stretch",
-                          cursor: isDraggingThis ? "grabbing" : "grab",
+                          cursor: "pointer",
                           userSelect:"none", touchAction:"none",
                           opacity: isDraggingThis ? 0.45 : 1,
                           transition:"opacity 80ms",
