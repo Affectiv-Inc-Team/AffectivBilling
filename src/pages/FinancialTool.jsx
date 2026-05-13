@@ -2633,7 +2633,7 @@ function ServiceLineTab({ label, active, onRemove, containerRef, isDragging, onP
           <span
             onPointerDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onRemove(); }}
-            style={{ marginLeft:8, color:"#cf6e6e", fontSize:10, opacity:0.7 }}
+            style={{ marginLeft:8, color:"#cf6e6e", fontSize:10, opacity:0.7, pointerEvents:"auto" }}
             title="Remove service line">✕</span>
         )}
       </button>
