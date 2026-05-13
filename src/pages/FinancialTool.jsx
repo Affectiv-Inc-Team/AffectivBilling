@@ -793,16 +793,7 @@ function HomeModelerTab({ homeTypes, homeMetrics, onUpdateType, onRemoveType, on
   );
 }
 
-function CompanyTab({ homeTypes, homeMetrics, co, mgmt, overhead, onUpdateType, onRemoveType, onAddType, onMgmt, onOvhd, entityType, ownerRate, rates, mgmtFeePct, billingFeePct, isAdmin, wage }) {
-  if (!isAdmin) {
-    return (
-      <HomeModelerTab
-        homeTypes={homeTypes} homeMetrics={homeMetrics}
-        onUpdateType={onUpdateType} onRemoveType={onRemoveType} onAddType={onAddType}
-        wage={wage} rates={rates} graveyardWage={graveyardWage}/>
-    );
-  }
-
+function CompanyTab({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate, mgmtFeePct, billingFeePct }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
       <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
@@ -822,41 +813,6 @@ function CompanyTab({ homeTypes, homeMetrics, co, mgmt, overhead, onUpdateType, 
           ].map((s,i)=><Chip key={i} label={s.l} value={s.f(s.v)} color={s.c} highlight={s.hi}/>)}
         </div>
       </div>
-
-      {homeMetrics.map(h=>(
-        <HomeTypeCard key={h.id} home={h} metrics={h.metrics}
-          onUpdate={(f,v)=>onUpdateType(h.id,f,v)}
-          onRemove={()=>onRemoveType(h.id)}
-          canRemove={homeTypes.length>1}
-          rates={rates}/>
-      ))}
-
-      <button onClick={onAddType} style={{ padding:"12px", borderRadius:11, border:"2px dashed #d0dae8", background:"none", color:"#7a5020", cursor:"pointer", fontSize:13, fontWeight:700, fontFamily:"'Sora',sans-serif" }}
-        onMouseEnter={e=>{e.currentTarget.style.borderColor="#D4A52050";e.currentTarget.style.color="#D4A520";}}
-        onMouseLeave={e=>{e.currentTarget.style.borderColor="#d5c898";e.currentTarget.style.color="#7a5020";}}>
-        + Add Home Type
-      </button>
-
-      {homeMetrics.length >= 2 && (
-        <div style={{ background:"#f8f6f0", borderRadius:12, border:"1px solid #d0dae8", padding:"16px 20px" }}>
-          <SL>Home Type Comparison — Gross Per Home Per Day</SL>
-          {homeMetrics.map(h=>{
-            const mx=Math.max(...homeMetrics.map(x=>x.metrics.gross));
-            return (
-              <div key={h.id} style={{ marginBottom:10 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
-                  <span style={{ fontSize:11, color:"#6a4c10" }}>{h.label}</span>
-                  <span style={{ fontSize:11, fontWeight:700, color:mc(h.metrics.margin), ...M }}>{$d(h.metrics.gross)} · {pct(h.metrics.margin)}</span>
-                </div>
-                <div style={{ height:7, background:"#ebebeb", borderRadius:3, overflow:"hidden" }}>
-                  <div style={{ height:"100%", width:`${mx>0?(h.metrics.gross/mx)*100:0}%`, background:`linear-gradient(90deg,${mc(h.metrics.margin)}50,${mc(h.metrics.margin)})`, borderRadius:3, transition:"width 0.4s" }}/>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       <CompanyPL co={co} mgmt={mgmt} overhead={overhead} onMgmt={onMgmt} onOvhd={onOvhd} entityType={entityType} ownerRate={ownerRate} mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}/>
     </div>
   );
@@ -1196,8 +1152,9 @@ function LaborEfficiencyTab({ wage: globalWage, rates = RATES_DEF, graveyardWage
 }
 
 
-function HomeMixEditor({ homes, onUpdate, onAdd, onRemove, wage, rates = RATES_DEF, graveyardWage }) {
+function HomeMixEditor({ homes, onUpdate, onAdd, onRemove, wage, setWage, rates = RATES_DEF, setRates, graveyardWage, setGraveyardWage, occupancy, setOccupancy }) {
   const [selId, setSelId] = useState(homes[0]?.id);
+  const [ratesOpen, setRatesOpen] = useState(false);
   const sel = homes.find(h=>h.id===selId) ?? homes[0];
   const m   = sel ? calcHome(sel, wage, rates, graveyardWage) : null;
   const canGroup = sel && sel.nIntense>0 && (sel.nHigh+sel.nIntense)>=2;
@@ -1329,6 +1286,65 @@ function HomeMixEditor({ homes, onUpdate, onAdd, onRemove, wage, rates = RATES_D
               </div>
             )}
 
+            {/* ── Home Settings ── */}
+            <div style={{ background:"#f0f2f7", borderRadius:10, border:"1px solid #d0dae8", padding:"14px 16px" }}>
+              <div style={{ fontSize:9, color:"#9a8050", letterSpacing:2, textTransform:"uppercase", fontWeight:700, marginBottom:12 }}>Home Settings</div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px 24px" }}>
+                <Slider label="Staff Wage" value={wage} min={12} max={32} step={0.25}
+                  onChange={setWage} color="#f87171" format={v=>`$${v.toFixed(2)}/hr`}/>
+                <Slider label="Graveyard / Sleeping Wage" value={graveyardWage} min={8} max={32} step={0.25}
+                  onChange={setGraveyardWage} color="#5a7498" format={v=>`$${v.toFixed(2)}/hr`}/>
+                <Slider label="Occupancy Rate" value={occupancy} min={60} max={100} step={1}
+                  onChange={setOccupancy} color="#D4A520" format={v=>`${v}%`}/>
+              </div>
+              {/* Reimbursement Rates */}
+              <div style={{ marginTop:14 }}>
+                <button onClick={() => setRatesOpen(o => !o)} style={{
+                  background:"none", border:"none", cursor:"pointer", padding:0,
+                  display:"flex", alignItems:"center", gap:6,
+                  fontSize:9, color:"#9a8050", letterSpacing:2, textTransform:"uppercase", fontWeight:700,
+                }}>
+                  <span style={{ fontSize:11, transition:"transform 200ms",
+                    transform: ratesOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+                  Reimbursement Rates
+                </button>
+                {ratesOpen && (
+                  <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:10 }}>
+                    {RATE_FIELDS.map(f => (
+                      <div key={f.key} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <div style={{ flex:1, fontSize:11, color:"#5a7498" }}>{f.label}</div>
+                        <div style={{ fontSize:10, color:"#9aabb8" }}>{f.unit}</div>
+                        <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                          <span style={{ fontSize:10, color:"#9aabb8" }}>$</span>
+                          <input type="number" step="0.01"
+                            value={rates[f.key] ?? f.baseline}
+                            onChange={e => setRates(r => ({ ...r, [f.key]: parseFloat(e.target.value)||0 }))}
+                            style={{ width:68, fontSize:12, fontWeight:600, color:f.color,
+                              background:"#f8f8f8", border:"1px solid #d0dae8", borderRadius:5,
+                              padding:"3px 6px", textAlign:"right" }}/>
+                        </div>
+                        <div style={{ display:"flex", gap:3 }}>
+                          {[2,4,6].map(p => (
+                            <button key={p} onClick={() =>
+                              setRates(r => ({ ...r, [f.key]: parseFloat((f.baseline*(1-p/100)).toFixed(4)) }))}
+                              style={{ fontSize:9, padding:"2px 5px", borderRadius:4, border:"1px solid #d0dae8",
+                                background:"#fff", color:"#64748b", cursor:"pointer" }}>
+                              −{p}%
+                            </button>
+                          ))}
+                          <button onClick={() => setRates(r => ({ ...r, [f.key]: f.baseline }))}
+                            style={{ fontSize:9, padding:"2px 5px", borderRadius:4, border:"1px solid #d0dae8",
+                              background:"#fff", color:"#64748b", cursor:"pointer" }}>
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Billing */}
             {sel.nIntense>0 && (
               <div>
@@ -1404,6 +1420,7 @@ function HomeMixEditor({ homes, onUpdate, onAdd, onRemove, wage, rates = RATES_D
                 ))}
               </div>
             )}
+
           </div>
         </div>
       )}
@@ -1628,38 +1645,21 @@ function SingleHomeProjector({ wage: globalWage, rates = RATES_DEF, graveyardWag
 /* ══════════════════════════════════════════════════════════
    SIDEBAR
 ══════════════════════════════════════════════════════════ */
-function Sidebar({ wage, setWage, graveyardWage, setGraveyardWage, occupancy, setOccupancy, entityType, setEntityType, ownerRate, setOwnerRate, homeMetrics, rates, setRates, mgmtFeePct, setMgmtFeePct, billingFeePct, setBillingFeePct }) {
-  const [ratesOpen,   setRatesOpen]   = useState(false);
-  const [feesOpen,    setFeesOpen]    = useState(true);
-  const [taxOpen,     setTaxOpen]     = useState(true);
-  const [wageOpen,    setWageOpen]    = useState(false);
 
-  const rateFields = [
-    { key:"intenseDaily", label:"Intense Support (Daily)",      unit:"/day",   color:"#D4A520", baseline:678.77 },
-    { key:"highDaily",    label:"High Support (Daily)",         unit:"/day",   color:"#C9921A", baseline:368.67 },
-    { key:"iuUnit",       label:"Intense Individual U2",        unit:"/15-min",color:"#00e5aa", baseline:7.07   },
-    { key:"igUnit",       label:"Intense Group U3",             unit:"/15-min",color:"#f59e0b", baseline:3.61   },
-  ];
+// Rate field definitions — shared between Sidebar and the Home Mix Editor settings panel.
+const RATE_FIELDS = [
+  { key:"intenseDaily", label:"Intense Support (Daily)",      unit:"/day",   color:"#D4A520", baseline:678.77 },
+  { key:"highDaily",    label:"High Support (Daily)",         unit:"/day",   color:"#C9921A", baseline:368.67 },
+  { key:"iuUnit",       label:"Intense Individual U2",        unit:"/15-min",color:"#00e5aa", baseline:7.07   },
+  { key:"igUnit",       label:"Intense Group U3",             unit:"/15-min",color:"#f59e0b", baseline:3.61   },
+];
 
-  const resetRates = () => setRates(RATES_DEF);
-  const isDirty = Object.keys(RATES_DEF).some(k => rates[k] !== RATES_DEF[k]);
+function Sidebar({ entityType, setEntityType, ownerRate, setOwnerRate, mgmtFeePct, setMgmtFeePct, billingFeePct, setBillingFeePct }) {
+  const [feesOpen, setFeesOpen] = useState(true);
+  const [taxOpen,  setTaxOpen]  = useState(true);
 
   return (
     <div style={{ borderRight:"1px solid #d0dae8", padding:"16px 14px", display:"flex", flexDirection:"column", gap:18, background:"#f4f2ec", overflowY:"auto" }}>
-      <div>
-        <SL>Global Settings</SL>
-        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-          <Slider label="Staff Wage"     value={wage}      min={12} max={32}  step={0.25} onChange={setWage}      color="#f87171" format={v=>`$${v.toFixed(2)}/hr`}/>
-          <div>
-            <Slider label="Graveyard / Sleeping Wage" value={graveyardWage} min={8} max={32} step={0.25} onChange={setGraveyardWage} color="#5a7498" format={v=>`$${v.toFixed(2)}/hr`}/>
-            <div style={{ fontSize:9, color:"#5a7498", ...M, marginTop:4 }}>
-              Applied to night group hours when staff are sleeping. Set equal to staff wage to disable.
-            </div>
-          </div>
-          <Slider label="Occupancy Rate" value={occupancy} min={60} max={100} step={1}    onChange={setOccupancy} color="#D4A520" format={v=>`${v}%`}/>
-        </div>
-      </div>
-
       <div>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: feesOpen ? 12 : 0 }}>
           <SL>Variable Fees</SL>
@@ -1683,96 +1683,6 @@ function Sidebar({ wage, setWage, graveyardWage, setGraveyardWage, occupancy, se
                 <span style={{ fontSize:9, color: billingFeePct===1?"#7a5020":"#C9921A", fontWeight:700, ...M }}>{billingFeePct !== 1 ? `+${(billingFeePct - 1).toFixed(2)}pp vs. standard` : "at standard"}</span>
               </div>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── REIMBURSEMENT RATES ── */}
-      <div>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-          <SL>Reimbursement Rates</SL>
-          <div style={{ display:"flex", gap:5, alignItems:"center" }}>
-            {isDirty && (
-              <button onClick={resetRates} style={{ fontSize:9, color:"#f87171", background:"#1a0606", border:"1px solid #f8717130", borderRadius:4, padding:"2px 7px", cursor:"pointer", ...M }}>Reset</button>
-            )}
-            <button onClick={()=>setRatesOpen(!ratesOpen)} style={{ fontSize:9, color:"#D4A520", background:"none", border:"1px solid #d0dae8", borderRadius:4, padding:"2px 7px", cursor:"pointer", ...M }}>
-              {ratesOpen?"▲":"▼"}
-            </button>
-          </div>
-        </div>
-
-        {/* Always-visible summary chips */}
-        <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
-          {rateFields.map(f => {
-            const val     = rates[f.key];
-            const changed = val !== f.baseline;
-            const chgPct  = ((val - f.baseline) / f.baseline * 100);
-            return (
-              <div key={f.key} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 8px", background:changed?"#0a1a0a":"#ebebeb", borderRadius:6, border:changed?`1px solid ${f.color}30`:"1px solid #e0e8f0" }}>
-                <span style={{ fontSize:9, color:"#5a4020", ...M, flex:1 }}>{f.label}</span>
-                <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                  <span style={{ fontSize:11, fontWeight:700, color: changed?f.color:"#6a4c10", ...M }}>${val.toFixed(2)}</span>
-                  {changed && <span style={{ fontSize:9, color: chgPct<0?"#f87171":"#00e5aa", ...M }}>{chgPct>0?"+":""}{chgPct.toFixed(1)}%</span>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Expanded editor */}
-        {ratesOpen && (
-          <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:12, padding:"12px", background:"#ebebeb", borderRadius:9, border:"1px solid #d0dae8" }}>
-            {rateFields.map(f => {
-              const val    = rates[f.key];
-              const chgPct = ((val - f.baseline) / f.baseline * 100);
-              return (
-                <div key={f.key}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:5 }}>
-                    <span style={{ fontSize:9, color:"#5a4020", textTransform:"uppercase", letterSpacing:1, ...M }}>{f.label}</span>
-                    <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                      <span style={{ fontSize:9, color:"#9a8050", ...M }}>baseline ${f.baseline.toFixed(2)}</span>
-                      {val !== f.baseline && (
-                        <span style={{ fontSize:9, fontWeight:700, color:chgPct<0?"#f87171":"#00e5aa", ...M }}>
-                          {chgPct>0?"+":""}{chgPct.toFixed(1)}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                    <div style={{ flex:1, display:"flex", alignItems:"center", background:"#0d0c07", borderRadius:6, border:`1px solid ${val !== f.baseline ? f.color+"60" : "#d5c898"}`, padding:"4px 8px", gap:3 }}>
-                      <span style={{ fontSize:10, color:"#7a5020", ...M }}>$</span>
-                      <input
-                        type="number"
-                        value={val}
-                        min={0}
-                        step={0.01}
-                        onChange={e => setRates(r => ({ ...r, [f.key]: Math.max(0, Number(e.target.value)) }))}
-                        style={{ flex:1, background:"none", border:"none", color:f.color, ...M, fontSize:13, fontWeight:700, outline:"none", minWidth:0 }}
-                      />
-                      <span style={{ fontSize:9, color:"#9a8050", ...M, whiteSpace:"nowrap" }}>{f.unit}</span>
-                    </div>
-                    {/* Quick reduction buttons */}
-                    <div style={{ display:"flex", gap:3 }}>
-                      {[-2,-4,-6].map(p => (
-                        <button key={p} onClick={() => setRates(r => ({ ...r, [f.key]: Math.max(0, parseFloat((f.baseline * (1 + p/100)).toFixed(4))) }))}
-                          style={{ padding:"4px 5px", background:Math.abs(chgPct - p) < 0.1 ?"#1a0606":"#0d0c07", border:`1px solid ${Math.abs(chgPct - p) < 0.1?"#f87171":"#d5c898"}`, borderRadius:4, cursor:"pointer", fontSize:9, color: Math.abs(chgPct - p) < 0.1?"#f87171":"#7a5020", ...M, whiteSpace:"nowrap" }}>
-                          {p}%
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            <div style={{ paddingTop:8, borderTop:"1px solid #d0dae8", fontSize:9, color:"#9a8050", lineHeight:1.6 }}>
-              Quick buttons apply % reductions from the <em>baseline</em> rate. Type any value directly. All models update live.
-            </div>
-          </div>
-        )}
-
-        {isDirty && (
-          <div style={{ marginTop:8, padding:"6px 10px", background:"#1a0606", borderRadius:6, border:"1px solid #f8717130", fontSize:9, color:"#f87171", lineHeight:1.6, ...M }}>
-            ⚠ Custom rates active — results differ from Idaho baseline
           </div>
         )}
       </div>
@@ -1806,31 +1716,6 @@ function Sidebar({ wage, setWage, graveyardWage, setGraveyardWage, occupancy, se
               </div>
             )}
           </>
-        )}
-      </div>
-
-      <div>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: wageOpen ? 8 : 0 }}>
-          <SL>Wage Sensitivity</SL>
-          <button onClick={()=>setWageOpen(!wageOpen)} style={{ fontSize:9, color:"#D4A520", background:"none", border:"1px solid #d0dae8", borderRadius:4, padding:"2px 7px", cursor:"pointer", ...M }}>
-            {wageOpen?"▲":"▼"}
-          </button>
-        </div>
-        {wageOpen && (
-          <div style={{ background:"#f8f6f0", borderRadius:9, padding:"10px", border:"1px solid #d0dae8" }}>
-            {[wage-2,wage,wage+2,wage+4].filter(w=>w>=10&&w<=35).map(w=>{
-              const g=homeMetrics.reduce((a,h)=>a+calcHome(h,w,rates,graveyardWage).gross*h.numHomes,0);
-              const r=homeMetrics.reduce((a,h)=>a+h.metrics.rev*h.numHomes,0);
-              const p=r>0?g/r:0;
-              return (
-                <div key={w} style={{ display:"flex", justifyContent:"space-between", padding:"4px 0", borderBottom:"1px solid #e8edf3" }}>
-                  <span style={{ fontSize:10, color:w===wage?"#5a3800":"#5a4020", ...M, fontWeight:w===wage?700:400 }}>${w.toFixed(2)}/hr</span>
-                  <span style={{ fontSize:10, color:mc(p), ...M, fontWeight:700 }}>{pct(p)}</span>
-                </div>
-              );
-            })}
-            <div style={{ marginTop:6, fontSize:9, color:"#9a8050" }}>Company-wide direct labor margin</div>
-          </div>
         )}
       </div>
 
@@ -2109,7 +1994,7 @@ function BudgetBuilderTab({ co, hourlyTotals, wage }) {
           { l:"Net Revenue",           v: annualRev,     c:"#5a3800",  f:$k  },
           { l:"Revenue / Participant", v: revPerPx,      c:"#C9921A",  f:$k  },
         ].map((s,i)=>(
-          <div key={i} style={{ background:"#141d2c", borderRadius:9, padding:"12px 16px", border:"1px solid #c8d4e4" }}>
+          <div key={i} style={{ background:"#f0f4fa", borderRadius:9, padding:"12px 16px", border:"1px solid #c8d4e4" }}>
             <div style={{ fontSize:9, color:"#5a7498", textTransform:"uppercase", letterSpacing:1.5, ...M, marginBottom:5 }}>{s.l}</div>
             <div style={{ fontSize:18, fontWeight:800, color:s.c, ...M }}>{s.f(s.v)}</div>
           </div>
@@ -2117,7 +2002,7 @@ function BudgetBuilderTab({ co, hourlyTotals, wage }) {
       </div>
 
       {/* Role selector */}
-      <div style={{ background:"#141d2c", borderRadius:10, border:"1px solid #c8d4e4", padding:"14px 18px" }}>
+      <div style={{ background:"#f0f4fa", borderRadius:10, border:"1px solid #c8d4e4", padding:"14px 18px" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10 }}>
           <div>
             <SL>Viewing As</SL>
@@ -2128,8 +2013,8 @@ function BudgetBuilderTab({ co, hourlyTotals, wage }) {
               <button key={r} onClick={()=>setViewRole(r)} style={{
                 padding:"5px 12px", borderRadius:6, border:"none", cursor:"pointer",
                 fontSize:10, fontWeight:700, ...M, transition:"all 0.15s",
-                background: viewRole===r ? "#D4A52022" : "#0e1625",
-                color:      viewRole===r ? "#D4A520"   : "#5a7498",
+                background: viewRole===r ? "#D4A52033" : "#e8eef6",
+                color:      viewRole===r ? "#D4A520"   : "#64748b",
                 outline:    viewRole===r ? "1px solid #D4A52040" : "none",
               }}>{r}</button>
             ))}
@@ -2138,14 +2023,14 @@ function BudgetBuilderTab({ co, hourlyTotals, wage }) {
       </div>
 
       {/* Budget lines */}
-      <div style={{ background:"#141d2c", borderRadius:12, border:"1px solid #c8d4e4", overflow:"hidden" }}>
-        <div style={{ padding:"14px 20px", borderBottom:"1px solid #1e2d3d", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+      <div style={{ background:"#f0f4fa", borderRadius:12, border:"1px solid #c8d4e4", overflow:"hidden" }}>
+        <div style={{ padding:"14px 20px", borderBottom:"1px solid #c8d4e4", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <SL>Budget Lines — {viewRole} View ({visible.length} of {categories.length} categories)</SL>
           <div style={{ fontSize:11, color:"#5a7498", ...M }}>Click a value to edit · Showing recommended defaults</div>
         </div>
         <table style={{ width:"100%", borderCollapse:"collapse" }}>
           <thead>
-            <tr style={{ borderBottom:"2px solid #1e2d3d" }}>
+            <tr style={{ borderBottom:"2px solid #c8d4e4" }}>
               {["Budget Category","Role Scope","Recommended Annual","Per Participant","Notes"].map(h=>(
                 <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontSize:9, color:"#5a7498", textTransform:"uppercase", letterSpacing:1, ...M }}>{h}</th>
               ))}
@@ -2156,11 +2041,11 @@ function BudgetBuilderTab({ co, hourlyTotals, wage }) {
               const amt   = custom[cat.id] ?? cat.recommended;
               const perPx = totalPx > 0 ? amt / totalPx : 0;
               return (
-                <tr key={cat.id} style={{ borderBottom:"1px solid #1a2840", background:i%2===0?"#0e1625":"transparent" }}>
+                <tr key={cat.id} style={{ borderBottom:"1px solid #e2e8f0", background:i%2===0?"#e8eef6":"transparent" }}>
                   <td style={{ padding:"10px 14px", color:"#5a3800", fontWeight:600, fontSize:12 }}>{cat.label}</td>
                   <td style={{ padding:"10px 14px", fontSize:10, color:"#D4A520", ...M }}>{cat.role}</td>
                   <td style={{ padding:"10px 14px" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:4, background:"#080e18", borderRadius:6, padding:"4px 8px", border:`1px solid ${custom[cat.id]!=null?"#D4A52040":"#b5c8de"}`, width:"fit-content" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:4, background:"#ebebeb", borderRadius:6, padding:"4px 8px", border:`1px solid ${custom[cat.id]!=null?"#D4A52040":"#b5c8de"}`, width:"fit-content" }}>
                       <span style={{ fontSize:10, color:"#64748b" }}>$</span>
                       <input type="number" value={Math.round(amt)} min={0} step={1000}
                         onChange={e=>setCustom(c=>({...c,[cat.id]:Number(e.target.value)}))}
@@ -2174,17 +2059,17 @@ function BudgetBuilderTab({ co, hourlyTotals, wage }) {
             })}
           </tbody>
           <tfoot>
-            <tr style={{ background:"#0e1625", borderTop:"2px solid #c8d4e4" }}>
+            <tr style={{ background:"#e8eef6", borderTop:"2px solid #c8d4e4" }}>
               <td style={{ padding:"12px 14px", fontWeight:700, color:"#5a3800", fontSize:13 }}>Visible Budget Total</td>
               <td/><td style={{ padding:"12px 14px", fontWeight:800, color:"#D4A520", ...M, fontSize:15 }}>{$k(visibleBudget)}</td>
               <td style={{ padding:"12px 14px", color:"#C9921A", ...M, fontSize:12 }}>{$k(totalPx>0?visibleBudget/totalPx:0)}/participant</td>
               <td/>
             </tr>
             {viewRole === "CEO / Owner" && (
-              <tr style={{ background:"#0a1f0a" }}>
-                <td style={{ padding:"10px 14px", fontWeight:700, color:"#22d37f", fontSize:12 }}>Total Company Budget (All Lines)</td>
-                <td/><td style={{ padding:"10px 14px", fontWeight:800, color:"#22d37f", ...M, fontSize:13 }}>{$k(totalBudget)}</td>
-                <td style={{ padding:"10px 14px", color:"#22d37f", ...M, fontSize:11 }}>
+              <tr style={{ background:"#f0fff4" }}>
+                <td style={{ padding:"10px 14px", fontWeight:700, color:"#15803d", fontSize:12 }}>Total Company Budget (All Lines)</td>
+                <td/><td style={{ padding:"10px 14px", fontWeight:800, color:"#15803d", ...M, fontSize:13 }}>{$k(totalBudget)}</td>
+                <td style={{ padding:"10px 14px", color:"#15803d", ...M, fontSize:11 }}>
                   {annualRev > 0 ? pct(totalBudget/annualRev) : "—"} of revenue
                 </td>
                 <td/>
@@ -2195,7 +2080,7 @@ function BudgetBuilderTab({ co, hourlyTotals, wage }) {
       </div>
 
       {viewRole === "CEO / Owner" && (
-        <div style={{ padding:"12px 16px", background:"#0e1625", borderRadius:9, border:"1px solid #c8d4e4", fontSize:11, color:"#5a7498", lineHeight:1.8 }}>
+        <div style={{ padding:"12px 16px", background:"#f0f4fa", borderRadius:9, border:"1px solid #c8d4e4", fontSize:11, color:"#5a7498", lineHeight:1.8 }}>
           <strong style={{ color:"#D4A520" }}>How to use this budget tool:</strong> Recommended values are calculated from your model's participant count and revenue. Adjust any line by clicking the dollar amount. Role-based views hide financial position from non-executive roles — a House Lead only sees their program supply and activity budget; HR only sees recruiting and training. Use this tool to set department budgets that directors can work within without seeing company-level financials.
         </div>
       )}
@@ -2601,11 +2486,24 @@ function PortfolioComparison() {
 // SERVICE LINE STRIP COMPONENTS
 // ════════════════════════════════════════════════════════════════════
 
-function ServiceLineTab({ label, active, onClick, onRemove }) {
+function ServiceLineTab({ label, active, onRemove, containerRef, isDragging, onPointerDown, onPointerMove, onPointerUp }) {
   return (
-    <div style={{ position:"relative", display:"inline-flex", alignItems:"stretch" }}>
-      <button onClick={onClick} style={{
-        padding:"7px 14px", borderRadius:"7px 7px 0 0", border:"none", cursor:"pointer",
+    <div
+      ref={containerRef}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      style={{
+        position:"relative", display:"inline-flex", alignItems:"stretch",
+        cursor: "pointer", flexShrink:0,
+        userSelect:"none", touchAction:"none",
+        opacity: isDragging ? 0.45 : 1,
+        transition:"opacity 80ms",
+      }}
+    >
+      <button style={{
+        padding:"7px 14px", borderRadius:"7px 7px 0 0", border:"none",
+        cursor:"inherit", pointerEvents:"none",
         fontSize:11, fontWeight:700, whiteSpace:"nowrap",
         background: active ? "#141d2c" : "transparent",
         color: active ? "#D4A520" : "#5a7498",
@@ -2617,11 +2515,26 @@ function ServiceLineTab({ label, active, onClick, onRemove }) {
       }}>
         {label}
         {active && onRemove && (
-          <span onClick={(e) => { e.stopPropagation(); onRemove(); }}
-            style={{ marginLeft:8, color:"#cf6e6e", fontSize:10, opacity:0.7 }}
+          <span
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onRemove(); }}
+            style={{ marginLeft:8, color:"#cf6e6e", fontSize:10, opacity:0.7, pointerEvents:"auto" }}
             title="Remove service line">✕</span>
         )}
       </button>
+    </div>
+  );
+}
+
+// Animated gap that appears between tabs during a drag to show the drop target.
+function GapIndicator({ width }) {
+  return (
+    <div style={{
+      display:"inline-flex", alignItems:"center", justifyContent:"center",
+      width, minWidth:2, alignSelf:"stretch",
+      transition:"width 120ms ease", flexShrink:0,
+    }}>
+      <div style={{ width:2, height:20, background:"#D4A520", borderRadius:1, opacity:0.85 }} />
     </div>
   );
 }
@@ -2767,12 +2680,15 @@ const SUB_TABS = {
     { id: "portfolio", label: "📊 Portfolio" },
   ],
   RES_HAB_DAILY: [
+    { id: "hometypes", label: "🏘 Home Types" },
     { id: "mixeditor", label: "🏠 Home Mix Editor" },
     { id: "projector", label: "🔬 Home Projector" },
     { id: "labor",     label: "🏗 Labor Efficiency" },
+    { id: "reshab_pl", label: "💵 P&L" },
   ],
   RES_HAB_HOURLY: [
     { id: "hourly",    label: "⏱ Hourly Services" },
+    { id: "hourly_pl", label: "💵 P&L" },
   ],
   TSC: [
     { id: "tsc_roster",       label: "👥 Roster & Caseload" },
@@ -2788,6 +2704,38 @@ function getSubTabsFor(slType) {
 function getDefaultSubTab(slType) {
   const tabs = getSubTabsFor(slType);
   return tabs[0]?.id || "placeholder";
+}
+
+// Returns sub-tabs in savedOrder sequence, falling back to defaults for any unknown ids.
+function applyTabOrder(defaults, savedOrder) {
+  if (!savedOrder || savedOrder.length === 0) return defaults;
+  const map = Object.fromEntries(defaults.map(t => [t.id, t]));
+  return savedOrder.map(id => map[id]).filter(Boolean);
+}
+
+// Compute a co-shaped P&L object for a single service line.
+// revShare allocates company-level mgmt salaries & overhead proportionally.
+function calcSLCo({ annualRevGrossRaw, annualLaborRaw, totalHomes, totalClients,
+                    occupancy, mgmtFeePct, billingFeePct, entityType, ownerRate,
+                    revShare, fullMgmtTotal, fullOverheadTotal }) {
+  const annualRevGross    = annualRevGrossRaw;
+  const annualRevNet      = annualRevGross * (occupancy / 100);
+  const annualDirectLabor = annualLaborRaw  * (occupancy / 100);
+  const payrollBurden     = annualDirectLabor * 0.22;
+  const totalLabor        = annualDirectLabor + payrollBurden;
+  const mgmtTotal         = fullMgmtTotal    * revShare;
+  const overheadTotal     = fullOverheadTotal * revShare;
+  const mgmtFee           = annualRevNet * (mgmtFeePct    / 100);
+  const billingFee        = annualRevNet * (billingFeePct / 100);
+  const totalCosts        = totalLabor + mgmtTotal + overheadTotal + mgmtFee + billingFee;
+  const ebitda            = annualRevNet - totalCosts;
+  const ebitdaMargin      = annualRevNet > 0 ? ebitda / annualRevNet : 0;
+  const { stateTax, federalTax, totalTax, netIncome } = calcTax(ebitda, entityType, ownerRate);
+  const netMargin         = annualRevNet > 0 ? netIncome / annualRevNet : 0;
+  return { totalHomes, totalClients, annualRevGross, annualRevNet, annualDirectLabor,
+           payrollBurden, totalLabor, mgmtTotal, overheadTotal, mgmtFee, billingFee,
+           totalCosts, ebitda, ebitdaMargin, stateTax, federalTax, totalTax,
+           netIncome, netMargin };
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -2830,6 +2778,155 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
           : sl
       ),
     }));
+  };
+
+  // ── Service line tab drag-to-reorder ──
+  const slDragState  = useRef({ dragId:null, startX:0, didMove:false, dragTabWidth:80, originalIndex:0 });
+  const slTabRefs    = useRef(new Map());
+  const slRafId      = useRef(null);
+  const slInsertRef  = useRef(null);
+  const [slDragId,         setSlDragId]         = useState(null);
+  const [slInsertionIndex, setSlInsertionIndex] = useState(null);
+
+  const handleSLPointerDown = (e, sl, index, currentVisibleSLs) => {
+    setActiveKey(sl.id);  // activate immediately on press, like Chrome
+    if (currentVisibleSLs.length <= 1) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const rect = slTabRefs.current.get(sl.id)?.getBoundingClientRect();
+    slDragState.current = { dragId:sl.id, startX:e.clientX, didMove:false, dragTabWidth:rect?.width ?? 80, originalIndex:index };
+  };
+
+  const handleSLPointerMove = (e, sl, currentVisibleSLs) => {
+    const ds = slDragState.current;
+    if (!ds.dragId) return;
+    if (!ds.didMove) {
+      if (Math.abs(e.clientX - ds.startX) < 5) return;
+      ds.didMove = true;
+      setSlDragId(ds.dragId);
+      setSlInsertionIndex(ds.originalIndex);
+    }
+    const node = slTabRefs.current.get(ds.dragId);
+    if (node) {
+      node.style.transform  = `translateX(${e.clientX - ds.startX}px) translateY(-3px)`;
+      node.style.zIndex     = "200";
+      node.style.boxShadow  = "0 6px 20px rgba(0,0,0,0.22)";
+      node.style.transition = "box-shadow 80ms";
+    }
+    if (slRafId.current) cancelAnimationFrame(slRafId.current);
+    const clientX = e.clientX;
+    slRafId.current = requestAnimationFrame(() => {
+      let idx = 0;
+      currentVisibleSLs.forEach((s, i) => {
+        const r = slTabRefs.current.get(s.id)?.getBoundingClientRect();
+        if (r && clientX > r.left + r.width / 2) idx = i + 1;
+      });
+      slInsertRef.current = idx;
+      setSlInsertionIndex(idx);
+    });
+  };
+
+  const handleSLPointerUp = (e, sl, currentVisibleSLs) => {
+    const ds = slDragState.current;
+    if (!ds.dragId) return;
+    const node = slTabRefs.current.get(ds.dragId);
+    if (node) { node.style.transform = ""; node.style.zIndex = ""; node.style.boxShadow = ""; node.style.transition = ""; }
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    if (ds.didMove) {
+      const fromIdx = currentVisibleSLs.findIndex(s => s.id === ds.dragId);
+      let toIdx = slInsertRef.current ?? fromIdx;
+      if (toIdx > fromIdx) toIdx--;
+      toIdx = Math.max(0, Math.min(toIdx, currentVisibleSLs.length - 1));
+      if (fromIdx !== toIdx && company) {
+        const reordered = [...currentVisibleSLs];
+        const [moved] = reordered.splice(fromIdx, 1);
+        reordered.splice(toIdx, 0, moved);
+        const archived = company.serviceLines.filter(s => s.archived);
+        updateCompany(company.id, co => ({ ...co, serviceLines: [...reordered, ...archived] }));
+      }
+    }
+    slDragState.current = { dragId:null, startX:0, didMove:false, dragTabWidth:80, originalIndex:0 };
+    setSlDragId(null);
+    setSlInsertionIndex(null);
+    slInsertRef.current = null;
+  };
+
+  // ── Sub-tab drag-to-reorder ──
+  const stDragState  = useRef({ dragId:null, startX:0, didMove:false, dragTabWidth:80, originalIndex:0 });
+  const stTabRefs    = useRef(new Map());
+  const stRafId      = useRef(null);
+  const stInsertRef  = useRef(null);
+  const [stDragId,         setStDragId]         = useState(null);
+  const [stInsertionIndex, setStInsertionIndex] = useState(null);
+
+  const handleSTPointerDown = (e, tabId, index, currentSubTabs) => {
+    setSubTab(tabId);  // activate immediately on press
+    if (currentSubTabs.length <= 1) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const rect = stTabRefs.current.get(tabId)?.getBoundingClientRect();
+    stDragState.current = { dragId:tabId, startX:e.clientX, didMove:false, dragTabWidth:rect?.width ?? 80, originalIndex:index };
+  };
+
+  const handleSTPointerMove = (e, tabId, currentSubTabs) => {
+    const ds = stDragState.current;
+    if (!ds.dragId) return;
+    if (!ds.didMove) {
+      if (Math.abs(e.clientX - ds.startX) < 5) return;
+      ds.didMove = true;
+      setStDragId(ds.dragId);
+      setStInsertionIndex(ds.originalIndex);
+    }
+    const node = stTabRefs.current.get(ds.dragId);
+    if (node) {
+      node.style.transform  = `translateX(${e.clientX - ds.startX}px) translateY(-2px)`;
+      node.style.zIndex     = "200";
+      node.style.boxShadow  = "0 4px 14px rgba(0,0,0,0.18)";
+      node.style.transition = "box-shadow 80ms";
+    }
+    if (stRafId.current) cancelAnimationFrame(stRafId.current);
+    const clientX = e.clientX;
+    stRafId.current = requestAnimationFrame(() => {
+      let idx = 0;
+      currentSubTabs.forEach((t, i) => {
+        const r = stTabRefs.current.get(t.id)?.getBoundingClientRect();
+        if (r && clientX > r.left + r.width / 2) idx = i + 1;
+      });
+      stInsertRef.current = idx;
+      setStInsertionIndex(idx);
+    });
+  };
+
+  const handleSTPointerUp = (e, tabId, currentSubTabs) => {
+    const ds = stDragState.current;
+    if (!ds.dragId) return;
+    const node = stTabRefs.current.get(ds.dragId);
+    if (node) { node.style.transform = ""; node.style.zIndex = ""; node.style.boxShadow = ""; node.style.transition = ""; }
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    if (ds.didMove) {
+      const fromIdx = currentSubTabs.findIndex(t => t.id === ds.dragId);
+      let toIdx = stInsertRef.current ?? fromIdx;
+      if (toIdx > fromIdx) toIdx--;
+      toIdx = Math.max(0, Math.min(toIdx, currentSubTabs.length - 1));
+      if (fromIdx !== toIdx && company) {
+        const reordered = [...currentSubTabs];
+        const [moved] = reordered.splice(fromIdx, 1);
+        reordered.splice(toIdx, 0, moved);
+        const reorderedIds = reordered.map(t => t.id);
+        if (isWholeCompany) {
+          updateShared("wholeCompanySubTabOrder", reorderedIds);
+        } else {
+          updateCompany(company.id, co => ({
+            ...co,
+            serviceLines: co.serviceLines.map(sl =>
+              sl.id === activeKey ? { ...sl, subTabOrder: reorderedIds } : sl
+            ),
+          }));
+        }
+      }
+    }
+    stDragState.current = { dragId:null, startX:0, didMove:false, dragTabWidth:80, originalIndex:0 };
+    setStDragId(null);
+    setStInsertionIndex(null);
+    stInsertRef.current = null;
   };
 
   const handleAddServiceLine = (type) => {
@@ -3001,7 +3098,9 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
 
   // ── Service line strip data ──
   const visibleSLs = company.serviceLines.filter(sl => !sl.archived);
-  const subTabs = getSubTabsFor(activeSLType);
+  const subTabs = isWholeCompany
+    ? applyTabOrder(getSubTabsFor("WHOLE_COMPANY"), company.shared.wholeCompanySubTabOrder)
+    : applyTabOrder(getSubTabsFor(activeSLType), activeSL?.subTabOrder);
 
   return (
     <>
@@ -3077,22 +3176,47 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
           </div>
 
           {/* ── Service line tab strip ── */}
-          <div style={{ display:"flex", gap:2, marginTop:12, alignItems:"flex-end", overflow:"visible", position:"relative", zIndex:100 }}>
-            <div style={{ display:"flex", gap:2, alignItems:"flex-end", overflowX:"auto", flex:1, overflow:"visible" }}>
-              <ServiceLineTab label="🏢 Whole Company" active={isWholeCompany}
-                onClick={() => setActiveKey("WHOLE_COMPANY")} />
-              {visibleSLs.map(sl => (
-                <ServiceLineTab key={sl.id}
-                  label={sl.name || getShortLabel(sl.type)}
-                  active={activeKey === sl.id}
-                  onClick={() => setActiveKey(sl.id)}
-                  onRemove={() => handleRemoveServiceLine(sl.id)}/>
-              ))}
+          <div style={{ display:"flex", marginTop:12, alignItems:"flex-end", gap:0 }}>
+            {/* Double-wrapper: outer constrains width, inner scrolls */}
+            <div style={{ flex:1, minWidth:0, overflow:"hidden" }}>
+              <div style={{ display:"flex", gap:2, alignItems:"flex-end", overflowX:"auto", scrollbarWidth:"none" }}>
+                {/* Whole Company — pinned, no drag */}
+                <ServiceLineTab label="🏢 Whole Company" active={isWholeCompany}
+                  onPointerDown={() => setActiveKey("WHOLE_COMPANY")} />
+                {/* Draggable service line tabs */}
+                {(() => {
+                  const items = [];
+                  visibleSLs.forEach((sl, i) => {
+                    if (slDragId && slInsertionIndex === i) {
+                      items.push(<GapIndicator key="__sl_gap__" width={slDragState.current.dragTabWidth} />);
+                    }
+                    items.push(
+                      <ServiceLineTab key={sl.id}
+                        label={sl.name || getShortLabel(sl.type)}
+                        active={activeKey === sl.id}
+                        onRemove={() => handleRemoveServiceLine(sl.id)}
+                        containerRef={node => { if (node) slTabRefs.current.set(sl.id, node); else slTabRefs.current.delete(sl.id); }}
+                        isDragging={slDragId === sl.id}
+                        onPointerDown={e => handleSLPointerDown(e, sl, i, visibleSLs)}
+                        onPointerMove={e => handleSLPointerMove(e, sl, visibleSLs)}
+                        onPointerUp={e => handleSLPointerUp(e, sl, visibleSLs)}
+                      />
+                    );
+                  });
+                  if (slDragId && slInsertionIndex === visibleSLs.length) {
+                    items.push(<GapIndicator key="__sl_gap__" width={slDragState.current.dragTabWidth} />);
+                  }
+                  return items;
+                })()}
+              </div>
+            </div>
+            {/* Add button — outside scroll so its dropdown isn't clipped */}
+            <div style={{ flexShrink:0, alignSelf:"flex-end", position:"relative", zIndex:200, paddingBottom:2, marginLeft:6 }}>
               <AddServiceLineButton
                 existingTypes={visibleSLs.map(sl => sl.type)}
                 onAdd={handleAddServiceLine}/>
             </div>
-            <div style={{ paddingBottom:8, display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+            <div style={{ paddingBottom:8, display:"flex", alignItems:"center", gap:8, flexShrink:0, marginLeft:8 }}>
               <div style={{ width:1, height:16, background:"#b5c8de" }}/>
               <span style={{ fontSize:9, color:"#64748b", letterSpacing:2, textTransform:"uppercase", ...M }}>
                 Powered by <span style={{ color:"#D4A520" }}>Intrinsic Inc</span>
@@ -3103,10 +3227,8 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
 
         {/* ── Body: sidebar + content ── */}
         <div style={{ display:"grid", gridTemplateColumns:"240px 1fr", flex:1, minHeight:0 }}>
-          <Sidebar wage={wage} setWage={setWage} graveyardWage={graveyardWage} setGraveyardWage={setGraveyardWage}
-            occupancy={occupancy} setOccupancy={setOccupancy}
+          <Sidebar
             entityType={entityType} setEntityType={setEntityType} ownerRate={ownerRate} setOwnerRate={setOwnerRate}
-            homeMetrics={homeMetrics} rates={rates} setRates={setRates}
             mgmtFeePct={mgmtFeePct} setMgmtFeePct={setMgmtFeePct}
             billingFeePct={billingFeePct} setBillingFeePct={setBillingFeePct}/>
 
@@ -3116,20 +3238,50 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
               <div style={{
                 padding:"8px 24px 0", background:"#f5f7fa",
                 display:"flex", gap:2, alignItems:"flex-end",
-                borderBottom:"1px solid #e2e8f0", flexShrink:0, overflowX:"auto",
+                borderBottom:"1px solid #e2e8f0", flexShrink:0,
+                overflowX:"auto", scrollbarWidth:"none",
               }}>
-                {subTabs.map(t => (
-                  <button key={t.id} onClick={() => setSubTab(t.id)} style={{
-                    padding:"6px 14px", borderRadius:"6px 6px 0 0", border:"none", cursor:"pointer",
-                    fontSize:11, fontWeight:600, whiteSpace:"nowrap",
-                    background: subTab === t.id ? "#fff" : "transparent",
-                    color:      subTab === t.id ? "#5a3800" : "#64748b",
-                    borderTop:    subTab === t.id ? "1px solid #c8d4e4" : "none",
-                    borderLeft:   subTab === t.id ? "1px solid #c8d4e4" : "none",
-                    borderRight:  subTab === t.id ? "1px solid #c8d4e4" : "none",
-                    marginBottom: subTab === t.id ? "-1px" : "0",
-                  }}>{t.label}</button>
-                ))}
+                {(() => {
+                  const items = [];
+                  subTabs.forEach((t, i) => {
+                    if (stDragId && stInsertionIndex === i) {
+                      items.push(<GapIndicator key="__st_gap__" width={stDragState.current.dragTabWidth} />);
+                    }
+                    const isDraggingThis = stDragId === t.id;
+                    items.push(
+                      <div
+                        key={t.id}
+                        ref={node => { if (node) stTabRefs.current.set(t.id, node); else stTabRefs.current.delete(t.id); }}
+                        onPointerDown={e => handleSTPointerDown(e, t.id, i, subTabs)}
+                        onPointerMove={e => handleSTPointerMove(e, t.id, subTabs)}
+                        onPointerUp={e => handleSTPointerUp(e, t.id, subTabs)}
+                        style={{
+                          display:"inline-flex", alignItems:"stretch",
+                          cursor: "pointer", flexShrink:0,
+                          userSelect:"none", touchAction:"none",
+                          opacity: isDraggingThis ? 0.45 : 1,
+                          transition:"opacity 80ms",
+                        }}
+                      >
+                        <button style={{
+                          padding:"6px 14px", borderRadius:"6px 6px 0 0", border:"none",
+                          cursor:"inherit", pointerEvents:"none",
+                          fontSize:11, fontWeight:600, whiteSpace:"nowrap",
+                          background: subTab === t.id ? "#fff" : "transparent",
+                          color:      subTab === t.id ? "#5a3800" : "#64748b",
+                          borderTop:    subTab === t.id ? "1px solid #c8d4e4" : "none",
+                          borderLeft:   subTab === t.id ? "1px solid #c8d4e4" : "none",
+                          borderRight:  subTab === t.id ? "1px solid #c8d4e4" : "none",
+                          marginBottom: subTab === t.id ? "-1px" : "0",
+                        }}>{t.label}</button>
+                      </div>
+                    );
+                  });
+                  if (stDragId && stInsertionIndex === subTabs.length) {
+                    items.push(<GapIndicator key="__st_gap__" width={stDragState.current.dragTabWidth} />);
+                  }
+                  return items;
+                })()}
               </div>
             )}
 
@@ -3138,41 +3290,102 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
 
               {/* WHOLE COMPANY tabs */}
               {isWholeCompany && subTab === "company" && (
-                <CompanyTab homeTypes={homes} homeMetrics={homeMetrics} co={co}
-                  mgmt={mgmt} overhead={overhead}
-                  onUpdateType={(id, f, v) => setHomeTypes(p => p.map(h => h.id === id ? { ...h, [f]: v } : h))}
-                  onRemoveType={id => setHomeTypes(p => p.filter(h => h.id !== id))}
-                  onAddType={() => setHomeTypes(p => [...p, mkType(`Home Type ${String.fromCharCode(65 + p.length % 26)}`, 2, 1, 12, "normal", 5)])}
+                <CompanyTab co={co} mgmt={mgmt} overhead={overhead}
                   onMgmt={(id, v) => setMgmt(p => p.map(m => m.id === id ? { ...m, salary: v } : m))}
                   onOvhd={(id, v) => setOverhead(p => p.map(o => o.id === id ? { ...o, amount: v } : o))}
-                  entityType={entityType} ownerRate={ownerRate} rates={rates}
-                  mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}
-                  isAdmin={!userRole || userRole === "licensor"}
-                  wage={wage}/>
+                  entityType={entityType} ownerRate={ownerRate}
+                  mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}/>
               )}
               {isWholeCompany && subTab === "budget"    && <BudgetBuilderTab co={co} hourlyTotals={hourlyTotals} wage={wage}/>}
               {isWholeCompany && subTab === "faq"       && <FAQTab/>}
               {isWholeCompany && subTab === "portfolio" && <PortfolioComparison/>}
 
               {/* RES_HAB_DAILY tabs */}
+              {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "hometypes" && (
+                <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                  {homeMetrics.map(h => (
+                    <HomeTypeCard key={h.id} home={h} metrics={h.metrics}
+                      onUpdate={(f,v) => setHomeTypes(p => p.map(t => t.id === h.id ? { ...t, [f]:v } : t))}
+                      onRemove={() => setHomeTypes(p => p.filter(t => t.id !== h.id))}
+                      canRemove={homes.length > 1}
+                      rates={rates}/>
+                  ))}
+                  <button
+                    onClick={() => setHomeTypes(p => [...p, mkType(`Home Type ${String.fromCharCode(65 + p.length % 26)}`, 2, 1, 12, "normal", 5)])}
+                    style={{ padding:"12px", borderRadius:11, border:"2px dashed #d0dae8", background:"none", color:"#7a5020", cursor:"pointer", fontSize:13, fontWeight:700, fontFamily:"'Sora',sans-serif" }}
+                    onMouseEnter={e=>{e.currentTarget.style.borderColor="#D4A52050";e.currentTarget.style.color="#D4A520";}}
+                    onMouseLeave={e=>{e.currentTarget.style.borderColor="#d5c898";e.currentTarget.style.color="#7a5020";}}>
+                    + Add Home Type
+                  </button>
+                  {homeMetrics.length >= 2 && (
+                    <div style={{ background:"#f8f6f0", borderRadius:12, border:"1px solid #d0dae8", padding:"16px 20px" }}>
+                      <SL>Home Type Comparison — Gross Per Home Per Day</SL>
+                      {homeMetrics.map(h => {
+                        const mx = Math.max(...homeMetrics.map(x => x.metrics.gross));
+                        return (
+                          <div key={h.id} style={{ marginBottom:10 }}>
+                            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
+                              <span style={{ fontSize:11, color:"#6a4c10" }}>{h.label}</span>
+                              <span style={{ fontSize:11, fontWeight:700, color:mc(h.metrics.margin), ...M }}>{$d(h.metrics.gross)} · {pct(h.metrics.margin)}</span>
+                            </div>
+                            <div style={{ height:7, background:"#ebebeb", borderRadius:3, overflow:"hidden" }}>
+                              <div style={{ height:"100%", width:`${mx>0?(h.metrics.gross/mx)*100:0}%`, background:`linear-gradient(90deg,${mc(h.metrics.margin)}50,${mc(h.metrics.margin)})`, borderRadius:3, transition:"width 0.4s" }}/>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "mixeditor" && (
                 <HomeMixEditor homes={indHomes}
                   onUpdate={(id, f, v) => setIndHomes(p => p.map(h => h.id === id ? { ...h, [f]: v } : h))}
                   onAdd={() => setIndHomes(p => [...p, mkHome(`Home ${p.length + 1}`, 2, 1, 12, "normal")])}
                   onRemove={id => setIndHomes(p => p.filter(h => h.id !== id))}
-                  wage={wage} rates={rates} graveyardWage={graveyardWage}/>
+                  wage={wage} setWage={setWage}
+                  rates={rates} setRates={setRates}
+                  graveyardWage={graveyardWage} setGraveyardWage={setGraveyardWage}
+                  occupancy={occupancy} setOccupancy={setOccupancy}/>
               )}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "projector" &&
                 <SingleHomeProjector wage={wage} rates={rates} graveyardWage={graveyardWage}/>}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "labor" &&
                 <LaborEfficiencyTab wage={wage} rates={rates} graveyardWage={graveyardWage}/>}
+              {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "reshab_pl" && (() => {
+                const rawRev    = homeMetrics.reduce((a,h) => a + h.metrics.rev   * (h.numHomes||0), 0) * 365;
+                const rawLabor  = homeMetrics.reduce((a,h) => a + h.metrics.labor * (h.numHomes||0), 0) * 365;
+                const slHomes   = homes.reduce((a,h) => a + (h.numHomes||0), 0);
+                const slClients = homes.reduce((a,h) => a + ((h.nHigh||0)+(h.nIntense||0))*(h.numHomes||0), 0);
+                const revShare  = co.annualRevGross > 0 ? rawRev / co.annualRevGross : 1;
+                const slCo = calcSLCo({ annualRevGrossRaw:rawRev, annualLaborRaw:rawLabor,
+                  totalHomes:slHomes, totalClients:slClients, occupancy, mgmtFeePct, billingFeePct,
+                  entityType, ownerRate, revShare, fullMgmtTotal:co.mgmtTotal, fullOverheadTotal:co.overheadTotal });
+                return <CompanyPL co={slCo} mgmt={mgmt} overhead={overhead}
+                  onMgmt={(id,v)=>setMgmt(p=>p.map(m=>m.id===id?{...m,salary:v}:m))}
+                  onOvhd={(id,v)=>setOverhead(p=>p.map(o=>o.id===id?{...o,amount:v}:o))}
+                  entityType={entityType} ownerRate={ownerRate}
+                  mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}/>;
+              })()}
 
-              {/* RES_HAB_HOURLY tab */}
+              {/* RES_HAB_HOURLY tabs */}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_HOURLY && subTab === "hourly" && (
                 <HourlyTab participants={hourlyPx} onUpdate={updateHourly}
                   onAdd={addHourly} onRemove={removeHourly}
                   wage={wage} rates={rates}/>
               )}
+              {activeSLType === SERVICE_LINE_TYPES.RES_HAB_HOURLY && subTab === "hourly_pl" && (() => {
+                const revShare = co.annualRevGross > 0 ? hourlyTotals.annualRev / co.annualRevGross : 1;
+                const slCo = calcSLCo({ annualRevGrossRaw:hourlyTotals.annualRev,
+                  annualLaborRaw:hourlyTotals.annualLabor, totalHomes:0,
+                  totalClients:hourlyPx.length, occupancy, mgmtFeePct, billingFeePct,
+                  entityType, ownerRate, revShare, fullMgmtTotal:co.mgmtTotal, fullOverheadTotal:co.overheadTotal });
+                return <CompanyPL co={slCo} mgmt={mgmt} overhead={overhead}
+                  onMgmt={(id,v)=>setMgmt(p=>p.map(m=>m.id===id?{...m,salary:v}:m))}
+                  onOvhd={(id,v)=>setOverhead(p=>p.map(o=>o.id===id?{...o,amount:v}:o))}
+                  entityType={entityType} ownerRate={ownerRate}
+                  mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}/>;
+              })()}
 
               {/* TSC tabs */}
               {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_roster" && (

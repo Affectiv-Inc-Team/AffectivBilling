@@ -115,6 +115,9 @@ export function createSharedConfig(overrides = {}) {
     },
     allocationMethod: 'revenue',
 
+    // User-defined tab order for the Whole Company sub-tab strip (null = default SUB_TABS order)
+    wholeCompanySubTabOrder: null,
+
     ...overrides,
   };
 }
@@ -127,6 +130,7 @@ export function createServiceLine(type, overrides = {}) {
     archived: false,
     overheadOverride: null,
     config: getDefaultConfig(type),
+    subTabOrder: null,  // null = use SUB_TABS[type] default order
     ...overrides,
   };
 }
