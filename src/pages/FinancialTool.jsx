@@ -1196,8 +1196,9 @@ function LaborEfficiencyTab({ wage: globalWage, rates = RATES_DEF, graveyardWage
 }
 
 
-function HomeMixEditor({ homes, onUpdate, onAdd, onRemove, wage, rates = RATES_DEF, graveyardWage }) {
+function HomeMixEditor({ homes, onUpdate, onAdd, onRemove, wage, setWage, rates = RATES_DEF, setRates, graveyardWage, setGraveyardWage, occupancy, setOccupancy }) {
   const [selId, setSelId] = useState(homes[0]?.id);
+  const [ratesOpen, setRatesOpen] = useState(false);
   const sel = homes.find(h=>h.id===selId) ?? homes[0];
   const m   = sel ? calcHome(sel, wage, rates, graveyardWage) : null;
   const canGroup = sel && sel.nIntense>0 && (sel.nHigh+sel.nIntense)>=2;
@@ -1329,6 +1330,65 @@ function HomeMixEditor({ homes, onUpdate, onAdd, onRemove, wage, rates = RATES_D
               </div>
             )}
 
+            {/* ── Home Settings ── */}
+            <div style={{ background:"#f0f2f7", borderRadius:10, border:"1px solid #d0dae8", padding:"14px 16px" }}>
+              <div style={{ fontSize:9, color:"#9a8050", letterSpacing:2, textTransform:"uppercase", fontWeight:700, marginBottom:12 }}>Home Settings</div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px 24px" }}>
+                <Slider label="Staff Wage" value={wage} min={12} max={32} step={0.25}
+                  onChange={setWage} color="#f87171" format={v=>`$${v.toFixed(2)}/hr`}/>
+                <Slider label="Graveyard / Sleeping Wage" value={graveyardWage} min={8} max={32} step={0.25}
+                  onChange={setGraveyardWage} color="#5a7498" format={v=>`$${v.toFixed(2)}/hr`}/>
+                <Slider label="Occupancy Rate" value={occupancy} min={60} max={100} step={1}
+                  onChange={setOccupancy} color="#D4A520" format={v=>`${v}%`}/>
+              </div>
+              {/* Reimbursement Rates */}
+              <div style={{ marginTop:14 }}>
+                <button onClick={() => setRatesOpen(o => !o)} style={{
+                  background:"none", border:"none", cursor:"pointer", padding:0,
+                  display:"flex", alignItems:"center", gap:6,
+                  fontSize:9, color:"#9a8050", letterSpacing:2, textTransform:"uppercase", fontWeight:700,
+                }}>
+                  <span style={{ fontSize:11, transition:"transform 200ms",
+                    transform: ratesOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+                  Reimbursement Rates
+                </button>
+                {ratesOpen && (
+                  <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:10 }}>
+                    {RATE_FIELDS.map(f => (
+                      <div key={f.key} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <div style={{ flex:1, fontSize:11, color:"#5a7498" }}>{f.label}</div>
+                        <div style={{ fontSize:10, color:"#9aabb8" }}>{f.unit}</div>
+                        <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                          <span style={{ fontSize:10, color:"#9aabb8" }}>$</span>
+                          <input type="number" step="0.01"
+                            value={rates[f.key] ?? f.baseline}
+                            onChange={e => setRates(r => ({ ...r, [f.key]: parseFloat(e.target.value)||0 }))}
+                            style={{ width:68, fontSize:12, fontWeight:600, color:f.color,
+                              background:"#f8f8f8", border:"1px solid #d0dae8", borderRadius:5,
+                              padding:"3px 6px", textAlign:"right" }}/>
+                        </div>
+                        <div style={{ display:"flex", gap:3 }}>
+                          {[2,4,6].map(p => (
+                            <button key={p} onClick={() =>
+                              setRates(r => ({ ...r, [f.key]: parseFloat((f.baseline*(1-p/100)).toFixed(4)) }))}
+                              style={{ fontSize:9, padding:"2px 5px", borderRadius:4, border:"1px solid #d0dae8",
+                                background:"#fff", color:"#64748b", cursor:"pointer" }}>
+                              −{p}%
+                            </button>
+                          ))}
+                          <button onClick={() => setRates(r => ({ ...r, [f.key]: f.baseline }))}
+                            style={{ fontSize:9, padding:"2px 5px", borderRadius:4, border:"1px solid #d0dae8",
+                              background:"#fff", color:"#64748b", cursor:"pointer" }}>
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Billing */}
             {sel.nIntense>0 && (
               <div>
@@ -1404,6 +1464,7 @@ function HomeMixEditor({ homes, onUpdate, onAdd, onRemove, wage, rates = RATES_D
                 ))}
               </div>
             )}
+
           </div>
         </div>
       )}
@@ -2728,7 +2789,6 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
   const [saveStatus, setSaveStatus] = useState("idle");
   const [activeKey, setActiveKey] = useState("WHOLE_COMPANY"); // "WHOLE_COMPANY" | service line id
   const [subTab, setSubTab] = useState("company");
-  const [slRatesOpen, setSlRatesOpen] = useState(false);
 
   const company = getSelectedCompany(config);
   const isWholeCompany = activeKey === "WHOLE_COMPANY";
@@ -3284,73 +3344,14 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
 
               {/* RES_HAB_DAILY tabs */}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "mixeditor" && (
-                <>
-                  {/* ── Service Line Settings panel ── */}
-                  <div style={{ background:"#f0f2f7", borderRadius:10, border:"1px solid #d0dae8",
-                                padding:"14px 18px", marginBottom:16, flexShrink:0 }}>
-                    <div style={{ fontSize:9, color:"#9a8050", letterSpacing:2, textTransform:"uppercase",
-                                  fontWeight:700, marginBottom:12 }}>Service Line Settings</div>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px 24px" }}>
-                      <Slider label="Staff Wage" value={wage} min={12} max={32} step={0.25}
-                        onChange={setWage} color="#f87171" format={v=>`$${v.toFixed(2)}/hr`}/>
-                      <Slider label="Graveyard / Sleeping Wage" value={graveyardWage} min={8} max={32} step={0.25}
-                        onChange={setGraveyardWage} color="#5a7498" format={v=>`$${v.toFixed(2)}/hr`}/>
-                      <Slider label="Occupancy Rate" value={occupancy} min={60} max={100} step={1}
-                        onChange={setOccupancy} color="#D4A520" format={v=>`${v}%`}/>
-                    </div>
-                    {/* Reimbursement Rates */}
-                    <div style={{ marginTop:14 }}>
-                      <button onClick={() => setSlRatesOpen(o => !o)} style={{
-                        background:"none", border:"none", cursor:"pointer", padding:0,
-                        display:"flex", alignItems:"center", gap:6,
-                        fontSize:9, color:"#9a8050", letterSpacing:2, textTransform:"uppercase", fontWeight:700,
-                      }}>
-                        <span style={{ fontSize:11, transition:"transform 200ms",
-                          transform: slRatesOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
-                        Reimbursement Rates
-                      </button>
-                      {slRatesOpen && (
-                        <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:10 }}>
-                          {RATE_FIELDS.map(f => (
-                            <div key={f.key} style={{ display:"flex", alignItems:"center", gap:8 }}>
-                              <div style={{ flex:1, fontSize:11, color:"#5a7498" }}>{f.label}</div>
-                              <div style={{ fontSize:10, color:"#9aabb8" }}>{f.unit}</div>
-                              <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                                <span style={{ fontSize:10, color:"#9aabb8" }}>$</span>
-                                <input type="number" step="0.01"
-                                  value={rates[f.key] ?? f.baseline}
-                                  onChange={e => setRates(r => ({ ...r, [f.key]: parseFloat(e.target.value)||0 }))}
-                                  style={{ width:68, fontSize:12, fontWeight:600, color:f.color,
-                                    background:"#f8f8f8", border:"1px solid #d0dae8", borderRadius:5,
-                                    padding:"3px 6px", textAlign:"right" }}/>
-                              </div>
-                              <div style={{ display:"flex", gap:3 }}>
-                                {[2,4,6].map(pct => (
-                                  <button key={pct} onClick={() =>
-                                    setRates(r => ({ ...r, [f.key]: parseFloat((f.baseline*(1-pct/100)).toFixed(4)) }))}
-                                    style={{ fontSize:9, padding:"2px 5px", borderRadius:4, border:"1px solid #d0dae8",
-                                      background:"#fff", color:"#64748b", cursor:"pointer" }}>
-                                    −{pct}%
-                                  </button>
-                                ))}
-                                <button onClick={() => setRates(r => ({ ...r, [f.key]: f.baseline }))}
-                                  style={{ fontSize:9, padding:"2px 5px", borderRadius:4, border:"1px solid #d0dae8",
-                                    background:"#fff", color:"#64748b", cursor:"pointer" }}>
-                                  Reset
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <HomeMixEditor homes={indHomes}
-                    onUpdate={(id, f, v) => setIndHomes(p => p.map(h => h.id === id ? { ...h, [f]: v } : h))}
-                    onAdd={() => setIndHomes(p => [...p, mkHome(`Home ${p.length + 1}`, 2, 1, 12, "normal")])}
-                    onRemove={id => setIndHomes(p => p.filter(h => h.id !== id))}
-                    wage={wage} rates={rates} graveyardWage={graveyardWage}/>
-                </>
+                <HomeMixEditor homes={indHomes}
+                  onUpdate={(id, f, v) => setIndHomes(p => p.map(h => h.id === id ? { ...h, [f]: v } : h))}
+                  onAdd={() => setIndHomes(p => [...p, mkHome(`Home ${p.length + 1}`, 2, 1, 12, "normal")])}
+                  onRemove={id => setIndHomes(p => p.filter(h => h.id !== id))}
+                  wage={wage} setWage={setWage}
+                  rates={rates} setRates={setRates}
+                  graveyardWage={graveyardWage} setGraveyardWage={setGraveyardWage}
+                  occupancy={occupancy} setOccupancy={setOccupancy}/>
               )}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "projector" &&
                 <SingleHomeProjector wage={wage} rates={rates} graveyardWage={graveyardWage}/>}
