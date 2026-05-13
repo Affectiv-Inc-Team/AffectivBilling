@@ -1628,38 +1628,21 @@ function SingleHomeProjector({ wage: globalWage, rates = RATES_DEF, graveyardWag
 /* ══════════════════════════════════════════════════════════
    SIDEBAR
 ══════════════════════════════════════════════════════════ */
-function Sidebar({ wage, setWage, graveyardWage, setGraveyardWage, occupancy, setOccupancy, entityType, setEntityType, ownerRate, setOwnerRate, homeMetrics, rates, setRates, mgmtFeePct, setMgmtFeePct, billingFeePct, setBillingFeePct }) {
-  const [ratesOpen,   setRatesOpen]   = useState(false);
-  const [feesOpen,    setFeesOpen]    = useState(true);
-  const [taxOpen,     setTaxOpen]     = useState(true);
-  const [wageOpen,    setWageOpen]    = useState(false);
 
-  const rateFields = [
-    { key:"intenseDaily", label:"Intense Support (Daily)",      unit:"/day",   color:"#D4A520", baseline:678.77 },
-    { key:"highDaily",    label:"High Support (Daily)",         unit:"/day",   color:"#C9921A", baseline:368.67 },
-    { key:"iuUnit",       label:"Intense Individual U2",        unit:"/15-min",color:"#00e5aa", baseline:7.07   },
-    { key:"igUnit",       label:"Intense Group U3",             unit:"/15-min",color:"#f59e0b", baseline:3.61   },
-  ];
+// Rate field definitions — shared between Sidebar and the Home Mix Editor settings panel.
+const RATE_FIELDS = [
+  { key:"intenseDaily", label:"Intense Support (Daily)",      unit:"/day",   color:"#D4A520", baseline:678.77 },
+  { key:"highDaily",    label:"High Support (Daily)",         unit:"/day",   color:"#C9921A", baseline:368.67 },
+  { key:"iuUnit",       label:"Intense Individual U2",        unit:"/15-min",color:"#00e5aa", baseline:7.07   },
+  { key:"igUnit",       label:"Intense Group U3",             unit:"/15-min",color:"#f59e0b", baseline:3.61   },
+];
 
-  const resetRates = () => setRates(RATES_DEF);
-  const isDirty = Object.keys(RATES_DEF).some(k => rates[k] !== RATES_DEF[k]);
+function Sidebar({ entityType, setEntityType, ownerRate, setOwnerRate, mgmtFeePct, setMgmtFeePct, billingFeePct, setBillingFeePct }) {
+  const [feesOpen, setFeesOpen] = useState(true);
+  const [taxOpen,  setTaxOpen]  = useState(true);
 
   return (
     <div style={{ borderRight:"1px solid #d0dae8", padding:"16px 14px", display:"flex", flexDirection:"column", gap:18, background:"#f4f2ec", overflowY:"auto" }}>
-      <div>
-        <SL>Global Settings</SL>
-        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-          <Slider label="Staff Wage"     value={wage}      min={12} max={32}  step={0.25} onChange={setWage}      color="#f87171" format={v=>`$${v.toFixed(2)}/hr`}/>
-          <div>
-            <Slider label="Graveyard / Sleeping Wage" value={graveyardWage} min={8} max={32} step={0.25} onChange={setGraveyardWage} color="#5a7498" format={v=>`$${v.toFixed(2)}/hr`}/>
-            <div style={{ fontSize:9, color:"#5a7498", ...M, marginTop:4 }}>
-              Applied to night group hours when staff are sleeping. Set equal to staff wage to disable.
-            </div>
-          </div>
-          <Slider label="Occupancy Rate" value={occupancy} min={60} max={100} step={1}    onChange={setOccupancy} color="#D4A520" format={v=>`${v}%`}/>
-        </div>
-      </div>
-
       <div>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: feesOpen ? 12 : 0 }}>
           <SL>Variable Fees</SL>
@@ -1683,96 +1666,6 @@ function Sidebar({ wage, setWage, graveyardWage, setGraveyardWage, occupancy, se
                 <span style={{ fontSize:9, color: billingFeePct===1?"#7a5020":"#C9921A", fontWeight:700, ...M }}>{billingFeePct !== 1 ? `+${(billingFeePct - 1).toFixed(2)}pp vs. standard` : "at standard"}</span>
               </div>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── REIMBURSEMENT RATES ── */}
-      <div>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-          <SL>Reimbursement Rates</SL>
-          <div style={{ display:"flex", gap:5, alignItems:"center" }}>
-            {isDirty && (
-              <button onClick={resetRates} style={{ fontSize:9, color:"#f87171", background:"#1a0606", border:"1px solid #f8717130", borderRadius:4, padding:"2px 7px", cursor:"pointer", ...M }}>Reset</button>
-            )}
-            <button onClick={()=>setRatesOpen(!ratesOpen)} style={{ fontSize:9, color:"#D4A520", background:"none", border:"1px solid #d0dae8", borderRadius:4, padding:"2px 7px", cursor:"pointer", ...M }}>
-              {ratesOpen?"▲":"▼"}
-            </button>
-          </div>
-        </div>
-
-        {/* Always-visible summary chips */}
-        <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
-          {rateFields.map(f => {
-            const val     = rates[f.key];
-            const changed = val !== f.baseline;
-            const chgPct  = ((val - f.baseline) / f.baseline * 100);
-            return (
-              <div key={f.key} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 8px", background:changed?"#0a1a0a":"#ebebeb", borderRadius:6, border:changed?`1px solid ${f.color}30`:"1px solid #e0e8f0" }}>
-                <span style={{ fontSize:9, color:"#5a4020", ...M, flex:1 }}>{f.label}</span>
-                <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                  <span style={{ fontSize:11, fontWeight:700, color: changed?f.color:"#6a4c10", ...M }}>${val.toFixed(2)}</span>
-                  {changed && <span style={{ fontSize:9, color: chgPct<0?"#f87171":"#00e5aa", ...M }}>{chgPct>0?"+":""}{chgPct.toFixed(1)}%</span>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Expanded editor */}
-        {ratesOpen && (
-          <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:12, padding:"12px", background:"#ebebeb", borderRadius:9, border:"1px solid #d0dae8" }}>
-            {rateFields.map(f => {
-              const val    = rates[f.key];
-              const chgPct = ((val - f.baseline) / f.baseline * 100);
-              return (
-                <div key={f.key}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:5 }}>
-                    <span style={{ fontSize:9, color:"#5a4020", textTransform:"uppercase", letterSpacing:1, ...M }}>{f.label}</span>
-                    <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                      <span style={{ fontSize:9, color:"#9a8050", ...M }}>baseline ${f.baseline.toFixed(2)}</span>
-                      {val !== f.baseline && (
-                        <span style={{ fontSize:9, fontWeight:700, color:chgPct<0?"#f87171":"#00e5aa", ...M }}>
-                          {chgPct>0?"+":""}{chgPct.toFixed(1)}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                    <div style={{ flex:1, display:"flex", alignItems:"center", background:"#0d0c07", borderRadius:6, border:`1px solid ${val !== f.baseline ? f.color+"60" : "#d5c898"}`, padding:"4px 8px", gap:3 }}>
-                      <span style={{ fontSize:10, color:"#7a5020", ...M }}>$</span>
-                      <input
-                        type="number"
-                        value={val}
-                        min={0}
-                        step={0.01}
-                        onChange={e => setRates(r => ({ ...r, [f.key]: Math.max(0, Number(e.target.value)) }))}
-                        style={{ flex:1, background:"none", border:"none", color:f.color, ...M, fontSize:13, fontWeight:700, outline:"none", minWidth:0 }}
-                      />
-                      <span style={{ fontSize:9, color:"#9a8050", ...M, whiteSpace:"nowrap" }}>{f.unit}</span>
-                    </div>
-                    {/* Quick reduction buttons */}
-                    <div style={{ display:"flex", gap:3 }}>
-                      {[-2,-4,-6].map(p => (
-                        <button key={p} onClick={() => setRates(r => ({ ...r, [f.key]: Math.max(0, parseFloat((f.baseline * (1 + p/100)).toFixed(4))) }))}
-                          style={{ padding:"4px 5px", background:Math.abs(chgPct - p) < 0.1 ?"#1a0606":"#0d0c07", border:`1px solid ${Math.abs(chgPct - p) < 0.1?"#f87171":"#d5c898"}`, borderRadius:4, cursor:"pointer", fontSize:9, color: Math.abs(chgPct - p) < 0.1?"#f87171":"#7a5020", ...M, whiteSpace:"nowrap" }}>
-                          {p}%
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            <div style={{ paddingTop:8, borderTop:"1px solid #d0dae8", fontSize:9, color:"#9a8050", lineHeight:1.6 }}>
-              Quick buttons apply % reductions from the <em>baseline</em> rate. Type any value directly. All models update live.
-            </div>
-          </div>
-        )}
-
-        {isDirty && (
-          <div style={{ marginTop:8, padding:"6px 10px", background:"#1a0606", borderRadius:6, border:"1px solid #f8717130", fontSize:9, color:"#f87171", lineHeight:1.6, ...M }}>
-            ⚠ Custom rates active — results differ from Idaho baseline
           </div>
         )}
       </div>
@@ -1806,31 +1699,6 @@ function Sidebar({ wage, setWage, graveyardWage, setGraveyardWage, occupancy, se
               </div>
             )}
           </>
-        )}
-      </div>
-
-      <div>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: wageOpen ? 8 : 0 }}>
-          <SL>Wage Sensitivity</SL>
-          <button onClick={()=>setWageOpen(!wageOpen)} style={{ fontSize:9, color:"#D4A520", background:"none", border:"1px solid #d0dae8", borderRadius:4, padding:"2px 7px", cursor:"pointer", ...M }}>
-            {wageOpen?"▲":"▼"}
-          </button>
-        </div>
-        {wageOpen && (
-          <div style={{ background:"#f8f6f0", borderRadius:9, padding:"10px", border:"1px solid #d0dae8" }}>
-            {[wage-2,wage,wage+2,wage+4].filter(w=>w>=10&&w<=35).map(w=>{
-              const g=homeMetrics.reduce((a,h)=>a+calcHome(h,w,rates,graveyardWage).gross*h.numHomes,0);
-              const r=homeMetrics.reduce((a,h)=>a+h.metrics.rev*h.numHomes,0);
-              const p=r>0?g/r:0;
-              return (
-                <div key={w} style={{ display:"flex", justifyContent:"space-between", padding:"4px 0", borderBottom:"1px solid #e8edf3" }}>
-                  <span style={{ fontSize:10, color:w===wage?"#5a3800":"#5a4020", ...M, fontWeight:w===wage?700:400 }}>${w.toFixed(2)}/hr</span>
-                  <span style={{ fontSize:10, color:mc(p), ...M, fontWeight:700 }}>{pct(p)}</span>
-                </div>
-              );
-            })}
-            <div style={{ marginTop:6, fontSize:9, color:"#9a8050" }}>Company-wide direct labor margin</div>
-          </div>
         )}
       </div>
 
@@ -2109,7 +1977,7 @@ function BudgetBuilderTab({ co, hourlyTotals, wage }) {
           { l:"Net Revenue",           v: annualRev,     c:"#5a3800",  f:$k  },
           { l:"Revenue / Participant", v: revPerPx,      c:"#C9921A",  f:$k  },
         ].map((s,i)=>(
-          <div key={i} style={{ background:"#141d2c", borderRadius:9, padding:"12px 16px", border:"1px solid #c8d4e4" }}>
+          <div key={i} style={{ background:"#f0f4fa", borderRadius:9, padding:"12px 16px", border:"1px solid #c8d4e4" }}>
             <div style={{ fontSize:9, color:"#5a7498", textTransform:"uppercase", letterSpacing:1.5, ...M, marginBottom:5 }}>{s.l}</div>
             <div style={{ fontSize:18, fontWeight:800, color:s.c, ...M }}>{s.f(s.v)}</div>
           </div>
@@ -2117,7 +1985,7 @@ function BudgetBuilderTab({ co, hourlyTotals, wage }) {
       </div>
 
       {/* Role selector */}
-      <div style={{ background:"#141d2c", borderRadius:10, border:"1px solid #c8d4e4", padding:"14px 18px" }}>
+      <div style={{ background:"#f0f4fa", borderRadius:10, border:"1px solid #c8d4e4", padding:"14px 18px" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10 }}>
           <div>
             <SL>Viewing As</SL>
@@ -2128,8 +1996,8 @@ function BudgetBuilderTab({ co, hourlyTotals, wage }) {
               <button key={r} onClick={()=>setViewRole(r)} style={{
                 padding:"5px 12px", borderRadius:6, border:"none", cursor:"pointer",
                 fontSize:10, fontWeight:700, ...M, transition:"all 0.15s",
-                background: viewRole===r ? "#D4A52022" : "#0e1625",
-                color:      viewRole===r ? "#D4A520"   : "#5a7498",
+                background: viewRole===r ? "#D4A52033" : "#e8eef6",
+                color:      viewRole===r ? "#D4A520"   : "#64748b",
                 outline:    viewRole===r ? "1px solid #D4A52040" : "none",
               }}>{r}</button>
             ))}
@@ -2138,14 +2006,14 @@ function BudgetBuilderTab({ co, hourlyTotals, wage }) {
       </div>
 
       {/* Budget lines */}
-      <div style={{ background:"#141d2c", borderRadius:12, border:"1px solid #c8d4e4", overflow:"hidden" }}>
-        <div style={{ padding:"14px 20px", borderBottom:"1px solid #1e2d3d", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+      <div style={{ background:"#f0f4fa", borderRadius:12, border:"1px solid #c8d4e4", overflow:"hidden" }}>
+        <div style={{ padding:"14px 20px", borderBottom:"1px solid #c8d4e4", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <SL>Budget Lines — {viewRole} View ({visible.length} of {categories.length} categories)</SL>
           <div style={{ fontSize:11, color:"#5a7498", ...M }}>Click a value to edit · Showing recommended defaults</div>
         </div>
         <table style={{ width:"100%", borderCollapse:"collapse" }}>
           <thead>
-            <tr style={{ borderBottom:"2px solid #1e2d3d" }}>
+            <tr style={{ borderBottom:"2px solid #c8d4e4" }}>
               {["Budget Category","Role Scope","Recommended Annual","Per Participant","Notes"].map(h=>(
                 <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontSize:9, color:"#5a7498", textTransform:"uppercase", letterSpacing:1, ...M }}>{h}</th>
               ))}
@@ -2156,11 +2024,11 @@ function BudgetBuilderTab({ co, hourlyTotals, wage }) {
               const amt   = custom[cat.id] ?? cat.recommended;
               const perPx = totalPx > 0 ? amt / totalPx : 0;
               return (
-                <tr key={cat.id} style={{ borderBottom:"1px solid #1a2840", background:i%2===0?"#0e1625":"transparent" }}>
+                <tr key={cat.id} style={{ borderBottom:"1px solid #e2e8f0", background:i%2===0?"#e8eef6":"transparent" }}>
                   <td style={{ padding:"10px 14px", color:"#5a3800", fontWeight:600, fontSize:12 }}>{cat.label}</td>
                   <td style={{ padding:"10px 14px", fontSize:10, color:"#D4A520", ...M }}>{cat.role}</td>
                   <td style={{ padding:"10px 14px" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:4, background:"#080e18", borderRadius:6, padding:"4px 8px", border:`1px solid ${custom[cat.id]!=null?"#D4A52040":"#b5c8de"}`, width:"fit-content" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:4, background:"#ebebeb", borderRadius:6, padding:"4px 8px", border:`1px solid ${custom[cat.id]!=null?"#D4A52040":"#b5c8de"}`, width:"fit-content" }}>
                       <span style={{ fontSize:10, color:"#64748b" }}>$</span>
                       <input type="number" value={Math.round(amt)} min={0} step={1000}
                         onChange={e=>setCustom(c=>({...c,[cat.id]:Number(e.target.value)}))}
@@ -2174,17 +2042,17 @@ function BudgetBuilderTab({ co, hourlyTotals, wage }) {
             })}
           </tbody>
           <tfoot>
-            <tr style={{ background:"#0e1625", borderTop:"2px solid #c8d4e4" }}>
+            <tr style={{ background:"#e8eef6", borderTop:"2px solid #c8d4e4" }}>
               <td style={{ padding:"12px 14px", fontWeight:700, color:"#5a3800", fontSize:13 }}>Visible Budget Total</td>
               <td/><td style={{ padding:"12px 14px", fontWeight:800, color:"#D4A520", ...M, fontSize:15 }}>{$k(visibleBudget)}</td>
               <td style={{ padding:"12px 14px", color:"#C9921A", ...M, fontSize:12 }}>{$k(totalPx>0?visibleBudget/totalPx:0)}/participant</td>
               <td/>
             </tr>
             {viewRole === "CEO / Owner" && (
-              <tr style={{ background:"#0a1f0a" }}>
-                <td style={{ padding:"10px 14px", fontWeight:700, color:"#22d37f", fontSize:12 }}>Total Company Budget (All Lines)</td>
-                <td/><td style={{ padding:"10px 14px", fontWeight:800, color:"#22d37f", ...M, fontSize:13 }}>{$k(totalBudget)}</td>
-                <td style={{ padding:"10px 14px", color:"#22d37f", ...M, fontSize:11 }}>
+              <tr style={{ background:"#f0fff4" }}>
+                <td style={{ padding:"10px 14px", fontWeight:700, color:"#15803d", fontSize:12 }}>Total Company Budget (All Lines)</td>
+                <td/><td style={{ padding:"10px 14px", fontWeight:800, color:"#15803d", ...M, fontSize:13 }}>{$k(totalBudget)}</td>
+                <td style={{ padding:"10px 14px", color:"#15803d", ...M, fontSize:11 }}>
                   {annualRev > 0 ? pct(totalBudget/annualRev) : "—"} of revenue
                 </td>
                 <td/>
@@ -2195,7 +2063,7 @@ function BudgetBuilderTab({ co, hourlyTotals, wage }) {
       </div>
 
       {viewRole === "CEO / Owner" && (
-        <div style={{ padding:"12px 16px", background:"#0e1625", borderRadius:9, border:"1px solid #c8d4e4", fontSize:11, color:"#5a7498", lineHeight:1.8 }}>
+        <div style={{ padding:"12px 16px", background:"#f0f4fa", borderRadius:9, border:"1px solid #c8d4e4", fontSize:11, color:"#5a7498", lineHeight:1.8 }}>
           <strong style={{ color:"#D4A520" }}>How to use this budget tool:</strong> Recommended values are calculated from your model's participant count and revenue. Adjust any line by clicking the dollar amount. Role-based views hide financial position from non-executive roles — a House Lead only sees their program supply and activity budget; HR only sees recruiting and training. Use this tool to set department budgets that directors can work within without seeing company-level financials.
         </div>
       )}
@@ -2798,9 +2666,11 @@ const SUB_TABS = {
     { id: "mixeditor", label: "🏠 Home Mix Editor" },
     { id: "projector", label: "🔬 Home Projector" },
     { id: "labor",     label: "🏗 Labor Efficiency" },
+    { id: "reshab_pl", label: "💵 P&L" },
   ],
   RES_HAB_HOURLY: [
     { id: "hourly",    label: "⏱ Hourly Services" },
+    { id: "hourly_pl", label: "💵 P&L" },
   ],
   TSC: [
     { id: "tsc_roster",       label: "👥 Roster & Caseload" },
@@ -2825,6 +2695,31 @@ function applyTabOrder(defaults, savedOrder) {
   return savedOrder.map(id => map[id]).filter(Boolean);
 }
 
+// Compute a co-shaped P&L object for a single service line.
+// revShare allocates company-level mgmt salaries & overhead proportionally.
+function calcSLCo({ annualRevGrossRaw, annualLaborRaw, totalHomes, totalClients,
+                    occupancy, mgmtFeePct, billingFeePct, entityType, ownerRate,
+                    revShare, fullMgmtTotal, fullOverheadTotal }) {
+  const annualRevGross    = annualRevGrossRaw;
+  const annualRevNet      = annualRevGross * (occupancy / 100);
+  const annualDirectLabor = annualLaborRaw  * (occupancy / 100);
+  const payrollBurden     = annualDirectLabor * 0.22;
+  const totalLabor        = annualDirectLabor + payrollBurden;
+  const mgmtTotal         = fullMgmtTotal    * revShare;
+  const overheadTotal     = fullOverheadTotal * revShare;
+  const mgmtFee           = annualRevNet * (mgmtFeePct    / 100);
+  const billingFee        = annualRevNet * (billingFeePct / 100);
+  const totalCosts        = totalLabor + mgmtTotal + overheadTotal + mgmtFee + billingFee;
+  const ebitda            = annualRevNet - totalCosts;
+  const ebitdaMargin      = annualRevNet > 0 ? ebitda / annualRevNet : 0;
+  const { stateTax, federalTax, totalTax, netIncome } = calcTax(ebitda, entityType, ownerRate);
+  const netMargin         = annualRevNet > 0 ? netIncome / annualRevNet : 0;
+  return { totalHomes, totalClients, annualRevGross, annualRevNet, annualDirectLabor,
+           payrollBurden, totalLabor, mgmtTotal, overheadTotal, mgmtFee, billingFee,
+           totalCosts, ebitda, ebitdaMargin, stateTax, federalTax, totalTax,
+           netIncome, netMargin };
+}
+
 // ════════════════════════════════════════════════════════════════════
 // MAIN APP
 // ════════════════════════════════════════════════════════════════════
@@ -2833,6 +2728,7 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
   const [saveStatus, setSaveStatus] = useState("idle");
   const [activeKey, setActiveKey] = useState("WHOLE_COMPANY"); // "WHOLE_COMPANY" | service line id
   const [subTab, setSubTab] = useState("company");
+  const [slRatesOpen, setSlRatesOpen] = useState(false);
 
   const company = getSelectedCompany(config);
   const isWholeCompany = activeKey === "WHOLE_COMPANY";
@@ -3308,10 +3204,8 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
 
         {/* ── Body: sidebar + content ── */}
         <div style={{ display:"grid", gridTemplateColumns:"240px 1fr", flex:1, minHeight:0 }}>
-          <Sidebar wage={wage} setWage={setWage} graveyardWage={graveyardWage} setGraveyardWage={setGraveyardWage}
-            occupancy={occupancy} setOccupancy={setOccupancy}
+          <Sidebar
             entityType={entityType} setEntityType={setEntityType} ownerRate={ownerRate} setOwnerRate={setOwnerRate}
-            homeMetrics={homeMetrics} rates={rates} setRates={setRates}
             mgmtFeePct={mgmtFeePct} setMgmtFeePct={setMgmtFeePct}
             billingFeePct={billingFeePct} setBillingFeePct={setBillingFeePct}/>
 
@@ -3390,23 +3284,112 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
 
               {/* RES_HAB_DAILY tabs */}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "mixeditor" && (
-                <HomeMixEditor homes={indHomes}
-                  onUpdate={(id, f, v) => setIndHomes(p => p.map(h => h.id === id ? { ...h, [f]: v } : h))}
-                  onAdd={() => setIndHomes(p => [...p, mkHome(`Home ${p.length + 1}`, 2, 1, 12, "normal")])}
-                  onRemove={id => setIndHomes(p => p.filter(h => h.id !== id))}
-                  wage={wage} rates={rates} graveyardWage={graveyardWage}/>
+                <>
+                  {/* ── Service Line Settings panel ── */}
+                  <div style={{ background:"#f0f2f7", borderRadius:10, border:"1px solid #d0dae8",
+                                padding:"14px 18px", marginBottom:16, flexShrink:0 }}>
+                    <div style={{ fontSize:9, color:"#9a8050", letterSpacing:2, textTransform:"uppercase",
+                                  fontWeight:700, marginBottom:12 }}>Service Line Settings</div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px 24px" }}>
+                      <Slider label="Staff Wage" value={wage} min={12} max={32} step={0.25}
+                        onChange={setWage} color="#f87171" format={v=>`$${v.toFixed(2)}/hr`}/>
+                      <Slider label="Graveyard / Sleeping Wage" value={graveyardWage} min={8} max={32} step={0.25}
+                        onChange={setGraveyardWage} color="#5a7498" format={v=>`$${v.toFixed(2)}/hr`}/>
+                      <Slider label="Occupancy Rate" value={occupancy} min={60} max={100} step={1}
+                        onChange={setOccupancy} color="#D4A520" format={v=>`${v}%`}/>
+                    </div>
+                    {/* Reimbursement Rates */}
+                    <div style={{ marginTop:14 }}>
+                      <button onClick={() => setSlRatesOpen(o => !o)} style={{
+                        background:"none", border:"none", cursor:"pointer", padding:0,
+                        display:"flex", alignItems:"center", gap:6,
+                        fontSize:9, color:"#9a8050", letterSpacing:2, textTransform:"uppercase", fontWeight:700,
+                      }}>
+                        <span style={{ fontSize:11, transition:"transform 200ms",
+                          transform: slRatesOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+                        Reimbursement Rates
+                      </button>
+                      {slRatesOpen && (
+                        <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:10 }}>
+                          {RATE_FIELDS.map(f => (
+                            <div key={f.key} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                              <div style={{ flex:1, fontSize:11, color:"#5a7498" }}>{f.label}</div>
+                              <div style={{ fontSize:10, color:"#9aabb8" }}>{f.unit}</div>
+                              <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                                <span style={{ fontSize:10, color:"#9aabb8" }}>$</span>
+                                <input type="number" step="0.01"
+                                  value={rates[f.key] ?? f.baseline}
+                                  onChange={e => setRates(r => ({ ...r, [f.key]: parseFloat(e.target.value)||0 }))}
+                                  style={{ width:68, fontSize:12, fontWeight:600, color:f.color,
+                                    background:"#f8f8f8", border:"1px solid #d0dae8", borderRadius:5,
+                                    padding:"3px 6px", textAlign:"right" }}/>
+                              </div>
+                              <div style={{ display:"flex", gap:3 }}>
+                                {[2,4,6].map(pct => (
+                                  <button key={pct} onClick={() =>
+                                    setRates(r => ({ ...r, [f.key]: parseFloat((f.baseline*(1-pct/100)).toFixed(4)) }))}
+                                    style={{ fontSize:9, padding:"2px 5px", borderRadius:4, border:"1px solid #d0dae8",
+                                      background:"#fff", color:"#64748b", cursor:"pointer" }}>
+                                    −{pct}%
+                                  </button>
+                                ))}
+                                <button onClick={() => setRates(r => ({ ...r, [f.key]: f.baseline }))}
+                                  style={{ fontSize:9, padding:"2px 5px", borderRadius:4, border:"1px solid #d0dae8",
+                                    background:"#fff", color:"#64748b", cursor:"pointer" }}>
+                                  Reset
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <HomeMixEditor homes={indHomes}
+                    onUpdate={(id, f, v) => setIndHomes(p => p.map(h => h.id === id ? { ...h, [f]: v } : h))}
+                    onAdd={() => setIndHomes(p => [...p, mkHome(`Home ${p.length + 1}`, 2, 1, 12, "normal")])}
+                    onRemove={id => setIndHomes(p => p.filter(h => h.id !== id))}
+                    wage={wage} rates={rates} graveyardWage={graveyardWage}/>
+                </>
               )}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "projector" &&
                 <SingleHomeProjector wage={wage} rates={rates} graveyardWage={graveyardWage}/>}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "labor" &&
                 <LaborEfficiencyTab wage={wage} rates={rates} graveyardWage={graveyardWage}/>}
+              {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "reshab_pl" && (() => {
+                const rawRev    = homeMetrics.reduce((a,h) => a + h.metrics.rev   * (h.numHomes||0), 0) * 365;
+                const rawLabor  = homeMetrics.reduce((a,h) => a + h.metrics.labor * (h.numHomes||0), 0) * 365;
+                const slHomes   = homes.reduce((a,h) => a + (h.numHomes||0), 0);
+                const slClients = homes.reduce((a,h) => a + ((h.nHigh||0)+(h.nIntense||0))*(h.numHomes||0), 0);
+                const revShare  = co.annualRevGross > 0 ? rawRev / co.annualRevGross : 1;
+                const slCo = calcSLCo({ annualRevGrossRaw:rawRev, annualLaborRaw:rawLabor,
+                  totalHomes:slHomes, totalClients:slClients, occupancy, mgmtFeePct, billingFeePct,
+                  entityType, ownerRate, revShare, fullMgmtTotal:co.mgmtTotal, fullOverheadTotal:co.overheadTotal });
+                return <CompanyPL co={slCo} mgmt={mgmt} overhead={overhead}
+                  onMgmt={(id,v)=>setMgmt(p=>p.map(m=>m.id===id?{...m,salary:v}:m))}
+                  onOvhd={(id,v)=>setOverhead(p=>p.map(o=>o.id===id?{...o,amount:v}:o))}
+                  entityType={entityType} ownerRate={ownerRate}
+                  mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}/>;
+              })()}
 
-              {/* RES_HAB_HOURLY tab */}
+              {/* RES_HAB_HOURLY tabs */}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_HOURLY && subTab === "hourly" && (
                 <HourlyTab participants={hourlyPx} onUpdate={updateHourly}
                   onAdd={addHourly} onRemove={removeHourly}
                   wage={wage} rates={rates}/>
               )}
+              {activeSLType === SERVICE_LINE_TYPES.RES_HAB_HOURLY && subTab === "hourly_pl" && (() => {
+                const revShare = co.annualRevGross > 0 ? hourlyTotals.annualRev / co.annualRevGross : 1;
+                const slCo = calcSLCo({ annualRevGrossRaw:hourlyTotals.annualRev,
+                  annualLaborRaw:hourlyTotals.annualLabor, totalHomes:0,
+                  totalClients:hourlyPx.length, occupancy, mgmtFeePct, billingFeePct,
+                  entityType, ownerRate, revShare, fullMgmtTotal:co.mgmtTotal, fullOverheadTotal:co.overheadTotal });
+                return <CompanyPL co={slCo} mgmt={mgmt} overhead={overhead}
+                  onMgmt={(id,v)=>setMgmt(p=>p.map(m=>m.id===id?{...m,salary:v}:m))}
+                  onOvhd={(id,v)=>setOverhead(p=>p.map(o=>o.id===id?{...o,amount:v}:o))}
+                  entityType={entityType} ownerRate={ownerRate}
+                  mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}/>;
+              })()}
 
               {/* TSC tabs */}
               {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_roster" && (
