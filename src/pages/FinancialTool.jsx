@@ -793,16 +793,7 @@ function HomeModelerTab({ homeTypes, homeMetrics, onUpdateType, onRemoveType, on
   );
 }
 
-function CompanyTab({ homeTypes, homeMetrics, co, mgmt, overhead, onUpdateType, onRemoveType, onAddType, onMgmt, onOvhd, entityType, ownerRate, rates, mgmtFeePct, billingFeePct, isAdmin, wage }) {
-  if (!isAdmin) {
-    return (
-      <HomeModelerTab
-        homeTypes={homeTypes} homeMetrics={homeMetrics}
-        onUpdateType={onUpdateType} onRemoveType={onRemoveType} onAddType={onAddType}
-        wage={wage} rates={rates} graveyardWage={graveyardWage}/>
-    );
-  }
-
+function CompanyTab({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate, mgmtFeePct, billingFeePct }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
       <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
@@ -822,41 +813,6 @@ function CompanyTab({ homeTypes, homeMetrics, co, mgmt, overhead, onUpdateType, 
           ].map((s,i)=><Chip key={i} label={s.l} value={s.f(s.v)} color={s.c} highlight={s.hi}/>)}
         </div>
       </div>
-
-      {homeMetrics.map(h=>(
-        <HomeTypeCard key={h.id} home={h} metrics={h.metrics}
-          onUpdate={(f,v)=>onUpdateType(h.id,f,v)}
-          onRemove={()=>onRemoveType(h.id)}
-          canRemove={homeTypes.length>1}
-          rates={rates}/>
-      ))}
-
-      <button onClick={onAddType} style={{ padding:"12px", borderRadius:11, border:"2px dashed #d0dae8", background:"none", color:"#7a5020", cursor:"pointer", fontSize:13, fontWeight:700, fontFamily:"'Sora',sans-serif" }}
-        onMouseEnter={e=>{e.currentTarget.style.borderColor="#D4A52050";e.currentTarget.style.color="#D4A520";}}
-        onMouseLeave={e=>{e.currentTarget.style.borderColor="#d5c898";e.currentTarget.style.color="#7a5020";}}>
-        + Add Home Type
-      </button>
-
-      {homeMetrics.length >= 2 && (
-        <div style={{ background:"#f8f6f0", borderRadius:12, border:"1px solid #d0dae8", padding:"16px 20px" }}>
-          <SL>Home Type Comparison — Gross Per Home Per Day</SL>
-          {homeMetrics.map(h=>{
-            const mx=Math.max(...homeMetrics.map(x=>x.metrics.gross));
-            return (
-              <div key={h.id} style={{ marginBottom:10 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
-                  <span style={{ fontSize:11, color:"#6a4c10" }}>{h.label}</span>
-                  <span style={{ fontSize:11, fontWeight:700, color:mc(h.metrics.margin), ...M }}>{$d(h.metrics.gross)} · {pct(h.metrics.margin)}</span>
-                </div>
-                <div style={{ height:7, background:"#ebebeb", borderRadius:3, overflow:"hidden" }}>
-                  <div style={{ height:"100%", width:`${mx>0?(h.metrics.gross/mx)*100:0}%`, background:`linear-gradient(90deg,${mc(h.metrics.margin)}50,${mc(h.metrics.margin)})`, borderRadius:3, transition:"width 0.4s" }}/>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       <CompanyPL co={co} mgmt={mgmt} overhead={overhead} onMgmt={onMgmt} onOvhd={onOvhd} entityType={entityType} ownerRate={ownerRate} mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}/>
     </div>
   );
@@ -2724,6 +2680,7 @@ const SUB_TABS = {
     { id: "portfolio", label: "📊 Portfolio" },
   ],
   RES_HAB_DAILY: [
+    { id: "hometypes", label: "🏘 Home Types" },
     { id: "mixeditor", label: "🏠 Home Mix Editor" },
     { id: "projector", label: "🔬 Home Projector" },
     { id: "labor",     label: "🏗 Labor Efficiency" },
@@ -3326,23 +3283,54 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
 
               {/* WHOLE COMPANY tabs */}
               {isWholeCompany && subTab === "company" && (
-                <CompanyTab homeTypes={homes} homeMetrics={homeMetrics} co={co}
-                  mgmt={mgmt} overhead={overhead}
-                  onUpdateType={(id, f, v) => setHomeTypes(p => p.map(h => h.id === id ? { ...h, [f]: v } : h))}
-                  onRemoveType={id => setHomeTypes(p => p.filter(h => h.id !== id))}
-                  onAddType={() => setHomeTypes(p => [...p, mkType(`Home Type ${String.fromCharCode(65 + p.length % 26)}`, 2, 1, 12, "normal", 5)])}
+                <CompanyTab co={co} mgmt={mgmt} overhead={overhead}
                   onMgmt={(id, v) => setMgmt(p => p.map(m => m.id === id ? { ...m, salary: v } : m))}
                   onOvhd={(id, v) => setOverhead(p => p.map(o => o.id === id ? { ...o, amount: v } : o))}
-                  entityType={entityType} ownerRate={ownerRate} rates={rates}
-                  mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}
-                  isAdmin={!userRole || userRole === "licensor"}
-                  wage={wage}/>
+                  entityType={entityType} ownerRate={ownerRate}
+                  mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}/>
               )}
               {isWholeCompany && subTab === "budget"    && <BudgetBuilderTab co={co} hourlyTotals={hourlyTotals} wage={wage}/>}
               {isWholeCompany && subTab === "faq"       && <FAQTab/>}
               {isWholeCompany && subTab === "portfolio" && <PortfolioComparison/>}
 
               {/* RES_HAB_DAILY tabs */}
+              {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "hometypes" && (
+                <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                  {homeMetrics.map(h => (
+                    <HomeTypeCard key={h.id} home={h} metrics={h.metrics}
+                      onUpdate={(f,v) => setHomeTypes(p => p.map(t => t.id === h.id ? { ...t, [f]:v } : t))}
+                      onRemove={() => setHomeTypes(p => p.filter(t => t.id !== h.id))}
+                      canRemove={homes.length > 1}
+                      rates={rates}/>
+                  ))}
+                  <button
+                    onClick={() => setHomeTypes(p => [...p, mkType(`Home Type ${String.fromCharCode(65 + p.length % 26)}`, 2, 1, 12, "normal", 5)])}
+                    style={{ padding:"12px", borderRadius:11, border:"2px dashed #d0dae8", background:"none", color:"#7a5020", cursor:"pointer", fontSize:13, fontWeight:700, fontFamily:"'Sora',sans-serif" }}
+                    onMouseEnter={e=>{e.currentTarget.style.borderColor="#D4A52050";e.currentTarget.style.color="#D4A520";}}
+                    onMouseLeave={e=>{e.currentTarget.style.borderColor="#d5c898";e.currentTarget.style.color="#7a5020";}}>
+                    + Add Home Type
+                  </button>
+                  {homeMetrics.length >= 2 && (
+                    <div style={{ background:"#f8f6f0", borderRadius:12, border:"1px solid #d0dae8", padding:"16px 20px" }}>
+                      <SL>Home Type Comparison — Gross Per Home Per Day</SL>
+                      {homeMetrics.map(h => {
+                        const mx = Math.max(...homeMetrics.map(x => x.metrics.gross));
+                        return (
+                          <div key={h.id} style={{ marginBottom:10 }}>
+                            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
+                              <span style={{ fontSize:11, color:"#6a4c10" }}>{h.label}</span>
+                              <span style={{ fontSize:11, fontWeight:700, color:mc(h.metrics.margin), ...M }}>{$d(h.metrics.gross)} · {pct(h.metrics.margin)}</span>
+                            </div>
+                            <div style={{ height:7, background:"#ebebeb", borderRadius:3, overflow:"hidden" }}>
+                              <div style={{ height:"100%", width:`${mx>0?(h.metrics.gross/mx)*100:0}%`, background:`linear-gradient(90deg,${mc(h.metrics.margin)}50,${mc(h.metrics.margin)})`, borderRadius:3, transition:"width 0.4s" }}/>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "mixeditor" && (
                 <HomeMixEditor homes={indHomes}
                   onUpdate={(id, f, v) => setIndHomes(p => p.map(h => h.id === id ? { ...h, [f]: v } : h))}
