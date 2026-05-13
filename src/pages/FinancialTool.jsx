@@ -2495,7 +2495,7 @@ function ServiceLineTab({ label, active, onRemove, containerRef, isDragging, onP
       onPointerUp={onPointerUp}
       style={{
         position:"relative", display:"inline-flex", alignItems:"stretch",
-        cursor: "pointer",
+        cursor: "pointer", flexShrink:0,
         userSelect:"none", touchAction:"none",
         opacity: isDragging ? 0.45 : 1,
         transition:"opacity 80ms",
@@ -3176,41 +3176,47 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
           </div>
 
           {/* ── Service line tab strip ── */}
-          <div style={{ display:"flex", gap:2, marginTop:12, alignItems:"flex-end", overflow:"visible", position:"relative", zIndex:100 }}>
-            <div style={{ display:"flex", gap:2, alignItems:"flex-end", overflowX:"auto", flex:1, overflow:"visible" }}>
-              {/* Whole Company — pinned, no drag */}
-              <ServiceLineTab label="🏢 Whole Company" active={isWholeCompany}
-                onPointerDown={() => setActiveKey("WHOLE_COMPANY")} />
-              {/* Draggable service line tabs */}
-              {(() => {
-                const items = [];
-                visibleSLs.forEach((sl, i) => {
-                  if (slDragId && slInsertionIndex === i) {
+          <div style={{ display:"flex", marginTop:12, alignItems:"flex-end", gap:0 }}>
+            {/* Double-wrapper: outer constrains width, inner scrolls */}
+            <div style={{ flex:1, minWidth:0, overflow:"hidden" }}>
+              <div style={{ display:"flex", gap:2, alignItems:"flex-end", overflowX:"auto", scrollbarWidth:"none" }}>
+                {/* Whole Company — pinned, no drag */}
+                <ServiceLineTab label="🏢 Whole Company" active={isWholeCompany}
+                  onPointerDown={() => setActiveKey("WHOLE_COMPANY")} />
+                {/* Draggable service line tabs */}
+                {(() => {
+                  const items = [];
+                  visibleSLs.forEach((sl, i) => {
+                    if (slDragId && slInsertionIndex === i) {
+                      items.push(<GapIndicator key="__sl_gap__" width={slDragState.current.dragTabWidth} />);
+                    }
+                    items.push(
+                      <ServiceLineTab key={sl.id}
+                        label={sl.name || getShortLabel(sl.type)}
+                        active={activeKey === sl.id}
+                        onRemove={() => handleRemoveServiceLine(sl.id)}
+                        containerRef={node => { if (node) slTabRefs.current.set(sl.id, node); else slTabRefs.current.delete(sl.id); }}
+                        isDragging={slDragId === sl.id}
+                        onPointerDown={e => handleSLPointerDown(e, sl, i, visibleSLs)}
+                        onPointerMove={e => handleSLPointerMove(e, sl, visibleSLs)}
+                        onPointerUp={e => handleSLPointerUp(e, sl, visibleSLs)}
+                      />
+                    );
+                  });
+                  if (slDragId && slInsertionIndex === visibleSLs.length) {
                     items.push(<GapIndicator key="__sl_gap__" width={slDragState.current.dragTabWidth} />);
                   }
-                  items.push(
-                    <ServiceLineTab key={sl.id}
-                      label={sl.name || getShortLabel(sl.type)}
-                      active={activeKey === sl.id}
-                      onRemove={() => handleRemoveServiceLine(sl.id)}
-                      containerRef={node => { if (node) slTabRefs.current.set(sl.id, node); else slTabRefs.current.delete(sl.id); }}
-                      isDragging={slDragId === sl.id}
-                      onPointerDown={e => handleSLPointerDown(e, sl, i, visibleSLs)}
-                      onPointerMove={e => handleSLPointerMove(e, sl, visibleSLs)}
-                      onPointerUp={e => handleSLPointerUp(e, sl, visibleSLs)}
-                    />
-                  );
-                });
-                if (slDragId && slInsertionIndex === visibleSLs.length) {
-                  items.push(<GapIndicator key="__sl_gap__" width={slDragState.current.dragTabWidth} />);
-                }
-                return items;
-              })()}
+                  return items;
+                })()}
+              </div>
+            </div>
+            {/* Add button — outside scroll so its dropdown isn't clipped */}
+            <div style={{ flexShrink:0, alignSelf:"flex-end", position:"relative", zIndex:200, paddingBottom:2, marginLeft:6 }}>
               <AddServiceLineButton
                 existingTypes={visibleSLs.map(sl => sl.type)}
                 onAdd={handleAddServiceLine}/>
             </div>
-            <div style={{ paddingBottom:8, display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+            <div style={{ paddingBottom:8, display:"flex", alignItems:"center", gap:8, flexShrink:0, marginLeft:8 }}>
               <div style={{ width:1, height:16, background:"#b5c8de" }}/>
               <span style={{ fontSize:9, color:"#64748b", letterSpacing:2, textTransform:"uppercase", ...M }}>
                 Powered by <span style={{ color:"#D4A520" }}>Intrinsic Inc</span>
@@ -3232,7 +3238,8 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
               <div style={{
                 padding:"8px 24px 0", background:"#f5f7fa",
                 display:"flex", gap:2, alignItems:"flex-end",
-                borderBottom:"1px solid #e2e8f0", flexShrink:0, overflowX:"auto",
+                borderBottom:"1px solid #e2e8f0", flexShrink:0,
+                overflowX:"auto", scrollbarWidth:"none",
               }}>
                 {(() => {
                   const items = [];
@@ -3250,7 +3257,7 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
                         onPointerUp={e => handleSTPointerUp(e, t.id, subTabs)}
                         style={{
                           display:"inline-flex", alignItems:"stretch",
-                          cursor: "pointer",
+                          cursor: "pointer", flexShrink:0,
                           userSelect:"none", touchAction:"none",
                           opacity: isDraggingThis ? 0.45 : 1,
                           transition:"opacity 80ms",
