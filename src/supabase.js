@@ -48,6 +48,22 @@ export async function loadConfig() {
 }
 
 /**
+ * Load the current user's profile row from `profiles`.
+ * Returns null if not signed in or row missing.
+ * Note: `role` column is Track B — will be undefined until then.
+ */
+export async function getProfile() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return null;
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, email, is_super_admin, role')
+    .eq('id', session.user.id)
+    .single();
+  return data ?? null;
+}
+
+/**
  * Save the full v2 config blob back to Supabase.
  * Upserts each company row individually.
  */
