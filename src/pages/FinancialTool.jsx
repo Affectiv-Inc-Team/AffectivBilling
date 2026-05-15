@@ -846,9 +846,10 @@ function HomeMixEditor({ homes, onUpdate, onAdd, onRemove, wage, setWage, rates 
             return (
               <div key={h.id} onClick={()=>setSelId(h.id)} style={{
                 padding:"9px 12px", borderRadius:8, cursor:"pointer",
-                background:s?"#f0ece4":"#e8e4dc",
-                border:s?"1px solid #D4A52060":"1px solid #d0ccc4",
-                borderLeft:`3px solid ${mc(hm.margin)}`, transition:"all 0.15s",
+                background:"#e8e4dc",
+                border:"1px solid #d0ccc4",
+                borderLeft:s?`4px solid ${mc(hm.margin)}`:`2px solid ${mc(hm.margin)}55`,
+                transition:"all 0.15s",
               }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                   <span style={{ fontSize:11, fontWeight:700, color:s?"#5a3800":"#7a6040" }}>{h.label}</span>
