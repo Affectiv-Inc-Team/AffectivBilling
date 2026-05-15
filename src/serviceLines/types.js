@@ -108,7 +108,7 @@ export const SERVICE_LINE_DEFS = {
     billingUnit: 'day',
     status: 'active',
     defaultConfig: () => ({
-      homes: [],
+      indHomes: [],
       defaultWage: 16,
       graveyardWage: 14,
     }),

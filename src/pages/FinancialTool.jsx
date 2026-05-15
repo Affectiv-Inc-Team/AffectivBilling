@@ -127,13 +127,25 @@ function calcHome({ nHigh, nIntense, groupHrs, billingType, hhrsPerWeek = 0, gra
 let _uid = 400;
 const uid = () => ++_uid;
 
-const mkType = (label, nHigh, nIntense, groupHrs, billingType, numHomes) =>
-  ({ id:uid(), label, nHigh, nIntense, groupHrs, billingType, numHomes, hhrsPerWeek:0, graveyardSleepHrs:0 });
-
 const mkHome = (label, nHigh, nIntense, groupHrs, billingType) =>
   ({ id:uid(), label, nHigh, nIntense, groupHrs, billingType, hhrsPerWeek:0, graveyardSleepHrs:0 });
 
-const DEFAULT_TYPES = [mkType("Standard Mix", 2, 1, 12, "normal", 18)];
+// Expand legacy home-type entries (numHomes multiplier) into individual home objects.
+// Used at read-time so existing saves with config.homes are transparently migrated.
+const expandHomeTypes = (homeTypes = []) =>
+  homeTypes.flatMap(ht => {
+    const count = ht.numHomes || 1;
+    return Array.from({ length: count }, (_, i) => ({
+      id: uid(),
+      label: count > 1 ? `${ht.label} ${i + 1}` : ht.label,
+      nHigh:             ht.nHigh,
+      nIntense:          ht.nIntense,
+      groupHrs:          ht.groupHrs,
+      billingType:       ht.billingType,
+      hhrsPerWeek:       ht.hhrsPerWeek       ?? 0,
+      graveyardSleepHrs: ht.graveyardSleepHrs ?? 0,
+    }));
+  });
 const DEFAULT_HOMES = [
   mkHome("Maple House",  2, 1, 12, "normal"),
   mkHome("Cedar House",  3, 0,  0, "normal"),
@@ -306,117 +318,6 @@ function MixBadges({ nHigh, nIntense, size=22 }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   HOME TYPE CARD
-══════════════════════════════════════════════════════════ */
-function HomeTypeCard({ home, metrics, onUpdate, onRemove, canRemove, rates = RATES_DEF }) {
-  const { nHigh, nIntense, groupHrs, billingType, numHomes, label } = home;
-  const { rev, labor, gross, margin, laborHrs, annualGross, plHr } = metrics;
-  const total    = nHigh + nIntense;
-  const allHigh  = nIntense === 0;
-  const canGroup = nIntense > 0 && total >= 2;
-
-  const chH = v => onUpdate("nHigh",    Math.max(0, Math.min(v, 3-nIntense)));
-  const chI = v => onUpdate("nIntense", Math.max(0, Math.min(v, 3-nHigh)));
-
-  return (
-    <div style={{ background:"#f8f6f0", borderRadius:13, border:`1px solid ${mc(margin)}22`, borderLeft:`3px solid ${mc(margin)}`, overflow:"hidden" }}>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 18px", borderBottom:"1px solid #e0e8f0" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <MarginRing p={margin} size={46}/>
-          <div>
-            <input value={label} onChange={e=>onUpdate("label",e.target.value)}
-              style={{ background:"none", border:"none", color:"#5a3800", fontWeight:800, fontSize:14, fontFamily:"'Sora',sans-serif", padding:0, width:180, outline:"none" }}/>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:3 }}>
-              <MixBadges nHigh={nHigh} nIntense={nIntense}/>
-              <span style={{ fontSize:10, color:"#9a8050", ...M }}>{laborHrs}hr labor/day · {total}/3 clients</span>
-            </div>
-          </div>
-        </div>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ textAlign:"right" }}>
-            <div style={{ fontSize:9, color:"#7a5020", ...M }}>gross/day</div>
-            <div style={{ fontSize:18, fontWeight:800, color:mc(margin), ...M }}>{$d(gross)}</div>
-          </div>
-          {canRemove && <button onClick={onRemove} style={{ width:26, height:26, borderRadius:5, background:"#f0eef8", border:"1px solid #f0c8d4", color:"#f87171", cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>}
-        </div>
-      </div>
-
-      <div style={{ padding:"14px 18px", display:"flex", flexDirection:"column", gap:14 }}>
-        <div style={{ display:"flex", gap:10, justifyContent:"space-around", alignItems:"flex-start" }}>
-          <Stepper label="High"    value={nHigh}    max={3-nIntense} onChange={chH} color="#C9921A"/>
-          <Stepper label="Intense" value={nIntense} max={3-nHigh}    onChange={chI} color="#D4A520"/>
-          <Stepper label="# Homes" value={numHomes} max={50} min={1}  onChange={v=>onUpdate("numHomes",v)} color="#00e5aa"/>
-          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:5 }}>
-            <div style={{ fontSize:9, color:"#5a4020", textTransform:"uppercase", letterSpacing:0.8, ...M }}>Total</div>
-            <div style={{ width:54, height:26, display:"flex", alignItems:"center", justifyContent:"center", background:"#ebebeb", borderRadius:7, border:"1px solid #d0dae8" }}>
-              <span style={{ fontWeight:800, color:total===3?"#00e5aa":total===0?"#f87171":"#5a3800", ...M, fontSize:15 }}>{total}/3</span>
-            </div>
-          </div>
-        </div>
-
-        {canGroup && <Slider label="Night Group Hrs" value={groupHrs} min={0} max={20} step={1} onChange={v=>onUpdate("groupHrs",v)} color="#f59e0b" format={v=>`${v}hr`}/>}
-        {allHigh && <div style={{ padding:"7px 12px", background:"#f0f4f8", borderRadius:7, borderLeft:"2px solid #C9921A", fontSize:10, color:"#7a5020" }}>All-high: 1 staff (1:{total}) → 24 labor hrs · no group billing</div>}
-        {!allHigh && total===1 && <div style={{ padding:"7px 12px", background:"#f0f4f8", borderRadius:7, borderLeft:"2px solid #D4A520", fontSize:10, color:"#7a5020" }}>Single intense client: 1:1 all 24 hrs · no grouping possible</div>}
-
-        {nIntense > 0 && (
-          <div>
-            <SL>Intense Billing</SL>
-            <Toggle value={billingType} onChange={v=>onUpdate("billingType",v)} options={[
-              { value:"normal",  label:`Normal (Daily $${rates.intenseDaily.toFixed(2)})`, color:"#D4A520" },
-              { value:"blended", label:"Blended (Unit Rates)",   color:"#E8C44A" },
-            ]}/>
-          </div>
-        )}
-
-        {nHigh > 0 && (
-          <div style={{ background:"#f0f6ff", borderRadius:9, border:"1px solid #c8d4e4", padding:"10px 14px" }}>
-            <SL>High Support — 1:1 Individual Hours</SL>
-            <Slider label="1:1 hrs/week per High Support client" value={home.hhrsPerWeek||0} min={0} max={40} step={1}
-              onChange={v=>onUpdate("hhrsPerWeek",v)} color="#C9921A" format={v=>`${v} hrs/wk`}/>
-            {(home.hhrsPerWeek||0) > 0 && (
-              <div style={{ fontSize:9, color:"#475569", marginTop:5, ...M }}>
-                {((home.hhrsPerWeek||0)/7*nHigh).toFixed(1)} staff hrs/day total ({nHigh} client{nHigh>1?"s":""} × {(home.hhrsPerWeek||0)} hrs/wk) · billed U2 · additional staff at regular wage
-              </div>
-            )}
-          </div>
-        )}
-
-        {total > 0 && (
-          <div style={{ background:"#f4f6ff", borderRadius:9, border:"1px solid #c8d4e4", padding:"10px 14px" }}>
-            <SL>Graveyard — Sleeping Staff Hours</SL>
-            <Slider label={canGroup ? `Sleeping hrs within ${groupHrs}hr night group` : "Overnight sleeping hrs (of 24hr shift)"} value={Math.min(home.graveyardSleepHrs||0, canGroup ? groupHrs : 12)} min={0} max={canGroup ? groupHrs : 12} step={1}
-              onChange={v=>onUpdate("graveyardSleepHrs",v)} color="#7a94b0" format={v=>`${v}hr sleeping`}/>
-            {(home.graveyardSleepHrs||0) > 0 && (
-              <div style={{ fontSize:9, color:"#475569", marginTop:5, ...M }}>
-                {Math.min(home.graveyardSleepHrs||0, canGroup ? groupHrs : 12)}hr at sleep wage · {canGroup ? (groupHrs - Math.min(home.graveyardSleepHrs||0, groupHrs)) + "hr awake night" : (24 - Math.min(home.graveyardSleepHrs||0, 12)) + "hr at regular wage"} · sleep wage set in sidebar
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", borderTop:"1px solid #e0e0e0" }}>
-        {[
-          { l:"Rev/Day",      v:$d(rev),            c:"#5a3800" },
-          { l:"Labor/Day",    v:$d(labor),          c:"#f87171" },
-          { l:"Gross/Day",    v:$d(gross),          c:mc(margin) },
-          { l:"$/Labor Hr",   v:`$${plHr.toFixed(2)}`, c:"#f59e0b" },
-          { l:`Annual ×${numHomes}`, v:$k(annualGross*numHomes), c:"#1d7a35" },
-        ].map((m,i)=>(
-          <div key={i} style={{ padding:"8px 10px", borderRight:i<4?"1px solid #e0e0e0":"none", textAlign:"center" }}>
-            <div style={{ fontSize:8, color:"#9a8050", textTransform:"uppercase", letterSpacing:0.5, ...M, marginBottom:2 }}>{m.l}</div>
-            <div style={{ fontSize:12, fontWeight:700, color:m.c, ...M, whiteSpace:"nowrap" }}>{m.v}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ background:"#ebebeb", padding:"5px 18px", fontSize:10, color:"#9a8050", ...M }}>
-        {numHomes} homes × {total} clients = <strong style={{color:"#7a5020"}}>{numHomes*total}</strong> participants · Annual all homes: <strong style={{color:mc(margin)}}>{$k(annualGross*numHomes)}</strong>
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════
    COMPANY P&L PANEL
 ══════════════════════════════════════════════════════════ */
 function CompanyPL({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate, mgmtFeePct, billingFeePct }) {
@@ -546,251 +447,6 @@ function getLaborApprovalStatus(laborRatio, total) {
   if (laborRatio < LABOR_APPROVAL_THRESHOLDS.approved) return { status:"approved", label:"Approved",     color:"#00e5aa", bg:"#00e5aa12", border:"#00e5aa35", icon:"✓" };
   if (laborRatio < LABOR_APPROVAL_THRESHOLDS.marginal) return { status:"marginal", label:"Needs Review", color:"#f59e0b", bg:"#f59e0b12", border:"#f59e0b35", icon:"⚠" };
   return                                                      { status:"rejected", label:"Not Viable",   color:"#f87171", bg:"#f8717112", border:"#f8717135", icon:"✗" };
-}
-
-/* ── CLIENT VIEW: single home type card (no dollar amounts) ── */
-function HomeModelerCard({ home, metrics, onUpdate, onRemove, canRemove, rates, wage, graveyardWage }) {
-  const { nHigh, nIntense, groupHrs, billingType, numHomes, label } = home;
-  const { margin, laborHrs } = metrics;
-  const total    = nHigh + nIntense;
-  const allHigh  = nIntense === 0;
-  const canGroup = nIntense > 0 && total >= 2;
-  const approval = getApprovalStatus(margin, total);
-
-  const chH = v => onUpdate("nHigh",    Math.max(0, Math.min(v, 3-nIntense)));
-  const chI = v => onUpdate("nIntense", Math.max(0, Math.min(v, 3-nHigh)));
-
-  // Guidance text for the client about why a home is passing/failing
-  const guidance = (() => {
-    if (!total) return "Add clients to evaluate this home type.";
-    if (approval.status === "approved") {
-      if (canGroup) return `${groupHrs}-hour night group keeps staff costs efficient. This configuration meets Intrinsic's operational standards.`;
-      if (allHigh) return "All-high configuration with good staff ratio. Meets Intrinsic's operational standards.";
-      return "Configuration meets Intrinsic's operational standards.";
-    }
-    if (approval.status === "marginal") {
-      if (nIntense > 0 && total < 2) return "Single intense client requires 1:1 staffing all day. Adding a second client and enabling group hours would significantly improve viability.";
-      if (canGroup && groupHrs < 8) return "Increasing night group hours (try 10–14 hrs) would reduce staffing cost and likely move this to Approved.";
-      if (allHigh && total < 3) return "Adding another high-support client to this home would improve the staffing ratio.";
-      return "This configuration is marginal. Consider adjusting the client mix or group hours.";
-    }
-    if (nIntense > 0 && total === 1) return "One intense client requires full 1:1 staffing all 24 hours. This configuration is not financially sustainable. Add at least one more client.";
-    if (groupHrs === 0 && canGroup) return "No night group hours are set. Enabling 10–14 hours of group staffing would substantially reduce labor cost.";
-    return "This configuration does not meet viability thresholds. Adjust the client mix, group hours, or number of clients.";
-  })();
-
-  return (
-    <div style={{ background:"#eef1f6", borderRadius:13, border:`1px solid ${approval.border}`, overflow:"hidden" }}>
-      {/* Header */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 18px", borderBottom:"1px solid #e8edf3" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
-            <input value={label} onChange={e=>onUpdate("label",e.target.value)}
-              style={{ background:"none", border:"none", color:"#e4eaf2", fontWeight:800, fontSize:14, fontFamily:"'Sora',sans-serif", padding:0, width:180, outline:"none" }}/>
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <MixBadges nHigh={nHigh} nIntense={nIntense}/>
-              <span style={{ fontSize:10, color:"#64748b", ...M }}>{total}/3 clients · {laborHrs}hr labor/day</span>
-            </div>
-          </div>
-        </div>
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          {/* Intrinsic approval badge */}
-          <div style={{ display:"flex", alignItems:"center", gap:6, padding:"5px 12px", borderRadius:8, background:approval.bg, border:`1px solid ${approval.border}` }}>
-            <span style={{ fontSize:12, color:approval.color }}>{approval.icon}</span>
-            <div>
-              <div style={{ fontSize:7, color:approval.color, textTransform:"uppercase", letterSpacing:2, ...M, opacity:0.7, lineHeight:1 }}>Intrinsic</div>
-              <div style={{ fontSize:11, fontWeight:800, color:approval.color, fontFamily:"'Cinzel',serif", lineHeight:1.2 }}>{approval.label}</div>
-            </div>
-          </div>
-          {canRemove && <button onClick={onRemove} style={{ width:26, height:26, borderRadius:5, background:"#f0eef8", border:"1px solid #f0c8d4", color:"#f87171", cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>}
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div style={{ padding:"14px 18px", display:"flex", flexDirection:"column", gap:14 }}>
-        <div style={{ display:"flex", gap:10, justifyContent:"space-around", alignItems:"flex-start" }}>
-          <Stepper label="High"    value={nHigh}    max={3-nIntense} onChange={chH} color="#C9921A"/>
-          <Stepper label="Intense" value={nIntense} max={3-nHigh}    onChange={chI} color="#D4A520"/>
-          <Stepper label="# Homes" value={numHomes} max={50} min={1}  onChange={v=>onUpdate("numHomes",v)} color="#00e5aa"/>
-          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:5 }}>
-            <div style={{ fontSize:9, color:"#5a4020", textTransform:"uppercase", letterSpacing:0.8, ...M }}>Total</div>
-            <div style={{ width:54, height:26, display:"flex", alignItems:"center", justifyContent:"center", background:"#ebebeb", borderRadius:7, border:"1px solid #d0dae8" }}>
-              <span style={{ fontWeight:800, color:total===3?"#00e5aa":total===0?"#f87171":"#5a3800", ...M, fontSize:15 }}>{total}/3</span>
-            </div>
-          </div>
-        </div>
-
-        {canGroup && <Slider label="Night Group Hrs" value={groupHrs} min={0} max={20} step={1} onChange={v=>onUpdate("groupHrs",v)} color="#f59e0b" format={v=>`${v}hr`}/>}
-        {allHigh && total > 0 && <div style={{ padding:"7px 12px", background:"#eef1f6", borderRadius:7, borderLeft:"2px solid #C9921A", fontSize:10, color:"#7a5020" }}>All-high: 1 staff (1:{total}) → 24 labor hrs</div>}
-        {!allHigh && total === 1 && <div style={{ padding:"7px 12px", background:"#eef1f6", borderRadius:7, borderLeft:"2px solid #f87171", fontSize:10, color:"#b04040" }}>Single intense client requires 1:1 all 24 hrs — grouping not possible</div>}
-
-        {nIntense > 0 && (
-          <div>
-            <SL>Intense Billing Method</SL>
-            <Toggle value={billingType} onChange={v=>onUpdate("billingType",v)} options={[
-              { value:"normal",  label:`Normal (Daily Rate)`, color:"#D4A520" },
-              { value:"blended", label:"Blended (Unit Rates)", color:"#E8C44A" },
-            ]}/>
-          </div>
-        )}
-
-        {nHigh > 0 && (
-          <div style={{ background:"#f0f6ff", borderRadius:9, border:"1px solid #c8d4e4", padding:"10px 14px" }}>
-            <SL>High Support — 1:1 Individual Hours</SL>
-            <Slider label="1:1 hrs/week per High Support client" value={home.hhrsPerWeek||0} min={0} max={40} step={1}
-              onChange={v=>onUpdate("hhrsPerWeek",v)} color="#C9921A" format={v=>`${v} hrs/wk`}/>
-            {(home.hhrsPerWeek||0) > 0 && (
-              <div style={{ fontSize:9, color:"#475569", marginTop:5, ...M }}>
-                Adds {((home.hhrsPerWeek||0)/7*nHigh).toFixed(1)} staff hrs/day · billed as U2 individual service
-              </div>
-            )}
-          </div>
-        )}
-
-        {total > 0 && (
-          <div style={{ background:"#f4f6ff", borderRadius:9, border:"1px solid #c8d4e4", padding:"10px 14px" }}>
-            <SL>Graveyard — Sleeping Staff Hours</SL>
-            <Slider label={canGroup ? `Sleeping hrs within ${groupHrs}hr night group` : "Overnight sleeping hrs (of 24hr shift)"} value={Math.min(home.graveyardSleepHrs||0, canGroup ? groupHrs : 12)} min={0} max={canGroup ? groupHrs : 12} step={1}
-              onChange={v=>onUpdate("graveyardSleepHrs",v)} color="#7a94b0" format={v=>`${v}hr`}/>
-            {(home.graveyardSleepHrs||0) > 0 && (
-              <div style={{ fontSize:9, color:"#475569", marginTop:5, ...M }}>
-                {Math.min(home.graveyardSleepHrs||0, canGroup ? groupHrs : 12)}hr sleeping · {canGroup ? groupHrs - Math.min(home.graveyardSleepHrs||0, groupHrs) : 24 - Math.min(home.graveyardSleepHrs||0, 12)}hr awake graveyard
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Quick group-hour preview (approved configurations only shown as comparison, no dollar amounts) */}
-        {canGroup && (
-          <div>
-            <SL>Group Hour Options — Status Preview</SL>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:5 }}>
-              {[0,6,8,10,12,14].map(gh => {
-                const tm  = calcHome({...home, groupHrs:gh}, wage, rates, graveyardWage);
-                const ap  = getApprovalStatus(tm.margin, total);
-                const sel = groupHrs === gh;
-                return (
-                  <div key={gh} onClick={() => onUpdate("groupHrs", gh)} style={{
-                    padding:"7px 5px", background:sel?ap.bg:"#ebebeb",
-                    borderRadius:7, border:sel?`1px solid ${ap.border}`:"1px solid #e8edf3",
-                    cursor:"pointer", textAlign:"center",
-                  }}>
-                    <div style={{ fontSize:9, color:"#475569", ...M, marginBottom:2 }}>{gh}hr</div>
-                    <div style={{ fontSize:11, fontWeight:800, color:ap.color }}>{ap.icon}</div>
-                    <div style={{ fontSize:8, color:ap.color, opacity:0.8 }}>{ap.label.split(" ")[0]}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Guidance footer */}
-      <div style={{ padding:"10px 18px", background:approval.bg, borderTop:`1px solid ${approval.border}`, display:"flex", alignItems:"flex-start", gap:8 }}>
-        <span style={{ color:approval.color, fontSize:13, flexShrink:0, marginTop:1 }}>{approval.icon}</span>
-        <span style={{ fontSize:10, color:approval.color, lineHeight:1.6, opacity:0.9 }}>{guidance}</span>
-      </div>
-    </div>
-  );
-}
-
-/* ── CLIENT VIEW: Company Builder tab (no revenue / margin numbers) ── */
-function HomeModelerTab({ homeTypes, homeMetrics, onUpdateType, onRemoveType, onAddType, wage, rates, graveyardWage }) {
-  const totalHomes   = homeTypes.reduce((a,h) => a + (h.numHomes ?? 1), 0);
-  const totalClients = homeTypes.reduce((a,h) => a + ((h.nHigh??0)+(h.nIntense??0))*(h.numHomes??1), 0);
-  const approvedCount= homeMetrics.filter(h => getApprovalStatus(h.metrics.margin, (h.nHigh??0)+(h.nIntense??0)).status === "approved").length;
-  const marginalCount= homeMetrics.filter(h => getApprovalStatus(h.metrics.margin, (h.nHigh??0)+(h.nIntense??0)).status === "marginal").length;
-  const rejectedCount= homeMetrics.filter(h => getApprovalStatus(h.metrics.margin, (h.nHigh??0)+(h.nIntense??0)).status === "rejected").length;
-
-  const allApproved  = approvedCount === homeMetrics.length && homeMetrics.length > 0;
-
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-
-      {/* Portfolio status banner */}
-      <div style={{
-        padding:"14px 18px", borderRadius:12,
-        background: allApproved ? "#00e5aa10" : marginalCount > 0 ? "#f59e0b10" : "#f8717110",
-        border: allApproved ? "1px solid #00e5aa30" : marginalCount > 0 ? "1px solid #f59e0b30" : "1px solid #f8717130",
-        display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10,
-      }}>
-        <div>
-          <div style={{ fontFamily:"'Cinzel',serif", fontSize:11, color: allApproved?"#00e5aa":marginalCount>0?"#f59e0b":"#f87171", letterSpacing:2, marginBottom:3 }}>
-            Intrinsic Portfolio Review
-          </div>
-          <div style={{ fontSize:11, color:"#5a7498" }}>
-            {allApproved
-              ? "All home configurations meet Intrinsic's operational standards."
-              : `${rejectedCount > 0 ? rejectedCount + " home type(s) need adjustment. " : ""}${marginalCount > 0 ? marginalCount + " home type(s) need review." : ""}`}
-          </div>
-        </div>
-        <div style={{ display:"flex", gap:10 }}>
-          {[
-            { label:"Approved",    count:approvedCount, color:"#00e5aa" },
-            { label:"Needs Review",count:marginalCount,  color:"#f59e0b" },
-            { label:"Not Viable",  count:rejectedCount,  color:"#f87171" },
-          ].map(s => (
-            <div key={s.label} style={{ textAlign:"center" }}>
-              <div style={{ fontSize:20, fontWeight:800, color:s.color, ...M, lineHeight:1 }}>{s.count}</div>
-              <div style={{ fontSize:8, color:"#475569", textTransform:"uppercase", letterSpacing:1.2, ...M }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Summary chips — clients and homes only, no revenue */}
-      <div style={{ display:"flex", gap:7 }}>
-        {[
-          { l:"Home Types", v:homeTypes.length, c:"#D4A520" },
-          { l:"Total Homes", v:totalHomes, c:"#C9921A" },
-          { l:"Total Clients", v:totalClients, c:"#5a3800" },
-        ].map((s,i) => (
-          <div key={i} style={{ flex:"1 1 auto", background:"#eef1f6", borderRadius:9, padding:"9px 14px", border:"1px solid #d0dae8" }}>
-            <div style={{ fontSize:8.5, color:"#475569", textTransform:"uppercase", letterSpacing:1.5, ...M, marginBottom:4 }}>{s.l}</div>
-            <div style={{ fontSize:22, fontWeight:800, color:s.c, ...M, lineHeight:1 }}>{s.v}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Home type modeler cards */}
-      {homeMetrics.map(h => (
-        <HomeModelerCard key={h.id} home={h} metrics={h.metrics}
-          onUpdate={(f,v) => onUpdateType(h.id, f, v)}
-          onRemove={() => onRemoveType(h.id)}
-          canRemove={homeTypes.length > 1}
-          rates={rates}
-          wage={wage}
-          graveyardWage={graveyardWage}/>
-      ))}
-
-      <button onClick={onAddType} style={{ padding:"12px", borderRadius:11, border:"2px dashed #d0dae8", background:"none", color:"#64748b", cursor:"pointer", fontSize:13, fontWeight:700, fontFamily:"'Sora',sans-serif" }}
-        onMouseEnter={e=>{e.currentTarget.style.borderColor="#D4A52050";e.currentTarget.style.color="#D4A520";}}
-        onMouseLeave={e=>{e.currentTarget.style.borderColor="#c8d8ec";e.currentTarget.style.color="#64748b";}}>
-        + Add Home Type
-      </button>
-
-      {/* Approval criteria info box */}
-      <div style={{ background:"#eef1f6", borderRadius:12, border:"1px solid #d0dae8", padding:"16px 18px" }}>
-        <div style={{ fontFamily:"'Cinzel',serif", fontSize:11, color:"#D4A520", letterSpacing:2, marginBottom:10 }}>Intrinsic Approval Criteria</div>
-        <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
-          {[
-            { icon:"✓", label:"Approved",     desc:"Home configuration meets operational efficiency standards. Staffing ratios and client mix are within acceptable parameters.", color:"#00e5aa" },
-            { icon:"⚠", label:"Needs Review", desc:"Configuration is marginal. Intrinsic will review before recommending implementation. Consider adjusting group hours or client mix.", color:"#f59e0b" },
-            { icon:"✗", label:"Not Viable",   desc:"Configuration does not meet minimum operational standards. Adjustments required before this home type can be approved.", color:"#f87171" },
-          ].map(s => (
-            <div key={s.label} style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
-              <span style={{ fontSize:13, color:s.color, flexShrink:0, width:18, textAlign:"center" }}>{s.icon}</span>
-              <div>
-                <span style={{ fontSize:11, fontWeight:700, color:s.color, fontFamily:"'Cinzel',serif", marginRight:8 }}>{s.label}</span>
-                <span style={{ fontSize:10, color:"#475569", lineHeight:1.6 }}>{s.desc}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function CompanyTab({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate, mgmtFeePct, billingFeePct, hourlyCount, tscCaseload }) {
@@ -1190,12 +846,12 @@ function HomeMixEditor({ homes, onUpdate, onAdd, onRemove, wage, setWage, rates 
             return (
               <div key={h.id} onClick={()=>setSelId(h.id)} style={{
                 padding:"9px 12px", borderRadius:8, cursor:"pointer",
-                background:s?"#3a280022":"#0d0c07",
-                border:s?"1px solid #D4A52040":"1px solid #e0e8f0",
+                background:s?"#f0ece4":"#e8e4dc",
+                border:s?"1px solid #D4A52060":"1px solid #d0ccc4",
                 borderLeft:`3px solid ${mc(hm.margin)}`, transition:"all 0.15s",
               }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                  <span style={{ fontSize:11, fontWeight:700, color:s?"#5a3800":"#6a4818" }}>{h.label}</span>
+                  <span style={{ fontSize:11, fontWeight:700, color:s?"#5a3800":"#7a6040" }}>{h.label}</span>
                   <span style={{ fontSize:11, fontWeight:700, color:mc(hm.margin), ...M }}>{pct(hm.margin)}</span>
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4 }}>
@@ -2683,7 +2339,6 @@ const SUB_TABS = {
     { id: "portfolio", label: "📊 Portfolio" },
   ],
   RES_HAB_DAILY: [
-    { id: "hometypes", label: "🏘 Home Types" },
     { id: "mixeditor", label: "🏠 Home Mix Editor" },
     { id: "projector", label: "🔬 Home Projector" },
     { id: "labor",     label: "🏗 Labor Efficiency" },
@@ -2965,8 +2620,10 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
   const hourlySL = company?.serviceLines.find(sl => sl.type === SERVICE_LINE_TYPES.RES_HAB_HOURLY && !sl.archived);
   const tscSL    = company?.serviceLines.find(sl => sl.type === SERVICE_LINE_TYPES.TSC            && !sl.archived);
 
-  const homes    = dailySL?.config?.homes    ?? [];
-  const indHomes = dailySL?.config?.indHomes ?? [];
+  const indHomes = [
+    ...expandHomeTypes(dailySL?.config?.homes ?? []),
+    ...(dailySL?.config?.indHomes ?? []),
+  ];
   const hourlyPx = hourlySL?.config?.participants ?? [];
 
   // ── Shared (company-level) values ──
@@ -3023,16 +2680,10 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
     return sl.id;
   };
 
-  const setHomeTypes = (updater) => ensureSLAndUpdate(SERVICE_LINE_TYPES.RES_HAB_DAILY, "homes", updater);
   const setIndHomes  = (updater) => ensureSLAndUpdate(SERVICE_LINE_TYPES.RES_HAB_DAILY, "indHomes", updater);
   const setHourlyPx  = (updater) => ensureSLAndUpdate(SERVICE_LINE_TYPES.RES_HAB_HOURLY, "participants", updater);
 
   // ── Computations ──
-  const homeMetrics = useMemo(
-    () => homes.map(h => ({ ...h, metrics: calcHome(h, wage, rates, graveyardWage) })),
-    [homes, wage, rates, graveyardWage]
-  );
-
   const indHomeMetrics = useMemo(
     () => indHomes.map(h => ({ ...h, metrics: calcHome(h, wage, rates, graveyardWage) })),
     [indHomes, wage, rates, graveyardWage]
@@ -3054,13 +2705,10 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
   );
 
   const co = useMemo(() => {
-    const totalHomes   = homes.reduce((a, h) => a + (h.numHomes || 0), 0) + indHomes.length;
-    const totalClients = homes.reduce((a, h) => a + ((h.nHigh || 0) + (h.nIntense || 0)) * (h.numHomes || 0), 0)
-                       + indHomes.reduce((a, h) => a + (h.nHigh || 0) + (h.nIntense || 0), 0);
-    const dailyRev     = homeMetrics.reduce((a, h) => a + h.metrics.rev   * (h.numHomes || 0), 0)
-                       + indHomeMetrics.reduce((a, h) => a + h.metrics.rev, 0);
-    const dailyLabor   = homeMetrics.reduce((a, h) => a + h.metrics.labor * (h.numHomes || 0), 0)
-                       + indHomeMetrics.reduce((a, h) => a + h.metrics.labor, 0);
+    const totalHomes   = indHomes.length;
+    const totalClients = indHomes.reduce((a, h) => a + (h.nHigh || 0) + (h.nIntense || 0), 0);
+    const dailyRev     = indHomeMetrics.reduce((a, h) => a + h.metrics.rev, 0);
+    const dailyLabor   = indHomeMetrics.reduce((a, h) => a + h.metrics.labor, 0);
     const annualRevGross    = dailyRev * 365 + hourlyTotals.annualRev + tscSummary.totalAnnualRev;
     const annualRevNet      = annualRevGross * (occupancy / 100);
     const annualDirectLabor = (dailyLabor * 365 + hourlyTotals.annualLabor + tscSummary.totalAnnualLabor) * (occupancy / 100);
@@ -3081,7 +2729,7 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
       mgmtTotal, overheadTotal, mgmtFee, billingFee, totalCosts,
       ebitda, ebitdaMargin, stateTax, federalTax, totalTax, netIncome, netMargin,
     };
-  }, [homeMetrics, indHomeMetrics, homes, indHomes, occupancy, mgmt, overhead, entityType, ownerRate, rates, mgmtFeePct, billingFeePct, hourlyTotals, tscSummary]);
+  }, [indHomeMetrics, indHomes, occupancy, mgmt, overhead, entityType, ownerRate, rates, mgmtFeePct, billingFeePct, hourlyTotals, tscSummary]);
 
   // Hourly handlers
   const updateHourly = (id, f, v) => setHourlyPx(p => p.map(h => h.id === id ? { ...h, [f]: v } : h));
@@ -3313,43 +2961,6 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
               {isWholeCompany && subTab === "portfolio" && <PortfolioComparison/>}
 
               {/* RES_HAB_DAILY tabs */}
-              {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "hometypes" && (
-                <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-                  {homeMetrics.map(h => (
-                    <HomeTypeCard key={h.id} home={h} metrics={h.metrics}
-                      onUpdate={(f,v) => setHomeTypes(p => p.map(t => t.id === h.id ? { ...t, [f]:v } : t))}
-                      onRemove={() => setHomeTypes(p => p.filter(t => t.id !== h.id))}
-                      canRemove={homes.length > 1}
-                      rates={rates}/>
-                  ))}
-                  <button
-                    onClick={() => setHomeTypes(p => [...p, mkType(`Home Type ${String.fromCharCode(65 + p.length % 26)}`, 2, 1, 12, "normal", 5)])}
-                    style={{ padding:"12px", borderRadius:11, border:"2px dashed #d0dae8", background:"none", color:"#7a5020", cursor:"pointer", fontSize:13, fontWeight:700, fontFamily:"'Sora',sans-serif" }}
-                    onMouseEnter={e=>{e.currentTarget.style.borderColor="#D4A52050";e.currentTarget.style.color="#D4A520";}}
-                    onMouseLeave={e=>{e.currentTarget.style.borderColor="#d5c898";e.currentTarget.style.color="#7a5020";}}>
-                    + Add Home Type
-                  </button>
-                  {homeMetrics.length >= 2 && (
-                    <div style={{ background:"#f8f6f0", borderRadius:12, border:"1px solid #d0dae8", padding:"16px 20px" }}>
-                      <SL>Home Type Comparison — Gross Per Home Per Day</SL>
-                      {homeMetrics.map(h => {
-                        const mx = Math.max(...homeMetrics.map(x => x.metrics.gross));
-                        return (
-                          <div key={h.id} style={{ marginBottom:10 }}>
-                            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
-                              <span style={{ fontSize:11, color:"#6a4c10" }}>{h.label}</span>
-                              <span style={{ fontSize:11, fontWeight:700, color:mc(h.metrics.margin), ...M }}>{$d(h.metrics.gross)} · {pct(h.metrics.margin)}</span>
-                            </div>
-                            <div style={{ height:7, background:"#ebebeb", borderRadius:3, overflow:"hidden" }}>
-                              <div style={{ height:"100%", width:`${mx>0?(h.metrics.gross/mx)*100:0}%`, background:`linear-gradient(90deg,${mc(h.metrics.margin)}50,${mc(h.metrics.margin)})`, borderRadius:3, transition:"width 0.4s" }}/>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "mixeditor" && (
                 <HomeMixEditor homes={indHomes}
                   onUpdate={(id, f, v) => setIndHomes(p => p.map(h => h.id === id ? { ...h, [f]: v } : h))}
@@ -3365,13 +2976,10 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "labor" &&
                 <LaborEfficiencyTab wage={wage} rates={rates} graveyardWage={graveyardWage}/>}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "reshab_pl" && (() => {
-                const rawRev    = (homeMetrics.reduce((a,h) => a + h.metrics.rev   * (h.numHomes||0), 0)
-                                + indHomeMetrics.reduce((a,h) => a + h.metrics.rev, 0)) * 365;
-                const rawLabor  = (homeMetrics.reduce((a,h) => a + h.metrics.labor * (h.numHomes||0), 0)
-                                + indHomeMetrics.reduce((a,h) => a + h.metrics.labor, 0)) * 365;
-                const slHomes   = homes.reduce((a,h) => a + (h.numHomes||0), 0) + indHomes.length;
-                const slClients = homes.reduce((a,h) => a + ((h.nHigh||0)+(h.nIntense||0))*(h.numHomes||0), 0)
-                                + indHomes.reduce((a,h) => a + (h.nHigh||0)+(h.nIntense||0), 0);
+                const rawRev    = indHomeMetrics.reduce((a,h) => a + h.metrics.rev, 0) * 365;
+                const rawLabor  = indHomeMetrics.reduce((a,h) => a + h.metrics.labor, 0) * 365;
+                const slHomes   = indHomes.length;
+                const slClients = indHomes.reduce((a,h) => a + (h.nHigh||0) + (h.nIntense||0), 0);
                 const revShare  = co.annualRevGross > 0 ? rawRev / co.annualRevGross : 1;
                 const slCo = calcSLCo({ annualRevGrossRaw:rawRev, annualLaborRaw:rawLabor,
                   totalHomes:slHomes, totalClients:slClients, occupancy, mgmtFeePct, billingFeePct,

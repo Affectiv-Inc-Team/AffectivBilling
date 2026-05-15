@@ -194,6 +194,31 @@ export function validateConfig(config) {
 }
 
 // ──────────────────────────────────────────────────────────────────────
+// Migration helpers
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Expand legacy home-type entries (each with a numHomes multiplier) into
+ * individual home objects (one entry = one physical home). Used when
+ * migrating old saves that stored typed home groups in config.homes.
+ */
+function expandHomeTypes(homeTypes = []) {
+  return homeTypes.flatMap(ht => {
+    const count = ht.numHomes || 1;
+    return Array.from({ length: count }, (_, i) => ({
+      id: genId(),
+      label: count > 1 ? `${ht.label} ${i + 1}` : ht.label,
+      nHigh:             ht.nHigh,
+      nIntense:          ht.nIntense,
+      groupHrs:          ht.groupHrs,
+      billingType:       ht.billingType,
+      hhrsPerWeek:       ht.hhrsPerWeek       ?? 0,
+      graveyardSleepHrs: ht.graveyardSleepHrs ?? 0,
+    }));
+  });
+}
+
+// ──────────────────────────────────────────────────────────────────────
 // Migration
 // ──────────────────────────────────────────────────────────────────────
 
@@ -250,12 +275,14 @@ function migrateFlatV1(flat) {
 
   const serviceLines = [];
 
-  // Daily homes → RES_HAB_DAILY
+  // Daily homes → RES_HAB_DAILY (expand legacy home types into individual homes)
   if (Array.isArray(flat.homeTypes) && flat.homeTypes.length > 0) {
     serviceLines.push(createServiceLine(SERVICE_LINE_TYPES.RES_HAB_DAILY, {
       config: {
-        homes: flat.homeTypes,
-        indHomes: flat.indHomes ?? [],
+        indHomes: [
+          ...expandHomeTypes(flat.homeTypes),
+          ...(flat.indHomes ?? []),
+        ],
       },
     }));
   }
@@ -296,13 +323,21 @@ function migrateOldCompany(oldCo) {
 
   const serviceLines = [];
 
-  if (Array.isArray(oldCo.homes) && oldCo.homes.length > 0) {
+  if (Array.isArray(oldCo.indHomes) && oldCo.indHomes.length > 0) {
+    // Already individual homes — use as-is, also expand any legacy typed homes
     serviceLines.push(createServiceLine(SERVICE_LINE_TYPES.RES_HAB_DAILY, {
-      config: { homes: oldCo.homes, indHomes: oldCo.indHomes ?? [] },
+      config: { indHomes: [
+        ...expandHomeTypes(oldCo.homes ?? []),
+        ...oldCo.indHomes,
+      ]},
+    }));
+  } else if (Array.isArray(oldCo.homes) && oldCo.homes.length > 0) {
+    serviceLines.push(createServiceLine(SERVICE_LINE_TYPES.RES_HAB_DAILY, {
+      config: { indHomes: expandHomeTypes(oldCo.homes) },
     }));
   } else if (Array.isArray(oldCo.homeTypes) && oldCo.homeTypes.length > 0) {
     serviceLines.push(createServiceLine(SERVICE_LINE_TYPES.RES_HAB_DAILY, {
-      config: { homes: oldCo.homeTypes, indHomes: oldCo.indHomes ?? [] },
+      config: { indHomes: expandHomeTypes(oldCo.homeTypes) },
     }));
   }
 
