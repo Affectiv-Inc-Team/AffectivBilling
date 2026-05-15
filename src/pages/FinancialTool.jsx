@@ -863,6 +863,53 @@ function HomeMixEditor({ homes, onUpdate, onAdd, onRemove, wage, setWage, rates 
             );
           })}
         </div>
+        {/* Reimbursement Rates */}
+        <div style={{ marginTop:10, padding:"10px 12px", background:"#ebebeb", borderRadius:9, border:"1px solid #e0e8f0" }}>
+          <button onClick={() => setRatesOpen(o => !o)} style={{
+            background:"none", border:"none", cursor:"pointer", padding:0,
+            display:"flex", alignItems:"center", gap:6, width:"100%",
+            fontSize:9, color:"#9a8050", letterSpacing:2, textTransform:"uppercase", fontWeight:700,
+          }}>
+            <span style={{ fontSize:11, transition:"transform 200ms", transform: ratesOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+            Reimbursement Rates
+          </button>
+          {ratesOpen && (
+            <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:8 }}>
+              {RATE_FIELDS.map(f => (
+                <div key={f.key}>
+                  <div style={{ fontSize:9, color:"#5a7498", marginBottom:3 }}>{f.label} <span style={{ color:"#9aabb8" }}>{f.unit}</span></div>
+                  <div style={{ display:"flex", alignItems:"center", gap:4, flexWrap:"wrap" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:3, flex:1 }}>
+                      <span style={{ fontSize:10, color:"#9aabb8" }}>$</span>
+                      <input type="number" step="0.01"
+                        value={rates[f.key] ?? f.baseline}
+                        onChange={e => setRates(r => ({ ...r, [f.key]: parseFloat(e.target.value)||0 }))}
+                        style={{ width:60, fontSize:12, fontWeight:600, color:f.color,
+                          background:"#f8f8f8", border:"1px solid #d0dae8", borderRadius:5,
+                          padding:"3px 6px", textAlign:"right" }}/>
+                    </div>
+                    <div style={{ display:"flex", gap:3 }}>
+                      {[2,4,6].map(p => (
+                        <button key={p} onClick={() =>
+                          setRates(r => ({ ...r, [f.key]: parseFloat((f.baseline*(1-p/100)).toFixed(4)) }))}
+                          style={{ fontSize:9, padding:"2px 4px", borderRadius:4, border:"1px solid #d0dae8",
+                            background:"#fff", color:"#64748b", cursor:"pointer" }}>
+                          −{p}%
+                        </button>
+                      ))}
+                      <button onClick={() => setRates(r => ({ ...r, [f.key]: f.baseline }))}
+                        style={{ fontSize:9, padding:"2px 4px", borderRadius:4, border:"1px solid #d0dae8",
+                          background:"#fff", color:"#64748b", cursor:"pointer" }}>
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Portfolio stats */}
         <div style={{ marginTop:10, padding:"10px 12px", background:"#ebebeb", borderRadius:9, border:"1px solid #e0e8f0" }}>
           <SL>Portfolio</SL>
@@ -956,52 +1003,6 @@ function HomeMixEditor({ homes, onUpdate, onAdd, onRemove, wage, setWage, rates 
                   onChange={setGraveyardWage} color="#5a7498" format={v=>`$${v.toFixed(2)}/hr`}/>
                 <Slider label="Occupancy Rate" value={occupancy} min={60} max={100} step={1}
                   onChange={setOccupancy} color="#D4A520" format={v=>`${v}%`}/>
-              </div>
-              {/* Reimbursement Rates */}
-              <div style={{ marginTop:14 }}>
-                <button onClick={() => setRatesOpen(o => !o)} style={{
-                  background:"none", border:"none", cursor:"pointer", padding:0,
-                  display:"flex", alignItems:"center", gap:6,
-                  fontSize:9, color:"#9a8050", letterSpacing:2, textTransform:"uppercase", fontWeight:700,
-                }}>
-                  <span style={{ fontSize:11, transition:"transform 200ms",
-                    transform: ratesOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
-                  Reimbursement Rates
-                </button>
-                {ratesOpen && (
-                  <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:10 }}>
-                    {RATE_FIELDS.map(f => (
-                      <div key={f.key} style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        <div style={{ flex:1, fontSize:11, color:"#5a7498" }}>{f.label}</div>
-                        <div style={{ fontSize:10, color:"#9aabb8" }}>{f.unit}</div>
-                        <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                          <span style={{ fontSize:10, color:"#9aabb8" }}>$</span>
-                          <input type="number" step="0.01"
-                            value={rates[f.key] ?? f.baseline}
-                            onChange={e => setRates(r => ({ ...r, [f.key]: parseFloat(e.target.value)||0 }))}
-                            style={{ width:68, fontSize:12, fontWeight:600, color:f.color,
-                              background:"#f8f8f8", border:"1px solid #d0dae8", borderRadius:5,
-                              padding:"3px 6px", textAlign:"right" }}/>
-                        </div>
-                        <div style={{ display:"flex", gap:3 }}>
-                          {[2,4,6].map(p => (
-                            <button key={p} onClick={() =>
-                              setRates(r => ({ ...r, [f.key]: parseFloat((f.baseline*(1-p/100)).toFixed(4)) }))}
-                              style={{ fontSize:9, padding:"2px 5px", borderRadius:4, border:"1px solid #d0dae8",
-                                background:"#fff", color:"#64748b", cursor:"pointer" }}>
-                              −{p}%
-                            </button>
-                          ))}
-                          <button onClick={() => setRates(r => ({ ...r, [f.key]: f.baseline }))}
-                            style={{ fontSize:9, padding:"2px 5px", borderRadius:4, border:"1px solid #d0dae8",
-                              background:"#fff", color:"#64748b", cursor:"pointer" }}>
-                            Reset
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
 
