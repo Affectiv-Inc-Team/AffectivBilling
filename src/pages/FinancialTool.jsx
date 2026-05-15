@@ -320,7 +320,7 @@ function MixBadges({ nHigh, nIntense, size=22 }) {
 /* ══════════════════════════════════════════════════════════
    COMPANY P&L PANEL
 ══════════════════════════════════════════════════════════ */
-function CompanyPL({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate, mgmtFeePct, billingFeePct }) {
+function CompanyPL({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate, mgmtFeePct, billingFeePct, slBreakdown, title }) {
   const [showEdit, setShowEdit] = useState(false);
   const { annualRevGross, annualRevNet, annualDirectLabor, payrollBurden, totalLabor,
     mgmtTotal, overheadTotal, mgmtFee, billingFee, totalCosts, ebitda, ebitdaMargin,
@@ -329,14 +329,19 @@ function CompanyPL({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate, 
   const effTax   = ebitda>0 ? totalTax/ebitda : 0;
   const netColor = nmc(Math.max(0,netMargin));
 
+  // Only render per-SL sub-rows when 2+ service lines are active (single-SL is redundant)
+  const showBreakdown = slBreakdown && slBreakdown.length >= 2;
+
   const rows = [
     { l:"── REVENUE ──",                                  v: null,                        t:"hdr" },
+    ...(showBreakdown ? slBreakdown.map(sl => ({ l:`  ↳ ${sl.label}  ·  ${sl.detail}`, v: sl.rev, t:"sl-rev" })) : []),
     { l:"Gross Revenue (100% occ.)",                    v: annualRevGross,              t:"rev" },
     { l:"Occupancy Adjustment",                         v: annualRevNet-annualRevGross,  t:"ded" },
     { l:"Net Revenue",                                  v: annualRevNet,                 t:"sub" },
     null,
     { l:"── COSTS ──",                                   v: null,                        t:"hdr" },
-    { l:"Direct Care Labor",                            v:-annualDirectLabor,           t:"cost" },
+    ...(showBreakdown ? slBreakdown.map(sl => ({ l:`  ↳ ${sl.label}  ·  ${sl.detail}`, v: -sl.labor, t:"sl-labor" })) : []),
+    { l: showBreakdown ? "Direct Care Labor (total)" : "Direct Care Labor", v:-annualDirectLabor, t:"cost" },
     { l:"Payroll Burden (22%)",                         v:-payrollBurden,               t:"cost" },
     { l:"Management & Admin (Salaries)",                v:-mgmtTotal,                   t:"cost" },
     { l:"Operating Overhead",                           v:-overheadTotal,               t:"cost" },
@@ -357,17 +362,17 @@ function CompanyPL({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate, 
     { l:isCorp?"Net Profit Margin":      "Net Margin (Est.)",      v:pct(netMargin), t:"npct" },
   ];
 
-  const rc = t => t==="net"||t==="npct"?netColor:t==="ebitda"||t==="epct"?(ebitda<0?"#f87171":"#00e5aa"):t==="rev"?"#5a3800":t==="tax"||t==="taxsub"?"#fb923c":t==="fee"?"#E8C44A":t==="cost"||t==="ded"?"#f87171":t==="sub"?"#6a4c10":t==="hdr"?"#9a8050":"#6a4818";
+  const rc = t => t==="net"||t==="npct"?netColor:t==="ebitda"||t==="epct"?(ebitda<0?"#f87171":"#00e5aa"):t==="rev"?"#5a3800":t==="tax"||t==="taxsub"?"#fb923c":t==="fee"?"#E8C44A":t==="cost"||t==="ded"?"#f87171":t==="sub"?"#6a4c10":t==="hdr"?"#9a8050":t==="sl-rev"?"#8a6820":t==="sl-labor"?"#c07070":"#6a4818";
   const rb = t => t==="net"||t==="npct"?(netIncome>=0?"#0c1606":"#1a0606"):t==="taxsub"?"#0f0800":t==="ebitda"||t==="epct"?(ebitda>=0?"#021a0f":"#1a0606"):t==="sub"?"#ebebeb":t==="hdr"?"#06050300":"transparent";
   const bd = t => ["sub","ebitda","net","taxsub","rev"].includes(t);
-  const fs = t => t==="ebitda"||t==="net" ? 14 : t==="epct"||t==="npct" ? 12 : t==="hdr" ? 9 : 11;
+  const fs = t => t==="ebitda"||t==="net" ? 14 : t==="epct"||t==="npct" ? 12 : t==="hdr" ? 9 : t==="sl-rev"||t==="sl-labor" ? 10 : 11;
   const fw = t => t==="ebitda"||t==="net" ? 800 : bd(t) ? 700 : t==="hdr" ? 500 : 400;
 
   return (
     <div style={{ background:"#f8f6f0", borderRadius:13, border:"1px solid #d0dae8", overflow:"hidden" }}>
       <div style={{ padding:"16px 20px", borderBottom:"1px solid #d0dae8" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-          <SL>Annual P&L — {co.totalHomes} homes / {co.totalClients} clients</SL>
+          <SL>{title ?? `Annual P&L — ${co.totalHomes} homes / ${co.totalClients} clients`}</SL>
           <button onClick={()=>setShowEdit(!showEdit)} style={{ fontSize:10, color:"#D4A520", background:"none", border:"1px solid #d0dae8", borderRadius:5, padding:"3px 10px", cursor:"pointer", ...M }}>
             {showEdit?"▲ Done":"▼ Edit Overhead"}
           </button>
@@ -449,7 +454,7 @@ function getLaborApprovalStatus(laborRatio, total) {
   return                                                      { status:"rejected", label:"Not Viable",   color:"#f87171", bg:"#f8717112", border:"#f8717135", icon:"✗" };
 }
 
-function CompanyTab({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate, mgmtFeePct, billingFeePct, hourlyCount, tscCaseload }) {
+function CompanyTab({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate, mgmtFeePct, billingFeePct, hourlyCount, tscCaseload, slBreakdown }) {
   const topChips = [
     { l:"24hr Clients",  v:co.totalClients, c:"#D4A520", f:n=>n },
     ...(hourlyCount > 0  ? [{ l:"Hourly Clients", v:hourlyCount,  c:"#C9921A", f:n=>n }] : []),
@@ -472,7 +477,7 @@ function CompanyTab({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate,
           ].map((s,i)=><Chip key={i} label={s.l} value={s.f(s.v)} color={s.c} highlight={s.hi}/>)}
         </div>
       </div>
-      <CompanyPL co={co} mgmt={mgmt} overhead={overhead} onMgmt={onMgmt} onOvhd={onOvhd} entityType={entityType} ownerRate={ownerRate} mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}/>
+      <CompanyPL co={co} mgmt={mgmt} overhead={overhead} onMgmt={onMgmt} onOvhd={onOvhd} entityType={entityType} ownerRate={ownerRate} mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct} slBreakdown={slBreakdown}/>
     </div>
   );
 }
@@ -2725,11 +2730,33 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
     const ebitdaMargin      = annualRevNet > 0 ? ebitda / annualRevNet : 0;
     const { stateTax, federalTax, totalTax, netIncome } = calcTax(ebitda, entityType, ownerRate);
     const netMargin         = annualRevNet > 0 ? netIncome / annualRevNet : 0;
+    const occFactor = occupancy / 100;
+    const slBreakdown = [
+      ...(dailyRev > 0 ? [{
+        id: 'daily', label: 'Res. Hab. Daily (24hr)',
+        rev:   dailyRev * 365,
+        labor: dailyLabor * 365 * occFactor,
+        detail: `${totalHomes} homes · ${totalClients} clients`,
+      }] : []),
+      ...(hourlyTotals.annualRev > 0 ? [{
+        id: 'hourly', label: 'Res. Hab. Hourly',
+        rev:   hourlyTotals.annualRev,
+        labor: hourlyTotals.annualLabor * occFactor,
+        detail: `${hourlyTotals.count} clients`,
+      }] : []),
+      ...(tscSummary.totalAnnualRev > 0 ? [{
+        id: 'tsc', label: 'TSC (Coordination)',
+        rev:   tscSummary.totalAnnualRev,
+        labor: tscSummary.totalAnnualLabor * occFactor,
+        detail: `${tscSummary.coordinatorCount} coords · ${tscSummary.totalCaseload} clients`,
+      }] : []),
+    ];
     return {
       totalHomes, totalClients,
       annualRevGross, annualRevNet, annualDirectLabor, payrollBurden, totalLabor,
       mgmtTotal, overheadTotal, mgmtFee, billingFee, totalCosts,
       ebitda, ebitdaMargin, stateTax, federalTax, totalTax, netIncome, netMargin,
+      slBreakdown,
     };
   }, [indHomeMetrics, indHomes, occupancy, mgmt, overhead, entityType, ownerRate, rates, mgmtFeePct, billingFeePct, hourlyTotals, tscSummary]);
 
@@ -2956,7 +2983,8 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
                   onOvhd={(id, v) => setOverhead(p => p.map(o => o.id === id ? { ...o, amount: v } : o))}
                   entityType={entityType} ownerRate={ownerRate}
                   mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}
-                  hourlyCount={hourlyTotals.count} tscCaseload={tscSummary.totalCaseload}/>
+                  hourlyCount={hourlyTotals.count} tscCaseload={tscSummary.totalCaseload}
+                  slBreakdown={co.slBreakdown}/>
               )}
               {isWholeCompany && subTab === "budget"    && <BudgetBuilderTab co={co} hourlyTotals={hourlyTotals} wage={wage}/>}
               {isWholeCompany && subTab === "faq"       && <FAQTab/>}
@@ -2990,7 +3018,8 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
                   onMgmt={(id,v)=>setMgmt(p=>p.map(m=>m.id===id?{...m,salary:v}:m))}
                   onOvhd={(id,v)=>setOverhead(p=>p.map(o=>o.id===id?{...o,amount:v}:o))}
                   entityType={entityType} ownerRate={ownerRate}
-                  mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}/>;
+                  mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}
+                  title="Annual P&L — Res. Hab. Daily (24hr)"/>;
               })()}
 
               {/* RES_HAB_HOURLY tabs */}
@@ -3009,7 +3038,8 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
                   onMgmt={(id,v)=>setMgmt(p=>p.map(m=>m.id===id?{...m,salary:v}:m))}
                   onOvhd={(id,v)=>setOverhead(p=>p.map(o=>o.id===id?{...o,amount:v}:o))}
                   entityType={entityType} ownerRate={ownerRate}
-                  mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}/>;
+                  mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}
+                  title="Annual P&L — Res. Hab. Hourly"/>;
               })()}
 
               {/* TSC tabs */}
@@ -3019,8 +3049,24 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
               )}
               {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_productivity" &&
                 <TSCProductivityTab config={activeSL.config}/>}
-              {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_pl" &&
-                <TSCPLTab config={activeSL.config}/>}
+              {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_pl" && (() => {
+                const revShare = co.annualRevGross > 0 ? tscSummary.totalAnnualRev / co.annualRevGross : 1;
+                const slCo = calcSLCo({ annualRevGrossRaw:tscSummary.totalAnnualRev,
+                  annualLaborRaw:tscSummary.totalAnnualLabor, totalHomes:0,
+                  totalClients:tscSummary.totalCaseload, occupancy, mgmtFeePct, billingFeePct,
+                  entityType, ownerRate, revShare, fullMgmtTotal:co.mgmtTotal, fullOverheadTotal:co.overheadTotal });
+                return (
+                  <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                    <CompanyPL co={slCo} mgmt={mgmt} overhead={overhead}
+                      onMgmt={(id,v)=>setMgmt(p=>p.map(m=>m.id===id?{...m,salary:v}:m))}
+                      onOvhd={(id,v)=>setOverhead(p=>p.map(o=>o.id===id?{...o,amount:v}:o))}
+                      entityType={entityType} ownerRate={ownerRate}
+                      mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}
+                      title="Annual P&L — TSC (Coordination)"/>
+                    <TSCPLTab config={activeSL.config}/>
+                  </div>
+                );
+              })()}
 
               {/* Catalog placeholder for service lines without dedicated UI */}
               {activeSL && !SUB_TABS[activeSLType] && (
