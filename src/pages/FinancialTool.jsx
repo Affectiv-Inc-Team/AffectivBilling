@@ -793,18 +793,21 @@ function HomeModelerTab({ homeTypes, homeMetrics, onUpdateType, onRemoveType, on
   );
 }
 
-function CompanyTab({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate, mgmtFeePct, billingFeePct }) {
+function CompanyTab({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate, mgmtFeePct, billingFeePct, hourlyCount, tscCaseload }) {
+  const topChips = [
+    { l:"24hr Clients",  v:co.totalClients, c:"#D4A520", f:n=>n },
+    ...(hourlyCount > 0  ? [{ l:"Hourly Clients", v:hourlyCount,  c:"#C9921A", f:n=>n }] : []),
+    ...(tscCaseload > 0  ? [{ l:"TSC Caseload",   v:tscCaseload,  c:"#C9921A", f:n=>n }] : []),
+    { l:"Homes",         v:co.totalHomes,   c:"#C9921A", f:n=>n },
+    { l:"Net Revenue",   v:co.annualRevNet, c:"#5a3800", f:$k },
+    { l:"EBITDA",        v:co.ebitda,       c:mc(Math.max(0,co.ebitdaMargin)), f:$k },
+    { l:"EBITDA Mgn",    v:co.ebitdaMargin, c:mc(Math.max(0,co.ebitdaMargin)), f:pct },
+  ];
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
       <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
-        <div style={{ display:"flex", gap:7 }}>
-          {[
-            { l:"Clients",     v:co.totalClients, c:"#D4A520",  f:n=>n },
-            { l:"Homes",       v:co.totalHomes,   c:"#C9921A",  f:n=>n },
-            { l:"Net Revenue", v:co.annualRevNet,  c:"#5a3800",  f:$k },
-            { l:"EBITDA",      v:co.ebitda,        c:mc(Math.max(0,co.ebitdaMargin)), f:$k },
-            { l:"EBITDA Mgn",  v:co.ebitdaMargin,  c:mc(Math.max(0,co.ebitdaMargin)), f:pct },
-          ].map((s,i)=><Chip key={i} label={s.l} value={s.f(s.v)} color={s.c} highlight={s.hi}/>)}
+        <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
+          {topChips.map((s,i)=><Chip key={i} label={s.l} value={s.f(s.v)} color={s.c} highlight={s.hi}/>)}
         </div>
         <div style={{ display:"flex", gap:7 }}>
           {[
@@ -3030,6 +3033,11 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
     [homes, wage, rates, graveyardWage]
   );
 
+  const indHomeMetrics = useMemo(
+    () => indHomes.map(h => ({ ...h, metrics: calcHome(h, wage, rates, graveyardWage) })),
+    [indHomes, wage, rates, graveyardWage]
+  );
+
   const hourlyTotals = useMemo(() => {
     const ms = hourlyPx.map(p => calcHourlyParticipant(p, rates, wage));
     return {
@@ -3046,10 +3054,13 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
   );
 
   const co = useMemo(() => {
-    const totalHomes   = homes.reduce((a, h) => a + (h.numHomes || 0), 0);
-    const totalClients = homes.reduce((a, h) => a + ((h.nHigh || 0) + (h.nIntense || 0)) * (h.numHomes || 0), 0);
-    const dailyRev     = homeMetrics.reduce((a, h) => a + h.metrics.rev   * (h.numHomes || 0), 0);
-    const dailyLabor   = homeMetrics.reduce((a, h) => a + h.metrics.labor * (h.numHomes || 0), 0);
+    const totalHomes   = homes.reduce((a, h) => a + (h.numHomes || 0), 0) + indHomes.length;
+    const totalClients = homes.reduce((a, h) => a + ((h.nHigh || 0) + (h.nIntense || 0)) * (h.numHomes || 0), 0)
+                       + indHomes.reduce((a, h) => a + (h.nHigh || 0) + (h.nIntense || 0), 0);
+    const dailyRev     = homeMetrics.reduce((a, h) => a + h.metrics.rev   * (h.numHomes || 0), 0)
+                       + indHomeMetrics.reduce((a, h) => a + h.metrics.rev, 0);
+    const dailyLabor   = homeMetrics.reduce((a, h) => a + h.metrics.labor * (h.numHomes || 0), 0)
+                       + indHomeMetrics.reduce((a, h) => a + h.metrics.labor, 0);
     const annualRevGross    = dailyRev * 365 + hourlyTotals.annualRev + tscSummary.totalAnnualRev;
     const annualRevNet      = annualRevGross * (occupancy / 100);
     const annualDirectLabor = (dailyLabor * 365 + hourlyTotals.annualLabor + tscSummary.totalAnnualLabor) * (occupancy / 100);
@@ -3070,7 +3081,7 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
       mgmtTotal, overheadTotal, mgmtFee, billingFee, totalCosts,
       ebitda, ebitdaMargin, stateTax, federalTax, totalTax, netIncome, netMargin,
     };
-  }, [homeMetrics, homes, occupancy, mgmt, overhead, entityType, ownerRate, rates, mgmtFeePct, billingFeePct, hourlyTotals, tscSummary]);
+  }, [homeMetrics, indHomeMetrics, homes, indHomes, occupancy, mgmt, overhead, entityType, ownerRate, rates, mgmtFeePct, billingFeePct, hourlyTotals, tscSummary]);
 
   // Hourly handlers
   const updateHourly = (id, f, v) => setHourlyPx(p => p.map(h => h.id === id ? { ...h, [f]: v } : h));
@@ -3294,7 +3305,8 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
                   onMgmt={(id, v) => setMgmt(p => p.map(m => m.id === id ? { ...m, salary: v } : m))}
                   onOvhd={(id, v) => setOverhead(p => p.map(o => o.id === id ? { ...o, amount: v } : o))}
                   entityType={entityType} ownerRate={ownerRate}
-                  mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}/>
+                  mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}
+                  hourlyCount={hourlyTotals.count} tscCaseload={tscSummary.totalCaseload}/>
               )}
               {isWholeCompany && subTab === "budget"    && <BudgetBuilderTab co={co} hourlyTotals={hourlyTotals} wage={wage}/>}
               {isWholeCompany && subTab === "faq"       && <FAQTab/>}
@@ -3353,10 +3365,13 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "labor" &&
                 <LaborEfficiencyTab wage={wage} rates={rates} graveyardWage={graveyardWage}/>}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "reshab_pl" && (() => {
-                const rawRev    = homeMetrics.reduce((a,h) => a + h.metrics.rev   * (h.numHomes||0), 0) * 365;
-                const rawLabor  = homeMetrics.reduce((a,h) => a + h.metrics.labor * (h.numHomes||0), 0) * 365;
-                const slHomes   = homes.reduce((a,h) => a + (h.numHomes||0), 0);
-                const slClients = homes.reduce((a,h) => a + ((h.nHigh||0)+(h.nIntense||0))*(h.numHomes||0), 0);
+                const rawRev    = (homeMetrics.reduce((a,h) => a + h.metrics.rev   * (h.numHomes||0), 0)
+                                + indHomeMetrics.reduce((a,h) => a + h.metrics.rev, 0)) * 365;
+                const rawLabor  = (homeMetrics.reduce((a,h) => a + h.metrics.labor * (h.numHomes||0), 0)
+                                + indHomeMetrics.reduce((a,h) => a + h.metrics.labor, 0)) * 365;
+                const slHomes   = homes.reduce((a,h) => a + (h.numHomes||0), 0) + indHomes.length;
+                const slClients = homes.reduce((a,h) => a + ((h.nHigh||0)+(h.nIntense||0))*(h.numHomes||0), 0)
+                                + indHomes.reduce((a,h) => a + (h.nHigh||0)+(h.nIntense||0), 0);
                 const revShare  = co.annualRevGross > 0 ? rawRev / co.annualRevGross : 1;
                 const slCo = calcSLCo({ annualRevGrossRaw:rawRev, annualLaborRaw:rawLabor,
                   totalHomes:slHomes, totalClients:slClients, occupancy, mgmtFeePct, billingFeePct,
