@@ -111,7 +111,7 @@ describe("getDefaultConfig", () => {
 
   it("RES_HAB_DAILY default config has homes as array", () => {
     const cfg = getDefaultConfig("RES_HAB_DAILY");
-    expect(Array.isArray(cfg.homes)).toBe(true);
+    expect(Array.isArray(cfg.indHomes)).toBe(true);
   });
 
   it("RES_HAB_HOURLY default config has participants as array", () => {

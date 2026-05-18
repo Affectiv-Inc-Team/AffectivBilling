@@ -85,3 +85,12 @@ export function editMode(role) {
   if (t <= 6) return 'operational';
   return 'readonly';
 }
+
+// Rule 7 — Top-level KPI chips (header bar) visible to tiers 1–4
+export function canSeeTopNumbers(role) { return tier(role) <= 4; }
+
+// Rule 8 — Service-line editing (Home Mix Editor interactive controls) allowed for tiers 1–4
+export function canEditServiceLines(role) { return tier(role) <= 4; }
+
+// Rule 9 — Add Service Line button visible to tiers 1–4
+export function canAddServiceLine(role) { return tier(role) <= 4; }

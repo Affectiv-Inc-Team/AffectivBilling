@@ -145,6 +145,132 @@ Save button hidden for `editMode(userRole) === 'readonly'` (tiers 7–8).
 
 ---
 
+### 5-Year Projection dollar masking (Rule 1) ✅
+`SingleHomeProjector` already received `userRole`; the projection table now gates its three dollar columns.
+- Tiers 1–3: all 5 columns rendered (Year, Annual Revenue, Annual Labor, Annual Gross, Gross Margin)
+- Tiers 4–8: only 2 columns rendered (Year, Gross Margin %). Dollar columns and their headers are hidden.
+- Uses `canSeeCompanyDollars(userRole)` — no new access.js functions needed.
+
+---
+
+### Budget Builder header cards — Net Revenue & Revenue/Participant (Rule 1) ✅
+The three context cards at the top of `BudgetBuilderTab` are now role-gated.
+- Tiers 1–3: all three cards visible (Total Participants, Net Revenue, Revenue / Participant)
+- Tiers 4–8: only "Total Participants" card shown; Net Revenue and Revenue / Participant are hidden.
+- Grid column count adjusts dynamically (3 columns for tiers 1–3, 1 column for tiers 4–8).
+- Uses the existing `showCompanyTotal` boolean (already computed at the top of the tab from `canSeeCompanyDollars(userRole)`).
+
+---
+
+### Portfolio tab visibility (Rule 1) ✅
+The Portfolio tab is now restricted entirely to tiers 1–3; it does not appear in the nav strip for tiers 4–8.
+- `subTabs` computation filters out `{ id: "portfolio" }` when `canSeeCompanyDollars(userRole)` is false.
+- Render site also guards with `canSeeCompanyDollars(userRole)` to prevent rendering if `subTab` state is stale.
+- Note: cross-company data was the only use of the Portfolio tab; all other WHOLE_COMPANY tabs (Company P&L, Budget Builder, FAQ) remain accessible to tiers 4–8 with appropriate dollar masking already in place.
+
+---
+
+### Top-level KPI chips hidden for tiers 5–8 (Rule 7) ✅
+- `canSeeTopNumbers(role)` added to `access.js` — returns true for tiers 1–4.
+- The entire header KPI bar (24hr Clients, Hourly Clients, TSC Caseload, EBITDA, Net Income/Margin chips) is now wrapped with `canSeeTopNumbers(userRole)`.
+- Tiers 5–8 see no header numbers at all.
+- Tiers 1–3 see dollar values; tier 4 (Regional Director) sees percentage values — existing behavior unchanged for those tiers.
+
+---
+
+### Company P&L tab hidden for tiers 4–8 ✅
+- The `company` tab id added to the `GATED_TABS` set filtered from `subTabs` for tiers 4–8.
+- Render guard `canSeeCompanyDollars(userRole)` added to the Company P&L render site.
+- Tiers 4–8 no longer see the Company P&L tab in the navigation or its content.
+
+---
+
+### Service line P&L tabs hidden for tiers 4–8 ✅
+All three service line P&L tabs (`reshab_pl`, `hourly_pl`, `tsc_pl`) now follow the same pattern as the Portfolio tab:
+- Added to `GATED_TABS` set — filtered from `subTabs` for tiers 4–8.
+- Render guards (`canSeeCompanyDollars(userRole)`) added to each P&L render site.
+
+---
+
+### Add Service Line button hidden for tiers 5–8 ✅
+- `canAddServiceLine(role)` added to `access.js` — returns true for tiers 1–4.
+- The `+ Add Service Line` button is wrapped with `canAddServiceLine(userRole)`.
+- Tiers 5–8 cannot add new service lines.
+
+---
+
+### Home Mix Editor read-only for tiers 5–8 (Rule 8) ✅
+- `canEditServiceLines(role)` added to `access.js` — returns true for tiers 1–4.
+- `canEdit={canEditServiceLines(userRole)}` passed to `HomeMixEditor` at the render site.
+- When `!canEdit`:
+  - `+ Add` home button hidden
+  - `Remove` home button hidden
+  - Home name input becomes `readOnly`
+  - Client Mix steppers wrapped with `pointerEvents: none` + `opacity: 0.65`
+  - Night Group Hours slider + quick-picks: non-interactive (pointer-events off)
+  - Home Settings sliders (wage, graveyard wage, occupancy): non-interactive
+  - Intense Billing toggle: non-interactive
+  - High Support 1:1 slider: non-interactive
+  - Graveyard sleeping slider: non-interactive
+  - Reimbursement Rates inputs/buttons: non-interactive
+
+---
+
+### Role-aware default sub-tab ✅
+- `useEffect` in `App()` updated to pick the first sub-tab accessible to the current role.
+- When role changes (dev switcher) or service line changes, the active sub-tab resets to the first visible tab rather than potentially landing on a gated one.
+
+---
+
+### Save button restricted to tiers 1–4 ✅
+- Previously hidden only for `editMode === 'readonly'` (tiers 7–8).
+- Updated gate to `canEditServiceLines(userRole)` — Save button now hidden for tiers 5–8.
+- Tiers 5–8 have no editable fields and no save capability.
+
+---
+
+### Budget Builder header cards restricted to tiers 1–3 ✅
+- Previously the Total Participants card was always visible; only Net Revenue and Revenue/Participant were gated.
+- All three header cards (Total Participants, Net Revenue, Revenue / Participant) are now wrapped with `showCompanyTotal` (`canSeeCompanyDollars(userRole)`).
+- Tiers 4–8 see no header cards in the Budget Builder at all.
+- Grid column count simplified to always 3 columns when shown (the dynamic 3/1 column logic removed).
+
+---
+
+### FAQ tab role-aware filtering ✅
+`FAQ_DATA` items now carry `minTier` and `maxTier` gates. `FAQTab` accepts `userRole`, computes the user's tier, filters items, and hides sections that have no visible items.
+
+**Per-item tier gates:**
+
+| Item | Max tier |
+|---|---|
+| Intense vs High Support rates | 7 |
+| Normal Intense vs Blended billing | 4 |
+| Group hours affect revenue and labor | 6 |
+| Hourly Supported Living rates | 5 |
+| High Support staffing ratio | 8 (all) |
+| Labor calculation for group hours | 7 |
+| Payroll burden 22% | 6 |
+| What is EBITDA | 4 |
+| EBITDA margin target | 4 |
+| Management and billing fees | 3 |
+| Why values shown as percentages | min 4, max 7 |
+| Home Mix Editor vs Home Projector | 4 |
+| Rate reduction scenario | 5 |
+| How Budget Builder works | 8 (all) |
+| What does the Margin Guide mean | 8 (all) |
+
+**AI assistant system prompt** is now role-aware via `getAISystemPrompt(userRole)`:
+- Tiers 1–3: full financial context, dollar amounts, rates
+- Tier 4: operational + margin % framing, no raw company dollar totals
+- Tiers 5–6: staffing and labor efficiency focus
+- Tier 7: scheduling, shift coverage, group hours efficiency
+- Tier 8: daily operations, client mix, occupancy
+
+**Stale FAQ text fixed:** The Budget Builder FAQ previously referenced a "Viewing As role selector" that no longer exists. Updated to accurately describe the current tier-based row visibility.
+
+---
+
 ### Server-side enforcement (Track B) 🔲
 All current access control is **client-side only** — it gives UX correctness but not security. Per the spec, the data layer must be role-aware too.
 
