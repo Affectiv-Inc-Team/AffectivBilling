@@ -2,7 +2,7 @@
 
 **Branch:** `access-levels-and-rights`
 **Spec:** `docs/access-levels-and-rights.md`
-**Last updated:** 2026-05-15
+**Last updated:** 2026-05-18
 
 ---
 
@@ -106,40 +106,42 @@ Single source of truth for all role rules. Every component calls these helpers r
 
 ## What still needs to be done
 
-### Wage visibility in HomeMixEditor (Rule 2) 🔲
-The `HomeMixEditor` component (used by Res Hab Daily) contains:
-- **Staff Wage** slider (`$X.XX/hr`) — should be hidden for tier 8, shown as % for tier 7
-- **Graveyard / Sleeping Wage** slider — same rules
-- **Occupancy Rate** slider — visible to tiers 1–7, hidden for tier 8
-
-`HomeMixEditor` is a large component (~1,200 lines) and currently receives `wage`, `setWage`, `graveyardWage`, `setGraveyardWage` as props. Needs `userRole` threaded in and `wageDisplayMode(userRole)` + `canSeeControl(userRole, 'occupancy')` applied.
-
-The per-home labor cost figures displayed in the mix editor rows (e.g. `$d(m.labor) labor cost/day`) also show raw dollars and should be masked for tier 8.
+### Wage visibility in HomeMixEditor (Rule 2) ✅
+- `userRole` prop threaded in at render site and component definition
+- Staff Wage slider: shown only if `wageDisplayMode(userRole) === 'dollars'`
+- Graveyard Wage slider: same rule
+- Occupancy slider: wrapped with `canSeeControl(userRole, 'occupancy')` — hidden for tier 8
+- Reimbursement Rates panel: wrapped with `canSeeControl(userRole, 'resHabRates')` — hidden for tiers 6–8
+- Per-home `labor cost/day` figure: hidden for tier 8 via `wageDisplayMode(userRole) !== 'hidden'`
 
 ---
 
-### Wage visibility in TSC coordinator tab (Rule 2) 🔲
-`TSCRosterTab` displays a per-coordinator hourly wage column. Tier 8 should not see this. Needs `userRole` prop passed through to `tsc.jsx` and the wage column conditionally hidden.
+### Wage visibility in TSC coordinator tab (Rule 2) ✅
+- `wageDisplayMode` imported in `tsc.jsx`
+- `userRole` prop added to `TSCRosterTab` and threaded to `CoordinatorCard`
+- Wage/hr input hidden entirely when `wageDisplayMode(userRole) === 'hidden'` (tier 8)
+- Wage/hr input `readOnly` when `wageDisplayMode(userRole) !== 'dollars'` (tier 7)
 
 ---
 
-### Res Hab rate overrides in sidebar (Rule 5) 🔲
-The rate override controls for Res Hab (`intenseDaily`, `highDaily`, `iuUnit`, `igUnit`) are inside `HomeMixEditor`'s sidebar section, not the global `Sidebar`. `canSeeControl(userRole, 'resHabRates')` gates these to tiers 1–5. Currently always visible.
+### Res Hab rate overrides in HomeMixEditor (Rule 5) ✅
+Implemented as part of HomeMixEditor work above — `canSeeControl(userRole, 'resHabRates')` applied.
 
 ---
 
-### Edit vs. read-only enforcement (Rule 6) 🔲
-`editMode(role)` is defined in `access.js` but not yet wired anywhere. Per the spec:
-- Tiers 1–3: edit everything they can see
-- Tiers 4–6: edit operational fields (rosters, schedules, participant lists); read-only on financial fields
-- Tiers 7–8: read-only across most of the tool
-
-Concretely this means disabling/hiding the save button, making number inputs `readOnly`, and preventing config mutations for lower tiers. This is the largest remaining chunk.
+### Save button — read-only enforcement (Rule 6 baseline) ✅
+Save button hidden for `editMode(userRole) === 'readonly'` (tiers 7–8).
+`editMode` added to imports in `FinancialTool.jsx`.
 
 ---
 
-### Portfolio tab dollar masking 🔲
-The Portfolio comparison tab (`PortfolioComparison`) shows `$k(co.ebitda)` and `$k(co.netInc)` in its table columns. These should be masked to percentages for tiers 4–8. The column definitions are around lines 2067–2109.
+### Portfolio tab dollar masking ✅
+`PortfolioComparison` now accepts `userRole` prop.
+- Summary cards: Portfolio Revenue hidden for tiers 4–8; EBITDA and Net cards show % instead of $
+- Table EBITDA column: `$k(co.ebitda)` → `pct(co.ebitdaMgn)` for tiers 4–8
+- Table Net Income column: `$k(co.netInc)` → `pct(co.netMgn)` for tiers 4–8
+- Table Revenue column: shows `—` for tiers 4–8
+- Table Wage column: masked to `—` for tier 8
 
 ---
 

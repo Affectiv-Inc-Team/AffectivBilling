@@ -37,6 +37,7 @@
  */
 
 import { useState } from "react";
+import { wageDisplayMode, canSeeCompanyDollars } from "../lib/access.js";
 
 // ──────────────────────────────────────────────────────────────────────
 // Rate constants (mirror the post-9/1/2025 Idaho catalog)
@@ -265,7 +266,7 @@ function ParticipantRow({ p, onUpdate, onRemove }) {
 // ──────────────────────────────────────────────────────────────────────
 // Coordinator card (shows roster, expandable participant list)
 // ──────────────────────────────────────────────────────────────────────
-function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant, payrollBurdenPct }) {
+function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant, payrollBurdenPct, userRole }) {
   const [expanded, setExpanded] = useState(true);
   const m = calcTSCCoordinator(coord, payrollBurdenPct);
 
@@ -290,12 +291,15 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
           onChange={e => onUpdate(coord.id, "name", e.target.value)}
           style={{ ...textInput, fontWeight:700, flex:1, fontSize:14 }}/>
 
-        <div>
-          <div style={labelStyle}>Wage / hr</div>
-          <input type="number" min={10} max={60} step={0.5} value={coord.hourlyWage}
-            onChange={e => onUpdate(coord.id, "hourlyWage", +e.target.value)}
-            style={numInput}/>
-        </div>
+        {wageDisplayMode(userRole) !== 'hidden' && (
+          <div>
+            <div style={labelStyle}>Wage / hr</div>
+            <input type="number" min={10} max={60} step={0.5} value={coord.hourlyWage}
+              onChange={e => onUpdate(coord.id, "hourlyWage", +e.target.value)}
+              readOnly={wageDisplayMode(userRole) !== 'dollars'}
+              style={numInput}/>
+          </div>
+        )}
 
         <div>
           <div style={labelStyle}>Admin hr/wk</div>
@@ -313,9 +317,9 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
 
       <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom: expanded ? 12 : 0 }}>
         <Stat label="Caseload"        value={m.caseloadSize} />
-        <Stat label="Annual Rev"      value={$k(m.annualRev)} color="#D4A520"/>
-        <Stat label="Annual Labor"    value={$k(m.annualLabor)} />
-        <Stat label="Gross"           value={$k(m.gross)} color={marginColor}/>
+        {canSeeCompanyDollars(userRole) && <Stat label="Annual Rev"   value={$k(m.annualRev)} color="#D4A520"/>}
+        {canSeeCompanyDollars(userRole) && <Stat label="Annual Labor" value={$k(m.annualLabor)} />}
+        {canSeeCompanyDollars(userRole) && <Stat label="Gross"        value={$k(m.gross)} color={marginColor}/>}
         <Stat label="Margin"          value={pct(m.grossMargin)} color={marginColor}/>
         <Stat label="Utilization"     value={pct(m.utilization)} color={utilColor}/>
         <Stat label="Billable share"  value={pct(m.billableShare)} />
@@ -357,7 +361,7 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
 // ──────────────────────────────────────────────────────────────────────
 // Roster tab — main editing UI for TSC
 // ──────────────────────────────────────────────────────────────────────
-export function TSCRosterTab({ config, onUpdate }) {
+export function TSCRosterTab({ config, onUpdate, userRole }) {
   const summary = calcTSCService(config);
 
   const updateField    = (field, value) => onUpdate({ ...config, [field]: value });
@@ -409,9 +413,9 @@ export function TSCRosterTab({ config, onUpdate }) {
       <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:16, alignItems:"center" }}>
         <Stat label="Coordinators"  value={summary.coordinatorCount} />
         <Stat label="Total caseload" value={summary.totalCaseload} />
-        <Stat label="Annual Rev"     value={$k(summary.totalAnnualRev)} color="#D4A520"/>
-        <Stat label="Annual Labor"   value={$k(summary.totalAnnualLabor)} />
-        <Stat label="Gross"          value={$k(summary.totalGross)} color={summary.totalMargin > 0.3 ? "#22c55e" : "#cf6e6e"}/>
+        {canSeeCompanyDollars(userRole) && <Stat label="Annual Rev"   value={$k(summary.totalAnnualRev)} color="#D4A520"/>}
+        {canSeeCompanyDollars(userRole) && <Stat label="Annual Labor" value={$k(summary.totalAnnualLabor)} />}
+        {canSeeCompanyDollars(userRole) && <Stat label="Gross"        value={$k(summary.totalGross)} color={summary.totalMargin > 0.3 ? "#22c55e" : "#cf6e6e"}/>}
         <Stat label="Margin"         value={pct(summary.totalMargin)} color={summary.totalMargin > 0.3 ? "#22c55e" : "#cf6e6e"}/>
         <div style={{ marginLeft:"auto", display:"flex", gap:8, alignItems:"center" }}>
           <span style={labelStyle}>Burden %</span>
@@ -436,7 +440,8 @@ export function TSCRosterTab({ config, onUpdate }) {
             onRemove={removeCoord}
             onAddParticipant={addParticipant}
             onUpdateParticipant={updateParticipant}
-            onRemoveParticipant={removeParticipant}/>
+            onRemoveParticipant={removeParticipant}
+            userRole={userRole}/>
         )}
       </div>
 
@@ -523,8 +528,10 @@ export function TSCProductivityTab({ config }) {
 // ──────────────────────────────────────────────────────────────────────
 // P&L tab — coordinator-level + total
 // ──────────────────────────────────────────────────────────────────────
-export function TSCPLTab({ config }) {
-  const summary = calcTSCService(config);
+export function TSCPLTab({ config, userRole }) {
+  const summary    = calcTSCService(config);
+  const showDollars = canSeeCompanyDollars(userRole);
+  const cols = showDollars ? "2fr 1fr 1fr 1fr 1fr" : "2fr 1fr";
 
   if (summary.coordinatorCount === 0) {
     return (
@@ -541,41 +548,29 @@ export function TSCPLTab({ config }) {
       </h3>
 
       <div style={{ ...card, padding:0, overflow:"hidden" }}>
-        <div style={{
-          display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",
-          padding:"10px 14px", background:"#eef1f6", borderBottom:"1px solid #d0dae8",
-          ...labelStyle,
-        }}>
+        <div style={{ display:"grid", gridTemplateColumns:cols, padding:"10px 14px", background:"#eef1f6", borderBottom:"1px solid #d0dae8", ...labelStyle }}>
           <span>Coordinator</span>
-          <span style={{ textAlign:"right" }}>Annual Rev</span>
-          <span style={{ textAlign:"right" }}>Annual Labor</span>
-          <span style={{ textAlign:"right" }}>Gross</span>
+          {showDollars && <span style={{ textAlign:"right" }}>Annual Rev</span>}
+          {showDollars && <span style={{ textAlign:"right" }}>Annual Labor</span>}
+          {showDollars && <span style={{ textAlign:"right" }}>Gross</span>}
           <span style={{ textAlign:"right" }}>Margin</span>
         </div>
         {summary.coordinators.map(c => (
-          <div key={c.id} style={{
-            display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",
-            padding:"10px 14px", borderBottom:"1px solid #f1f5f9",
-            fontSize:12, ...M,
-          }}>
+          <div key={c.id} style={{ display:"grid", gridTemplateColumns:cols, padding:"10px 14px", borderBottom:"1px solid #f1f5f9", fontSize:12, ...M }}>
             <span style={{ color:"#5a3800", fontWeight:600 }}>{c.name}</span>
-            <span style={{ textAlign:"right", color:"#D4A520" }}>{$k(c.metrics.annualRev)}</span>
-            <span style={{ textAlign:"right" }}>{$k(c.metrics.annualLabor)}</span>
-            <span style={{ textAlign:"right", color: c.metrics.gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(c.metrics.gross)}</span>
+            {showDollars && <span style={{ textAlign:"right", color:"#D4A520" }}>{$k(c.metrics.annualRev)}</span>}
+            {showDollars && <span style={{ textAlign:"right" }}>{$k(c.metrics.annualLabor)}</span>}
+            {showDollars && <span style={{ textAlign:"right", color: c.metrics.gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(c.metrics.gross)}</span>}
             <span style={{ textAlign:"right", color: c.metrics.grossMargin > 0.3 ? "#22c55e" : c.metrics.grossMargin > 0.15 ? "#f59e0b" : "#cf6e6e" }}>
               {pct(c.metrics.grossMargin)}
             </span>
           </div>
         ))}
-        <div style={{
-          display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",
-          padding:"12px 14px", background:"#141d2c", color:"#D4A520",
-          fontSize:13, fontWeight:800, ...M,
-        }}>
+        <div style={{ display:"grid", gridTemplateColumns:cols, padding:"12px 14px", background:"#141d2c", color:"#D4A520", fontSize:13, fontWeight:800, ...M }}>
           <span>Total</span>
-          <span style={{ textAlign:"right" }}>{$k(summary.totalAnnualRev)}</span>
-          <span style={{ textAlign:"right", color:"#e4eaf2" }}>{$k(summary.totalAnnualLabor)}</span>
-          <span style={{ textAlign:"right", color: summary.totalGross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(summary.totalGross)}</span>
+          {showDollars && <span style={{ textAlign:"right" }}>{$k(summary.totalAnnualRev)}</span>}
+          {showDollars && <span style={{ textAlign:"right", color:"#e4eaf2" }}>{$k(summary.totalAnnualLabor)}</span>}
+          {showDollars && <span style={{ textAlign:"right", color: summary.totalGross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(summary.totalGross)}</span>}
           <span style={{ textAlign:"right" }}>{pct(summary.totalMargin)}</span>
         </div>
       </div>
