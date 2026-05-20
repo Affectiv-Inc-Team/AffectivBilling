@@ -526,13 +526,17 @@ function LaborEfficiencyTab({ wage: globalWage, rates = RATES_DEF, graveyardWage
   const dayHighHrs  = canGroup && nHigh > 0 ? Math.ceil(nHigh / 2) * m.dHrs : allHigh ? 24 : 0;
   const dayIntHrs   = canGroup ? nIntense * m.dHrs : !allHigh && total > 0 ? 24 : 0;
 
-  // Group-hour sweep — expressed as labor ratio at each setting
+  // Unified sweep — covers labor ratio chart and 5-year projection data
   const sweep = Array.from({ length: 11 }, (_, i) => {
     const gh = i * 2;
     const sm = calcHome({ ...cfg, groupHrs: gh }, wage, rates, graveyardWage);
     const lr = sm.rev > 0 ? sm.labor / sm.rev : 0;
-    return { gh, laborRatio: lr, margin: sm.margin, laborHrs: sm.laborHrs };
+    return { gh, laborRatio: lr, ...sm };
   });
+  const swMax = Math.max(...sweep.map(s => Math.abs(s.gross)));
+
+  const GROWTH = [1, 1.05, 1.10, 1.16, 1.22];
+  const yr = new Date().getFullYear();
 
   // Wage sensitivity — labor ratio at different wages, no dollars
   const wageSensitivity = [-4, -2, 0, 2, 4].map(delta => {
@@ -641,8 +645,29 @@ function LaborEfficiencyTab({ wage: globalWage, rates = RATES_DEF, graveyardWage
           </div>}
         </div>
 
-        {/* Right panel — ratios only */}
+        {/* Right panel */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+          {/* Dollar metric tiles — tier 1–3 only */}
+          {total > 0 && canSeeCompanyDollars(userRole) && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {[
+                { l: "Daily Revenue",  v: $d(m.rev),              c: "#5a3800", sz: 20 },
+                { l: "Daily Gross",    v: $d(m.gross),            c: mc(m.margin), sz: 20 },
+                { l: "Gross Margin",   v: pct(m.margin),          c: mc(m.margin), sz: 28 },
+                wageDisplayMode(userRole) !== 'hidden' && { l: "$/Labor Hr", v: `$${m.plHr.toFixed(2)}`, c: "#f59e0b", sz: 20 },
+                { l: "Annual Revenue", v: $k(m.annualRev),        c: "#6a4c10", sz: 16 },
+                { l: "Annual Gross",   v: $k(m.annualGross),      c: "#1d7a35", sz: 16 },
+                { l: "Annual Labor",   v: $k(m.annualLabor),      c: "#f87171", sz: 16 },
+                { l: "Labor Hrs/Day",  v: m.laborHrs + "hrs",     c: "#5a4020", sz: 16 },
+              ].filter(Boolean).map((s, i) => (
+                <div key={i} style={{ background: "#f8f6f0", borderRadius: 10, padding: "13px 15px", border: "1px solid #d0dae8" }}>
+                  <div style={{ fontSize: 9, color: "#5a4020", textTransform: "uppercase", letterSpacing: 1.5, ...M, marginBottom: 5 }}>{s.l}</div>
+                  <div style={{ fontSize: s.sz, fontWeight: 800, color: s.c, ...M }}>{s.v}</div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Main efficiency visual */}
           {total > 0 && (
@@ -688,7 +713,7 @@ function LaborEfficiencyTab({ wage: globalWage, rates = RATES_DEF, graveyardWage
             </div>
           )}
 
-          {/* Labor hours breakdown — hours only, no cost */}
+          {/* Staffing hours breakdown — hrs always shown; cost shown for tier 1–3 */}
           {total > 0 && (
             <div style={{ background: "#eef1f6", borderRadius: 12, border: "1px solid #d0dae8", padding: "14px 18px" }}>
               <SL>Staffing Hours Breakdown — per Day</SL>
@@ -696,29 +721,31 @@ function LaborEfficiencyTab({ wage: globalWage, rates = RATES_DEF, graveyardWage
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "#e6ebf3", borderRadius: 7 }}>
                     <span style={{ fontSize: 11, color: "#6a4818" }}>1 staff · {total} client{total > 1 ? "s" : ""} · all 24 hrs</span>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: "#6a4c10", ...M }}>{m.laborHrs}hrs</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: "#6a4c10", ...M }}>{m.laborHrs}hrs{canSeeCompanyDollars(userRole) ? ` · ${$d(m.labor)}` : ""}</span>
                   </div>
                   <div style={{ fontSize: 10, color: "#64748b" }}>All-high ratio: 1 staff per {total} client{total > 1 ? "s" : ""}</div>
                 </div>
               ) : total === 1 ? (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "#e6ebf3", borderRadius: 7 }}>
                   <span style={{ fontSize: 11, color: "#6a4818" }}>1:1 staffing · all 24 hrs</span>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: "#6a4c10", ...M }}>24hrs</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: "#6a4c10", ...M }}>24hrs{canSeeCompanyDollars(userRole) ? ` · ${$d(m.labor)}` : ""}</span>
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {[
-                    { l: "🌙 Night group",           hrs: nightHrs,   pctOfDay: nightHrs / 24,    sub: `1 staff covers all ${total} clients` },
-                    nHigh > 0 ? { l: "☀️ High Support staff", hrs: dayHighHrs, pctOfDay: dayHighHrs / (m.laborHrs || 1), sub: `${Math.ceil(nHigh / 2)} staff · paired 1:2` } : null,
-                    { l: "☀️ Intense 1:1 staff",    hrs: dayIntHrs,  pctOfDay: dayIntHrs / (m.laborHrs || 1),   sub: `${nIntense} staff · individual 1:1` },
-                    { l: "📊 Total",                  hrs: m.laborHrs, pctOfDay: null, bold: true },
+                    { l: "🌙 Night group",           hrs: nightHrs,   cost: nightHrs * wage,              sub: `1 staff covers all ${total} clients` },
+                    nHigh > 0 ? { l: "☀️ High Support staff", hrs: dayHighHrs, cost: dayHighHrs * wage, sub: `${Math.ceil(nHigh / 2)} staff · paired 1:2` } : null,
+                    { l: "☀️ Intense 1:1 staff",    hrs: dayIntHrs,  cost: dayIntHrs * wage,             sub: `${nIntense} staff · individual 1:1` },
+                    { l: "📊 Total",                  hrs: m.laborHrs, cost: m.labor, bold: true },
                   ].filter(Boolean).map((r, i) => (
                     <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: r.bold ? "#ebebeb" : "transparent", borderRadius: r.bold ? 7 : 0, borderTop: r.bold ? "1px solid #d0dae8" : "none" }}>
                       <div>
                         <span style={{ fontSize: 11, color: r.bold ? "#6a4c10" : "#5a7498" }}>{r.l}</span>
                         {r.sub && <div style={{ fontSize: 9, color: "#64748b", ...M, marginTop: 1 }}>{r.sub}</div>}
                       </div>
-                      <span style={{ fontSize: r.bold ? 15 : 12, fontWeight: r.bold ? 800 : 600, color: r.bold ? "#5a3800" : "#6a4818", ...M }}>{r.hrs}hrs</span>
+                      <span style={{ fontSize: r.bold ? 15 : 12, fontWeight: r.bold ? 800 : 600, color: r.bold ? "#5a3800" : "#6a4818", ...M }}>
+                        {r.hrs}hrs{canSeeCompanyDollars(userRole) ? ` · ${$d(r.cost)}` : ""}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -753,6 +780,39 @@ function LaborEfficiencyTab({ wage: globalWage, rates = RATES_DEF, graveyardWage
               { label: "% label = labor ratio at that setting", color: "#475569" },
             ].map((l, i) => <span key={i} style={{ fontSize: 9, color: l.color, ...M }}>· {l.label}</span>)}
           </div>
+        </div>
+      )}
+
+      {/* 5-year projection — tier 1–3 only */}
+      {canSeeCompanyDollars(userRole) && (
+        <div style={{ background: "#f8f6f0", borderRadius: 12, border: "1px solid #d0dae8", overflow: "hidden" }}>
+          <div style={{ padding: "14px 20px", borderBottom: "1px solid #e0e8f0" }}>
+            <SL>5-Year Projection — 5% Annual Growth</SL>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid #d0dae8" }}>
+                {["Year", "Annual Revenue", "Annual Labor", "Annual Gross", "Gross Margin"].map(h => (
+                  <th key={h} style={{ padding: "8px 14px", textAlign: "left", fontSize: 9, color: "#5a4020", textTransform: "uppercase", letterSpacing: 1, ...M }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {GROWTH.map((g, i) => {
+                const r = { rev: m.annualRev * g, labor: m.annualLabor * g, gross: m.annualGross * g };
+                const mp = r.rev > 0 ? r.gross / r.rev : 0;
+                return (
+                  <tr key={i} style={{ borderBottom: "1px solid #e8edf3", background: i === 0 ? "#ebebeb" : "transparent" }}>
+                    <td style={{ padding: "9px 14px", fontWeight: 700, color: "#6a4c10", ...M }}>{yr + i}{i === 0 ? " (Yr 1)" : ""}</td>
+                    <td style={{ padding: "9px 14px", color: "#5a3800", ...M }}>{$k(r.rev)}</td>
+                    <td style={{ padding: "9px 14px", color: "#f87171", ...M }}>{$k(r.labor)}</td>
+                    <td style={{ padding: "9px 14px", fontWeight: 700, color: mc(mp), ...M }}>{$k(r.gross)}</td>
+                    <td style={{ padding: "9px 14px", fontWeight: 700, color: mc(mp), ...M }}>{pct(mp)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -1107,229 +1167,6 @@ function HomeMixEditor({ homes, onUpdate, onAdd, onRemove, wage, setWage, rates 
             )}
 
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════
-   TAB: SINGLE HOME PROJECTOR
-══════════════════════════════════════════════════════════ */
-function SingleHomeProjector({ wage: globalWage, rates = RATES_DEF, graveyardWage, userRole }) {
-  const [nHigh,            setNHigh]            = useState(2);
-  const [nIntense,         setNIntense]         = useState(1);
-  const [groupHrs,         setGroupHrs]         = useState(12);
-  const [billing,          setBilling]          = useState("normal");
-  const [useGlobal,        setUseGlobal]        = useState(true);
-  const [custWage,         setCustWage]         = useState(globalWage);
-  const [hhrsPerWeek,      setHhrsPerWeek]      = useState(0);
-  const [graveyardSleepHrs,setGraveyardSleepHrs]= useState(0);
-  const wage = useGlobal ? globalWage : custWage;
-
-  const total    = nHigh + nIntense;
-  const canGroup = nIntense > 0 && total >= 2;
-  const allHigh  = nIntense === 0;
-
-  const chH = v => { const n=Math.max(0,Math.min(v,3-nIntense)); setNHigh(n); };
-  const chI = v => { const n=Math.max(0,Math.min(v,3-nHigh));    setNIntense(n); };
-
-  const cfg = { nHigh, nIntense, groupHrs, billingType:billing, hhrsPerWeek, graveyardSleepHrs };
-  const m   = calcHome(cfg, wage, rates, graveyardWage);
-
-  const sweep = Array.from({length:11},(_,i)=>{
-    const gh=i*2, sm=calcHome({...cfg,groupHrs:gh},wage,rates,graveyardWage);
-    return { gh, ...sm };
-  });
-  const swMax = Math.max(...sweep.map(s=>Math.abs(s.gross)));
-
-  const GROWTH = [1,1.05,1.10,1.16,1.22];
-  const yr = new Date().getFullYear();
-
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-      <div style={{ display:"grid", gridTemplateColumns:"290px 1fr", gap:14, alignItems:"start" }}>
-        {/* Config panel */}
-        <div style={{ background:"#f8f6f0", borderRadius:13, border:"1px solid #d0dae8", padding:"18px", display:"flex", flexDirection:"column", gap:16 }}>
-          <div>
-            <SL>Client Mix — max 3 per home</SL>
-            <div style={{ display:"flex", gap:14, alignItems:"center", marginBottom:10 }}>
-              <Stepper label="High Support" value={nHigh}    max={3-nIntense} onChange={chH} color="#C9921A"/>
-              <Stepper label="Intense"      value={nIntense} max={3-nHigh}    onChange={chI} color="#D4A520"/>
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:5 }}>
-                <div style={{ fontSize:9, color:"#5a4020", textTransform:"uppercase", ...M }}>Total</div>
-                <div style={{ width:50, height:26, display:"flex", alignItems:"center", justifyContent:"center", background:"#ebebeb", borderRadius:7, border:"1px solid #d0dae8" }}>
-                  <span style={{ fontWeight:800, color:total===3?"#00e5aa":total===0?"#f87171":"#5a3800", ...M, fontSize:15 }}>{total}/3</span>
-                </div>
-              </div>
-            </div>
-            <MixBadges nHigh={nHigh} nIntense={nIntense}/>
-          </div>
-
-          {canGroup && (
-            <Slider label="Night Group Hours" value={groupHrs} min={0} max={20} step={1}
-              onChange={setGroupHrs} color="#f59e0b" format={v=>`${v}hr`}/>
-          )}
-          {allHigh && <div style={{ padding:"7px 12px", background:"#f0f4f8", borderRadius:7, borderLeft:"2px solid #C9921A", fontSize:10, color:"#7a5020" }}>All-high: 1 staff (1:{total}) → 24 labor hrs</div>}
-          {!allHigh && total===1 && <div style={{ padding:"7px 12px", background:"#f0f4f8", borderRadius:7, borderLeft:"2px solid #D4A520", fontSize:10, color:"#7a5020" }}>Single intense: 1:1 all 24 hrs</div>}
-
-          {nIntense>0 && (
-            <div>
-              <SL>Intense Billing</SL>
-              <Toggle value={billing} onChange={setBilling} options={[
-                { value:"normal",  label:canSeeCompanyDollars(userRole) ? `Normal ($${rates.intenseDaily.toFixed(2)}/day)` : "Normal (Daily Rate)", color:"#D4A520" },
-                { value:"blended", label:"Blended (Units)", color:"#E8C44A" },
-              ]} small/>
-            </div>
-          )}
-
-          {nHigh > 0 && (
-            <div style={{ background:"#f0f6ff", borderRadius:9, border:"1px solid #c8d4e4", padding:"10px 12px" }}>
-              <SL>High Support — 1:1 Hrs/Week</SL>
-              <Slider label="1:1 hrs/week per client" value={hhrsPerWeek} min={0} max={40} step={1}
-                onChange={setHhrsPerWeek} color="#C9921A" format={v=>`${v} hrs/wk`}/>
-              {hhrsPerWeek > 0 && (
-                <div style={{ fontSize:9, color:"#475569", marginTop:4, ...M }}>
-                  {(hhrsPerWeek/7*nHigh).toFixed(1)} staff hrs/day total · billed U2 rate · adds to revenue &amp; labor
-                </div>
-              )}
-            </div>
-          )}
-
-          {total > 0 && (
-            <div style={{ background:"#f4f6ff", borderRadius:9, border:"1px solid #c8d4e4", padding:"10px 12px" }}>
-              <SL>Graveyard — Sleeping Hrs</SL>
-              <Slider label={canGroup ? `Sleeping hrs (of ${groupHrs}hr group)` : "Overnight sleeping hrs (of 24hr shift)"} value={Math.min(graveyardSleepHrs, canGroup ? groupHrs : 12)} min={0} max={canGroup ? groupHrs : 12} step={1}
-                onChange={setGraveyardSleepHrs} color="#7a94b0" format={v=>`${v}hr sleeping`}/>
-              {graveyardSleepHrs > 0 && (
-                <div style={{ fontSize:9, color:"#475569", marginTop:4, ...M }}>
-                  {Math.min(graveyardSleepHrs, canGroup ? groupHrs : 12)}hr sleep wage · {canGroup ? groupHrs - Math.min(graveyardSleepHrs,groupHrs) : 24 - Math.min(graveyardSleepHrs,12)}hr awake · sleep wage set in sidebar
-                </div>
-              )}
-            </div>
-          )}
-
-          {wageDisplayMode(userRole) === 'dollars' && <div>
-            <SL>Staff Wage</SL>
-            <div style={{ display:"flex", gap:6, marginBottom:8 }}>
-              {["Use Global","Custom"].map((l,i)=>(
-                <button key={l} onClick={()=>setUseGlobal(i===0)} style={{ flex:1, padding:"5px", border:"none", borderRadius:5, cursor:"pointer", background:(i===0)===useGlobal?"#fff8e0":"#ebebeb", color:(i===0)===useGlobal?"#D4A520":"#7a5020", ...M, fontSize:10, fontWeight:700 }}>{l}</button>
-              ))}
-            </div>
-            {useGlobal
-              ? <div style={{ fontSize:13, fontWeight:700, color:"#f87171", ...M }}>${globalWage.toFixed(2)}/hr (from global)</div>
-              : <Slider label="" value={custWage} min={12} max={32} step={0.25} onChange={setCustWage} color="#E8C44A" format={v=>`$${v.toFixed(2)}/hr`}/>
-            }
-          </div>}
-        </div>
-
-        {/* Metrics */}
-        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-          {(() => {
-            const sd = canSeeCompanyDollars(userRole);
-            const sw = wageDisplayMode(userRole) !== 'hidden';
-            const tiles = [
-              sd && { l:"Daily Revenue",  v:$d(m.rev),         c:"#5a3800", sz:20 },
-              sd && { l:"Daily Gross",    v:$d(m.gross),       c:mc(m.margin), sz:20 },
-              { l:"Gross Margin",   v:pct(m.margin),     c:mc(m.margin), sz:28 },
-              sw && { l:"$/Labor Hr",     v:`$${m.plHr.toFixed(2)}`, c:"#f59e0b", sz:20 },
-              sd && { l:"Annual Revenue", v:$k(m.annualRev),   c:"#6a4c10", sz:16 },
-              sd && { l:"Annual Gross",   v:$k(m.annualGross), c:"#1d7a35", sz:16 },
-              sd && { l:"Annual Labor",   v:$k(m.annualLabor), c:"#f87171", sz:16 },
-              { l:"Labor Hrs/Day",  v:m.laborHrs+"hrs",  c:"#5a4020", sz:16 },
-            ].filter(Boolean);
-            return (
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-            {tiles.map((s,i)=>(
-              <div key={i} style={{ background:"#f8f6f0", borderRadius:10, padding:"13px 15px", border:"1px solid #d0dae8" }}>
-                <div style={{ fontSize:9, color:"#5a4020", textTransform:"uppercase", letterSpacing:1.5, ...M, marginBottom:5 }}>{s.l}</div>
-                <div style={{ fontSize:s.sz, fontWeight:800, color:s.c, ...M }}>{s.v}</div>
-              </div>
-            ))}
-          </div>
-            );
-          })()}
-
-          {/* Labor breakdown */}
-          {wageDisplayMode(userRole) !== 'hidden' && <div style={{ background:"#f8f6f0", borderRadius:12, border:"1px solid #d0dae8", padding:"14px 18px" }}>
-            <SL>Labor Breakdown</SL>
-            {allHigh ? (
-              <div style={{ fontSize:12, color:"#6a4818" }}>1 staff covers {total} high client{total>1?"s":""} all 24 hrs → <strong style={{color:"#5a3800"}}>{m.laborHrs}hrs</strong></div>
-            ) : total<2 ? (
-              <div style={{ fontSize:12, color:"#6a4818" }}>Single intense 1:1 → <strong style={{color:"#5a3800"}}>24hrs</strong></div>
-            ) : (
-              [
-                { l:"🌙 Night group (1 staff)",  hrs:m.gHrs, cost:m.gHrs*wage },
-                { l:"☀️ Day — High pair staff",  hrs:nHigh>0?Math.ceil(nHigh/2)*m.dHrs:0, cost:nHigh>0?Math.ceil(nHigh/2)*m.dHrs*wage:0, dim:nHigh===0 },
-                { l:"☀️ Day — Intense 1:1 staff",hrs:nIntense*m.dHrs, cost:nIntense*m.dHrs*wage },
-                { l:"📊 Total",                  hrs:m.laborHrs, cost:m.labor, bold:true },
-              ].filter(r=>r.hrs>0||r.bold).map((r,i)=>(
-                <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"5px 8px", background:r.bold?"#ebebeb":"transparent", borderRadius:r.bold?6:0, borderTop:r.bold?"1px solid #d0dae8":"none", marginBottom:2 }}>
-                  <span style={{ fontSize:11, color:r.bold?"#6a4c10":"#5a4020" }}>{r.l}</span>
-                  <span style={{ fontSize:11, fontWeight:r.bold?800:600, color:r.bold?"#5a3800":"#6a4818", ...M }}>{r.hrs}hr{canSeeCompanyDollars(userRole) ? ` · ${$d(r.cost)}` : ""}</span>
-                </div>
-              ))
-            )}
-          </div>}
-        </div>
-      </div>
-
-      {/* Group hours sweep chart */}
-      {canGroup && (
-        <div style={{ background:"#f8f6f0", borderRadius:12, border:"1px solid #d0dae8", padding:"16px 20px" }}>
-          <SL>Gross Margin by Group Hours — {billing==="normal"?"Normal Billing (Revenue Fixed at Daily Rate)":"Blended Billing (Revenue Adjusts with Group Hrs)"}</SL>
-          <div style={{ display:"flex", gap:5, alignItems:"flex-end", height:90, marginBottom:8 }}>
-            {sweep.map(s=>(
-              <div key={s.gh} onClick={()=>setGroupHrs(s.gh)}
-                style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:2, cursor:"pointer" }}>
-                <div style={{ fontSize:8, color:mc(s.margin), ...M, fontWeight:700 }}>{(s.margin*100).toFixed(0)}%</div>
-                <div style={{
-                  width:"100%", borderRadius:"3px 3px 0 0", transition:"height 0.3s",
-                  height:swMax>0?`${(Math.max(0,s.gross)/swMax)*62}px`:"4px",
-                  background:groupHrs===s.gh?mc(s.margin):mc(s.margin)+"55",
-                  border:groupHrs===s.gh?`1px solid ${mc(s.margin)}`:"none",
-                }}/>
-                <div style={{ fontSize:8, color:groupHrs===s.gh?"#5a3800":"#9a8050", ...M }}>{s.gh}hr</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ fontSize:10, color:"#9a8050" }}>
-            {billing==="normal" ? "Revenue locked — every group hour is pure labor savings. More group = better margin." : "Both revenue and labor fall with group hours. Net effect still improves margin slightly."}
-            {" "}Click any bar to select.
-          </div>
-        </div>
-      )}
-
-      {/* 5-year projection — tiers 1–3 only */}
-      {canSeeCompanyDollars(userRole) && (
-        <div style={{ background:"#f8f6f0", borderRadius:12, border:"1px solid #d0dae8", overflow:"hidden" }}>
-          <div style={{ padding:"14px 20px", borderBottom:"1px solid #e0e8f0" }}>
-            <SL>5-Year Projection — 5% Annual Growth</SL>
-          </div>
-          <table style={{ width:"100%", borderCollapse:"collapse" }}>
-            <thead>
-              <tr style={{ borderBottom:"2px solid #d0dae8" }}>
-                {["Year","Annual Revenue","Annual Labor","Annual Gross","Gross Margin"].map(h=>(
-                  <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontSize:9, color:"#5a4020", textTransform:"uppercase", letterSpacing:1, ...M }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {GROWTH.map((g,i)=>{
-                const r = { rev:m.annualRev*g, labor:m.annualLabor*g, gross:m.annualGross*g };
-                const mp = r.rev>0?r.gross/r.rev:0;
-                return (
-                  <tr key={i} style={{ borderBottom:"1px solid #e8edf3", background:i===0?"#ebebeb":"transparent" }}>
-                    <td style={{ padding:"9px 14px", fontWeight:700, color:"#6a4c10", ...M }}>{yr+i}{i===0?" (Yr 1)":""}</td>
-                    <td style={{ padding:"9px 14px", color:"#5a3800", ...M }}>{$k(r.rev)}</td>
-                    <td style={{ padding:"9px 14px", color:"#f87171", ...M }}>{$k(r.labor)}</td>
-                    <td style={{ padding:"9px 14px", fontWeight:700, color:mc(mp), ...M }}>{$k(r.gross)}</td>
-                    <td style={{ padding:"9px 14px", fontWeight:700, color:mc(mp), ...M }}>{pct(mp)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         </div>
       )}
     </div>
@@ -1838,8 +1675,8 @@ const FAQ_DATA = [
     cat: "Using This Tool",
     items: [
       { maxTier:4,
-        q:"What is the difference between Home Mix Editor and Home Projector?",
-        a:"Home Mix Editor lets you configure each home individually — setting client mix (High Support vs Intense), night group hours, wages, and billing type. Home Projector models a single home's 5-year financial trajectory at 5% annual growth. Use the Mix Editor to configure your actual portfolio; use the Projector to understand the long-run economics of a given home setup." },
+        q:"What is the difference between Home Mix Editor and Labor Efficiency?",
+        a:"Home Mix Editor lets you configure each home individually — setting client mix (High Support vs Intense), night group hours, wages, and billing type. Labor Efficiency models a single home's staffing ratios and long-run economics: all users see efficiency ratios and the group-hours sweep; authorized roles also see dollar metrics, labor costs per shift, and a 5-year projection at 5% annual growth." },
       { maxTier:5,
         q:"How do I model a rate reduction scenario?",
         a:"Use the Reimbursement Rates panel in the left sidebar. Click the expand arrow, then type new rates or use the quick reduction buttons (−2%, −4%, −6% from baseline). The tool recalculates all margins and performance metrics in real time across every tab." },
@@ -2457,7 +2294,6 @@ const SUB_TABS = {
   ],
   RES_HAB_DAILY: [
     { id: "mixeditor", label: "🏠 Home Mix Editor" },
-    { id: "projector", label: "🔬 Home Projector" },
     { id: "labor",     label: "🏗 Labor Efficiency" },
     { id: "reshab_pl", label: "💵 P&L" },
   ],
@@ -3126,8 +2962,6 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
                   canEdit={canEditServiceLines(userRole)}
                   userRole={userRole}/>
               )}
-              {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "projector" &&
-                <SingleHomeProjector wage={wage} rates={rates} graveyardWage={graveyardWage} userRole={userRole}/>}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "labor" &&
                 <LaborEfficiencyTab wage={wage} rates={rates} graveyardWage={graveyardWage} userRole={userRole}/>}
               {activeSLType === SERVICE_LINE_TYPES.RES_HAB_DAILY && subTab === "reshab_pl" && canSeeCompanyDollars(userRole) && (() => {

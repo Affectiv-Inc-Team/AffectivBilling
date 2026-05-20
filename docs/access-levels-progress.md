@@ -2,7 +2,7 @@
 
 **Branch:** `access-levels-and-rights`
 **Spec:** `docs/access-levels-and-rights.md`
-**Last updated:** 2026-05-18
+**Last updated:** 2026-05-20
 
 ---
 
@@ -146,9 +146,9 @@ Save button hidden for `editMode(userRole) === 'readonly'` (tiers 7–8).
 ---
 
 ### 5-Year Projection dollar masking (Rule 1) ✅
-`SingleHomeProjector` already received `userRole`; the projection table now gates its three dollar columns.
+The 5-year projection table is now inside `LaborEfficiencyTab` (the former `SingleHomeProjector` tab was merged into Labor Efficiency — see tab merge entry below).
 - Tiers 1–3: all 5 columns rendered (Year, Annual Revenue, Annual Labor, Annual Gross, Gross Margin)
-- Tiers 4–8: only 2 columns rendered (Year, Gross Margin %). Dollar columns and their headers are hidden.
+- Tiers 4–8: entire projection section hidden (`canSeeCompanyDollars` false; no partial column view)
 - Uses `canSeeCompanyDollars(userRole)` — no new access.js functions needed.
 
 ---
@@ -255,7 +255,7 @@ All three service line P&L tabs (`reshab_pl`, `hourly_pl`, `tsc_pl`) now follow 
 | EBITDA margin target | 4 |
 | Management and billing fees | 3 |
 | Why values shown as percentages | min 4, max 7 |
-| Home Mix Editor vs Home Projector | 4 |
+| Home Mix Editor vs Labor Efficiency | 4 |
 | Rate reduction scenario | 5 |
 | How Budget Builder works | 8 (all) |
 | What does the Margin Guide mean | 8 (all) |
@@ -268,6 +268,24 @@ All three service line P&L tabs (`reshab_pl`, `hourly_pl`, `tsc_pl`) now follow 
 - Tier 8: daily operations, client mix, occupancy
 
 **Stale FAQ text fixed:** The Budget Builder FAQ previously referenced a "Viewing As role selector" that no longer exists. Updated to accurately describe the current tier-based row visibility.
+
+---
+
+### Home Projector merged into Labor Efficiency tab ✅
+`SingleHomeProjector` (the standalone "Home Projector" tab) has been removed. Its projection functionality now lives inside `LaborEfficiencyTab`, with dollar amounts gated to tier 1–3 and ratios/percentages always visible.
+
+**What changed in `FinancialTool.jsx`:**
+- `LaborEfficiencyTab` expanded with dollar metric tiles (Daily Revenue, Daily Gross, Gross Margin, $/Labor Hr, Annual Revenue/Gross/Labor, Labor Hrs/Day) — shown only when `canSeeCompanyDollars(userRole)`
+- Staffing hours breakdown now appends `· $cost` per shift row — shown only when `canSeeCompanyDollars(userRole)`
+- 5-year projection table added — gated to `canSeeCompanyDollars(userRole)`
+- `SingleHomeProjector` function deleted (~220 lines)
+- `SUB_TABS.RES_HAB_DAILY` reduced from 4 tabs to 3 (projector entry removed)
+- `subTab === "projector"` render branch removed
+- FAQ entry updated: "Home Mix Editor vs Home Projector" → "Home Mix Editor vs Labor Efficiency"
+
+**Access behavior:**
+- Tiers 1–3: see dollar tiles, staffing costs, and 5-year projection inside Labor Efficiency
+- Tiers 4–8: see ratios/percentages and hours only; no dollar content; no projection table
 
 ---
 

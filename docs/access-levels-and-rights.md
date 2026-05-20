@@ -68,7 +68,7 @@ The matrix below covers the four visibility dimensions that matter most: company
 - Net Income tile renders as "% net margin" rather than "$"
 - P&L rows render as "% of revenue" rather than absolute amounts
 - The dollar-mode toggle is hidden from tiers 4–8
-- **5-Year Projection** table: Annual Revenue, Annual Labor, and Annual Gross columns are hidden; only Year and Gross Margin % are shown to tiers 4–8
+- **5-Year Projection** table (now inside the Labor Efficiency tab): Annual Revenue, Annual Labor, and Annual Gross columns are hidden; only Year and Gross Margin % are shown to tiers 4–8. The entire projection section is hidden for tier 8.
 - **Budget Builder header**: All three context cards (Total Participants, Net Revenue, Revenue / Participant) are hidden for tiers 4–8
 - **Portfolio tab**: hidden entirely from the navigation for tiers 4–8 (not masked — the tab does not appear)
 
@@ -183,7 +183,7 @@ This scoping is enforced by the same `licensee_companies` assignment mechanism d
 - **Portfolio tab:** Hidden — does not appear in navigation.
 - **Service line operational tabs:** All visible (roster, productivity, etc.).
 - **Budget Builder:** No header cards. Their own row in $, lines below in %, lines above hidden.
-- **5-Year Projection:** Year and Gross Margin % columns only. Dollar columns hidden.
+- **Labor Efficiency tab:** Ratio/% content fully visible. Dollar metric tiles and 5-year projection hidden (dollar columns gated to tiers 1–3).
 - **Sidebar:** Wage, occupancy, Res Hab rate overrides visible. Entity type, owner rate, fees hidden.
 - **Wages:** Visible everywhere they appear.
 - **Add Service Line:** Button visible — Regional Directors can add service lines.
@@ -197,7 +197,7 @@ This scoping is enforced by the same `licensee_companies` assignment mechanism d
 - **Portfolio tab:** Hidden — does not appear in navigation.
 - **Service line operational tabs:** All visible. Focuses operationally on the service lines they run.
 - **Budget Builder:** No header cards. Their own row in $, lines below in %, lines above hidden.
-- **5-Year Projection:** Year and Gross Margin % columns only.
+- **Labor Efficiency tab:** Ratio/% content visible. Dollar tiles and 5-year projection hidden.
 - **Sidebar:** Wage, occupancy, Res Hab rate overrides visible. Entity type, owner rate, fees hidden.
 - **Wages:** Visible.
 - **Add Service Line:** Button hidden — Program Managers cannot add service lines.
@@ -211,7 +211,7 @@ This scoping is enforced by the same `licensee_companies` assignment mechanism d
 - **Portfolio tab:** Hidden — does not appear in navigation.
 - **Service line operational tabs:** Visible — HR cares about staffing across all lines.
 - **Budget Builder:** No header cards. Their own row in $, lines below in %, lines above hidden.
-- **5-Year Projection:** Year and Gross Margin % columns only.
+- **Labor Efficiency tab:** Ratio/% content visible. Dollar tiles and 5-year projection hidden.
 - **Sidebar:** Wage and occupancy visible. Rate overrides, entity type, owner rate, fees hidden.
 - **Wages:** Visible — HR needs wages to manage staff.
 - **Add Service Line:** Button hidden — HR Managers cannot add service lines.
@@ -225,7 +225,7 @@ This scoping is enforced by the same `licensee_companies` assignment mechanism d
 - **Portfolio tab:** Hidden — does not appear in navigation.
 - **Service line operational tabs:** Visible. Productivity tabs (e.g., TSC Productivity) visible — utilization is their domain.
 - **Budget Builder:** No header cards. Their own row in $, lines below in %, lines above hidden.
-- **5-Year Projection:** Year and Gross Margin % columns only.
+- **Labor Efficiency tab:** Ratio/% content visible. Dollar tiles and 5-year projection hidden.
 - **Sidebar:** Occupancy visible. Wage controls visible **but rendered as ratios** (e.g., average wage as % of revenue, overtime % of total labor) rather than raw dollar wage sliders. Rate overrides, entity, fees all hidden.
 - **Wages and overtime:** Visible **as percentages only**. No raw dollar wage figures.
 - **Add Service Line:** Button hidden — Schedulers cannot add service lines.
@@ -240,7 +240,7 @@ This scoping is enforced by the same `licensee_companies` assignment mechanism d
 - **Portfolio tab:** Hidden — does not appear in navigation.
 - **Service line operational tabs:** They see only the service line they operate within. Within that, they see operational state (occupancy, scheduling, labor-efficiency color states) but no dollar amounts.
 - **Budget Builder:** No header cards. Their own row in $ only. Everything else is invisible.
-- **5-Year Projection:** Hidden entirely — `canSeeCompanyDollars` is false for tier 8; Year and Gross Margin % are not meaningful without context.
+- **Labor Efficiency tab:** Visible (ratio/% content only — labor ratio bar, sweep chart, staffing hours). Dollar metric tiles and 5-year projection are hidden entirely (`canSeeCompanyDollars` is false for tier 8).
 - **Sidebar:** Occupancy visible. Everything else hidden.
 - **Wages:** Hidden everywhere.
 - **Add Service Line:** Button hidden.
