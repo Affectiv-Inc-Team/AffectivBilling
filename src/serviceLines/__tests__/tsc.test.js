@@ -41,18 +41,20 @@ describe("calcTSCParticipant", () => {
   });
 
   it("sums G9002 + G9007 + H2011 revenue (non-parapro)", () => {
+    // unitsPlanDev is annual units — 48/yr ÷ 12 = 4 units/mo in the calc
     const result = calcTSCParticipant({
-      unitsCoord: 16, unitsPlanDev: 4, unitsCrisis: 2, isParapro: false,
+      unitsCoord: 16, unitsPlanDev: 48, unitsCrisis: 2, isParapro: false,
     });
     const expected = 16 * COORD_RATE + 4 * PLAN_DEV_RATE + 2 * CRISIS_RATE;
     expect(result.monthlyRev).toBeCloseTo(expected, 2);
   });
 
   it("sums hours across all three codes", () => {
+    // unitsPlanDev is annual units — 48/yr ÷ 12 = 4 units/mo = 1 hr/mo
     const result = calcTSCParticipant({
-      unitsCoord: 16, unitsPlanDev: 4, unitsCrisis: 2, isParapro: false,
+      unitsCoord: 16, unitsPlanDev: 48, unitsCrisis: 2, isParapro: false,
     });
-    expect(result.monthlyHours).toBe((16 + 4 + 2) / 4);
+    expect(result.monthlyHours).toBeCloseTo((16 + 4 + 2) / 4, 5);
   });
 
   it("applies parapro crisis rate when isParapro=true and crisis units present", () => {
