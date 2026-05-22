@@ -22,8 +22,8 @@
  *         {
  *           id, name,
  *           unitsCoord: number,     // G9002 monthly units
- *           unitsPlanDev: number,   // G9007 monthly units (typical: 0-4)
- *           unitsCrisis: number,    // H2011 monthly units (typical: 0)
+ *           unitsPlanDev: number,   // G9007 annual units (typical: 0–48); divided by 12 in calc
+ *           unitsCrisis: number,    // H2011 monthly units — kept for backward compat, hidden from main roster UI
  *           isParapro: boolean,     // bill at HM (paraprofessional) rate
  *         }
  *       ],
@@ -133,12 +133,13 @@ export function calcTSCParticipant(p) {
   const rateCrisis = p.isParapro ? TSC_RATES.CRISIS_PARAPRO : TSC_RATES.CRISIS;
   const ratePlan   = TSC_RATES.PLAN_DEV;
 
+  // unitsPlanDev is stored as annual units; divide by 12 for monthly revenue/hours
   const monthlyRev = (p.unitsCoord    ?? 0) * rateCoord
-                   + (p.unitsPlanDev  ?? 0) * ratePlan
+                   + (p.unitsPlanDev  ?? 0) / 12 * ratePlan
                    + (p.unitsCrisis   ?? 0) * rateCrisis;
 
   // 1 unit = 15 min, so 4 units = 1 hour
-  const monthlyHours = ((p.unitsCoord ?? 0) + (p.unitsPlanDev ?? 0) + (p.unitsCrisis ?? 0)) / 4;
+  const monthlyHours = ((p.unitsCoord ?? 0) + (p.unitsPlanDev ?? 0) / 12 + (p.unitsCrisis ?? 0)) / 4;
 
   return {
     monthlyRev,
@@ -360,7 +361,7 @@ function ParticipantRow({ p, onUpdate, onRemove }) {
   const m = calcTSCParticipant(p);
   return (
     <div style={{
-      display:"grid", gridTemplateColumns:"1.4fr 0.8fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
+      display:"grid", gridTemplateColumns:"1.4fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
       gap:8, alignItems:"center", padding:"6px 8px",
       borderRadius:6, background:"#f7f9fc", border:"1px solid #e2e8f0",
     }}>
@@ -376,15 +377,9 @@ function ParticipantRow({ p, onUpdate, onRemove }) {
           style={numInput}/>
       </div>
       <div>
-        <div style={labelStyle}>G9007</div>
-        <input type="number" min={0} max={50} value={p.unitsPlanDev ?? 0}
+        <div style={labelStyle}>G9007 u/yr</div>
+        <input type="number" min={0} max={96} value={p.unitsPlanDev ?? 0}
           onChange={e => onUpdate(p.id, "unitsPlanDev", +e.target.value)}
-          style={numInput}/>
-      </div>
-      <div>
-        <div style={labelStyle}>H2011</div>
-        <input type="number" min={0} max={50} value={p.unitsCrisis ?? 0}
-          onChange={e => onUpdate(p.id, "unitsCrisis", +e.target.value)}
           style={numInput}/>
       </div>
       <label style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, color:"#64748b", ...M }}>
@@ -443,12 +438,6 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
           </select>
         </div>
 
-        <div>
-          <div style={labelStyle}>Wage / hr</div>
-          <input type="number" min={10} max={60} step={0.5} value={coord.hourlyWage}
-            onChange={e => onUpdate(coord.id, "hourlyWage", +e.target.value)}
-            style={numInput}/>
-        </div>
         {wageDisplayMode(userRole) !== 'hidden' && (
           <div>
             <div style={labelStyle}>Wage / hr</div>
@@ -494,14 +483,13 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
       {expanded && (
         <div>
           <div style={{ display:"grid",
-            gridTemplateColumns:"1.4fr 0.8fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
+            gridTemplateColumns:"1.4fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
             gap:8, padding:"4px 8px",
             ...labelStyle, marginBottom:4,
           }}>
             <span>Participant</span>
             <span style={{ textAlign:"left" }}>G9002 u/mo</span>
-            <span style={{ textAlign:"left" }}>G9007 u/mo</span>
-            <span style={{ textAlign:"left" }}>H2011 u/mo</span>
+            <span style={{ textAlign:"left" }}>G9007 u/yr</span>
             <span>Para</span>
             <span style={{ textAlign:"right" }}>Revenue</span>
             <span></span>

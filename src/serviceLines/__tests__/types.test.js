@@ -41,8 +41,8 @@ describe("SERVICE_LINE_TYPES", () => {
 // ──────────────────────────────────────────────────────────────────────
 
 describe("getActiveTypes", () => {
-  it("returns exactly 3 types", () => {
-    expect(getActiveTypes()).toHaveLength(3);
+  it("returns exactly 5 types", () => {
+    expect(getActiveTypes()).toHaveLength(5);
   });
 
   it("returns RES_HAB_DAILY", () => {
@@ -55,6 +55,14 @@ describe("getActiveTypes", () => {
 
   it("returns TSC", () => {
     expect(getActiveTypes()).toContain("TSC");
+  });
+
+  it("returns VOC_SERVICES", () => {
+    expect(getActiveTypes()).toContain("VOC_SERVICES");
+  });
+
+  it("returns CHILDRENS_DDA", () => {
+    expect(getActiveTypes()).toContain("CHILDRENS_DDA");
   });
 
   it("every returned type has status 'active' in SERVICE_LINE_DEFS", () => {
