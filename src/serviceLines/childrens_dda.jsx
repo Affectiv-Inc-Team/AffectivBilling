@@ -1,13 +1,75 @@
 import { useState } from "react";
 
-// Idaho CHIS (Children's Habilitation Intervention Services) rates post-9/1/2025
-const CHIS_RATES = {
-  BI_IND:  { TECH: 13.54, SPECIALIST: 15.48, PROFESSIONAL: 21.34, EBM_PARA: 14.34, EBM_SPEC: 18.51, EBM_PROF: 24.68 },
-  BI_GRP:  { TECH: 5.41,  SPECIALIST: 6.18,  PROFESSIONAL: 8.53,  EBM_PARA: 5.73,  EBM_SPEC: 7.41,  EBM_PROF: 9.88  },
-  SKILL_IND: 13.54,   // H2014 individual skill building / habilitative services
-  FAMILY:    12.39,   // H0024 family education & training
-  ASSESS:  { SPECIALIST: 15.48, PROFESSIONAL: 21.34, EBM_SPEC: 17.63, EBM_PROF: 21.82 },
-  CRISIS:  { TECH: 8.71, SPECIALIST: 15.48, PROFESSIONAL: 21.34, EBM_PARA: 14.34, EBM_SPEC: 17.63, EBM_PROF: 21.82 },
+// ─────────────────────────────────────────────────────────────────────────────
+// Idaho CHIS (Children's Habilitation Intervention Services) rate table
+// All rates are post-9/1/2025 4% reduction, per 15-minute unit.
+// Exported so the rate schedule tab can display and FinancialTool can reference.
+// ─────────────────────────────────────────────────────────────────────────────
+export const DDA_RATE_TABLE = [
+  // Behavior Intervention – Individual (H2014)
+  { group: 'Behavior Intervention – Individual', key: 'bi_ind_tech',    code: 'H2014', modifier: 'HA',       description: 'Behavior Intervention – Individual', tier: 'Technician',           defaultRate: 13.54 },
+  { group: 'Behavior Intervention – Individual', key: 'bi_ind_spec',    code: 'H2014', modifier: 'HN',       description: 'Behavior Intervention – Individual', tier: 'Specialist',           defaultRate: 15.48 },
+  { group: 'Behavior Intervention – Individual', key: 'bi_ind_prof',    code: 'H2014', modifier: 'HO',       description: 'Behavior Intervention – Individual', tier: 'Professional',         defaultRate: 21.34 },
+  { group: 'Behavior Intervention – Individual', key: 'bi_ind_ebmpara', code: 'H2014', modifier: 'TF',       description: 'Behavior Intervention – Individual', tier: 'EBM Paraprofessional', defaultRate: 14.34 },
+  { group: 'Behavior Intervention – Individual', key: 'bi_ind_ebmspec', code: 'H2014', modifier: 'TF HN',    description: 'Behavior Intervention – Individual', tier: 'EBM Specialist',       defaultRate: 18.51 },
+  { group: 'Behavior Intervention – Individual', key: 'bi_ind_ebmprof', code: 'H2014', modifier: 'TF HO',    description: 'Behavior Intervention – Individual', tier: 'EBM Professional',     defaultRate: 24.68 },
+  // Behavior Intervention – Group (H2014 + HQ)
+  { group: 'Behavior Intervention – Group',      key: 'bi_grp_tech',    code: 'H2014', modifier: 'HA HQ',    description: 'Behavior Intervention – Group',      tier: 'Technician',           defaultRate:  5.41 },
+  { group: 'Behavior Intervention – Group',      key: 'bi_grp_spec',    code: 'H2014', modifier: 'HN HQ',    description: 'Behavior Intervention – Group',      tier: 'Specialist',           defaultRate:  6.18 },
+  { group: 'Behavior Intervention – Group',      key: 'bi_grp_prof',    code: 'H2014', modifier: 'HO HQ',    description: 'Behavior Intervention – Group',      tier: 'Professional',         defaultRate:  8.53 },
+  { group: 'Behavior Intervention – Group',      key: 'bi_grp_ebmpara', code: 'H2014', modifier: 'TF HQ',    description: 'Behavior Intervention – Group',      tier: 'EBM Paraprofessional', defaultRate:  5.73 },
+  { group: 'Behavior Intervention – Group',      key: 'bi_grp_ebmspec', code: 'H2014', modifier: 'TF HN HQ', description: 'Behavior Intervention – Group',      tier: 'EBM Specialist',       defaultRate:  7.41 },
+  { group: 'Behavior Intervention – Group',      key: 'bi_grp_ebmprof', code: 'H2014', modifier: 'TF HO HQ', description: 'Behavior Intervention – Group',      tier: 'EBM Professional',     defaultRate:  9.88 },
+  // Skill Building / Habilitation (H2014 flat — tech rate regardless of credential)
+  { group: 'Skill Building',                     key: 'skill_ind',      code: 'H2014', modifier: 'HA',       description: 'Skill Building / Habilitation – Individual', tier: 'All tiers', defaultRate: 13.54 },
+  { group: 'Skill Building',                     key: 'skill_grp',      code: 'H2014', modifier: 'HQ',       description: 'Skill Building / Habilitation – Group',      tier: 'All tiers', defaultRate:  5.41 },
+  // Eligibility Screening (H2000)
+  { group: 'Eligibility Screening',              key: 'elig_spec',      code: 'H2000', modifier: 'HN',       description: 'Eligibility Screening',              tier: 'Specialist',           defaultRate: 15.48 },
+  { group: 'Eligibility Screening',              key: 'elig_prof',      code: 'H2000', modifier: 'HO',       description: 'Eligibility Screening',              tier: 'Professional',         defaultRate: 21.34 },
+  { group: 'Eligibility Screening',              key: 'elig_ebmspec',   code: 'H2000', modifier: 'TF HN',    description: 'Eligibility Screening',              tier: 'EBM Specialist',       defaultRate: 17.63 },
+  { group: 'Eligibility Screening',              key: 'elig_ebmprof',   code: 'H2000', modifier: 'TF HO',    description: 'Eligibility Screening',              tier: 'EBM Professional',     defaultRate: 21.82 },
+  // Assessment / Reassessment (H0032)
+  { group: 'Assessment / Reassessment',          key: 'assess_spec',    code: 'H0032', modifier: 'HN',       description: 'Assessment / Reassessment',          tier: 'Specialist',           defaultRate: 15.48 },
+  { group: 'Assessment / Reassessment',          key: 'assess_prof',    code: 'H0032', modifier: 'HO',       description: 'Assessment / Reassessment',          tier: 'Professional',         defaultRate: 21.34 },
+  { group: 'Assessment / Reassessment',          key: 'assess_ebmspec', code: 'H0032', modifier: 'TF HN',    description: 'Assessment / Reassessment',          tier: 'EBM Specialist',       defaultRate: 17.63 },
+  { group: 'Assessment / Reassessment',          key: 'assess_ebmprof', code: 'H0032', modifier: 'TF HO',    description: 'Assessment / Reassessment',          tier: 'EBM Professional',     defaultRate: 21.82 },
+  // Crisis Intervention (H2011)
+  { group: 'Crisis Intervention',                key: 'crisis_tech',    code: 'H2011', modifier: 'HM',       description: 'Crisis Intervention',                tier: 'Technician',           defaultRate: 13.54 },
+  { group: 'Crisis Intervention',                key: 'crisis_spec',    code: 'H2011', modifier: 'HN',       description: 'Crisis Intervention',                tier: 'Specialist',           defaultRate: 15.48 },
+  { group: 'Crisis Intervention',                key: 'crisis_prof',    code: 'H2011', modifier: 'HO',       description: 'Crisis Intervention',                tier: 'Professional',         defaultRate: 21.34 },
+  { group: 'Crisis Intervention',                key: 'crisis_ebmpara', code: 'H2011', modifier: 'TF',       description: 'Crisis Intervention',                tier: 'EBM Paraprofessional', defaultRate: 14.34 },
+  { group: 'Crisis Intervention',                key: 'crisis_ebmspec', code: 'H2011', modifier: 'TF HN',    description: 'Crisis Intervention',                tier: 'EBM Specialist',       defaultRate: 17.63 },
+  { group: 'Crisis Intervention',                key: 'crisis_ebmprof', code: 'H2011', modifier: 'TF HO',    description: 'Crisis Intervention',                tier: 'EBM Professional',     defaultRate: 21.82 },
+  // Family Education (H0024)
+  { group: 'Family Education',                   key: 'family_ind',     code: 'H0024', modifier: '',         description: 'Family Education – Individual',      tier: 'All tiers',            defaultRate: 12.39 },
+  { group: 'Family Education',                   key: 'family_grp',     code: 'H0024', modifier: 'HQ',       description: 'Family Education – Group',           tier: 'All tiers',            defaultRate:  4.13 },
+  // Community Supports / Habilitation (H2015)
+  { group: 'Community Supports',                 key: 'comm_ind',       code: 'H2015', modifier: 'HA',       description: 'Community Supports – Individual',    tier: 'All tiers',            defaultRate:  6.97 },
+  { group: 'Community Supports',                 key: 'comm_grp',       code: 'H2015', modifier: 'HQ',       description: 'Community Supports – Group',         tier: 'All tiers',            defaultRate:  2.78 },
+  // Respite Care (T1005)
+  { group: 'Respite Care',                       key: 'respite_ind',    code: 'T1005', modifier: '',         description: 'Respite Care – Individual',          tier: 'All tiers',            defaultRate:  3.51 },
+  { group: 'Respite Care',                       key: 'respite_grp',    code: 'T1005', modifier: 'HQ',       description: 'Respite Care – Group',               tier: 'All tiers',            defaultRate:  1.17 },
+];
+
+// Tier → BI individual rate key
+const TIER_TO_BI_IND = {
+  TECH: 'bi_ind_tech', SPECIALIST: 'bi_ind_spec', PROFESSIONAL: 'bi_ind_prof',
+  EBM_PARA: 'bi_ind_ebmpara', EBM_SPEC: 'bi_ind_ebmspec', EBM_PROF: 'bi_ind_ebmprof',
+};
+// Tier → BI group rate key
+const TIER_TO_BI_GRP = {
+  TECH: 'bi_grp_tech', SPECIALIST: 'bi_grp_spec', PROFESSIONAL: 'bi_grp_prof',
+  EBM_PARA: 'bi_grp_ebmpara', EBM_SPEC: 'bi_grp_ebmspec', EBM_PROF: 'bi_grp_ebmprof',
+};
+// Tier → assessment rate key (TECH falls back to SPECIALIST rate)
+const TIER_TO_ASSESS = {
+  TECH: 'assess_spec', SPECIALIST: 'assess_spec', PROFESSIONAL: 'assess_prof',
+  EBM_PARA: 'assess_spec', EBM_SPEC: 'assess_ebmspec', EBM_PROF: 'assess_ebmprof',
+};
+// Tier → crisis rate key
+const TIER_TO_CRISIS = {
+  TECH: 'crisis_tech', SPECIALIST: 'crisis_spec', PROFESSIONAL: 'crisis_prof',
+  EBM_PARA: 'crisis_ebmpara', EBM_SPEC: 'crisis_ebmspec', EBM_PROF: 'crisis_ebmprof',
 };
 
 const TIERS = ['TECH', 'SPECIALIST', 'PROFESSIONAL', 'EBM_PARA', 'EBM_SPEC', 'EBM_PROF'];
@@ -20,9 +82,17 @@ const TIER_LABELS = {
   EBM_PROF:     'EBM Professional',
 };
 
-// ──────────────────────────────────────────────────────────────────────
+// Pre-built default rates object from the table
+const _defaultRates = {};
+DDA_RATE_TABLE.forEach(r => { _defaultRates[r.key] = r.defaultRate; });
+
+function effectiveRates(overrides = {}) {
+  return { ..._defaultRates, ...overrides };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Factories
-// ──────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 let _ddaUid = 0;
 const ddaUid = () => ++_ddaUid;
 
@@ -31,11 +101,18 @@ export function mkDDAParticipant(name = 'New Participant') {
     id: `ddap_${ddaUid()}`,
     name,
     services: {
-      biIndividual:  { hrPerWk: 10 },
-      biGroup:       { hrPerWk: 0  },
-      skillBuilding: { hrPerWk: 0  },
-      familyEd:      { hrPerMonth: 2 },
-      assessment:    { sessionsPerYear: 1 },
+      biInd:      { hrPerWk: 10 },
+      biGrp:      { hrPerWk: 0,  groupSize: 4 },
+      skillInd:   { hrPerWk: 0 },
+      skillGrp:   { hrPerWk: 0,  groupSize: 4 },
+      familyInd:  { hrPerMonth: 0 },
+      familyGrp:  { hrPerMonth: 0, groupSize: 4 },
+      commInd:    { hrPerWk: 0 },
+      commGrp:    { hrPerWk: 0,  groupSize: 4 },
+      respiteInd: { hrPerWk: 0 },
+      respiteGrp: { hrPerWk: 0,  groupSize: 4 },
+      assessment: { sessionsPerYear: 0 },
+      crisis:     { hrPerMonth: 0 },
     },
   };
 }
@@ -55,53 +132,94 @@ export function defaultChildrensDDAConfig() {
   return {
     providers: [],
     supervision: { count: 1, salary: 65000, providersPerSupervisor: 8 },
-    seasonality: { enabled: false, summerMultiplier: 0.7, holidayReductionPct: 10 },
+    seasonality:  { enabled: false, summerMultiplier: 0.7, holidayReductionPct: 10 },
     productivity: { billableHrsPerDay: 5.5, cancellationRate: 12, driveTimePct: 15, documentationTimePct: 20 },
-    payrollBurdenPct: 22,
+    payrollBurdenPct:  22,
     defaultHourlyWage: 22,
-    defaultTier: 'SPECIALIST',
+    defaultTier:       'SPECIALIST',
+    rateOverrides:     {},
   };
 }
 
-// ──────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // Calculators
-// ──────────────────────────────────────────────────────────────────────
-export function calcDDAParticipant(p, tier = 'SPECIALIST') {
-  const biIndMonthlyUnits  = (p.services?.biIndividual?.hrPerWk  ?? 0) * 4.33 * 4;
-  const biGrpMonthlyUnits  = (p.services?.biGroup?.hrPerWk       ?? 0) * 4.33 * 4;
-  const skillMonthlyUnits  = (p.services?.skillBuilding?.hrPerWk ?? 0) * 4.33 * 4;
-  const familyMonthlyUnits = (p.services?.familyEd?.hrPerMonth   ?? 0) * 4;
-  const assessMonthlyUnits = ((p.services?.assessment?.sessionsPerYear ?? 0) / 12) * 4;
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const biIndRate  = CHIS_RATES.BI_IND[tier]  ?? CHIS_RATES.BI_IND.SPECIALIST;
-  const biGrpRate  = CHIS_RATES.BI_GRP[tier]  ?? CHIS_RATES.BI_GRP.SPECIALIST;
-  const assessRate = CHIS_RATES.ASSESS[tier]  ?? CHIS_RATES.ASSESS.SPECIALIST ?? 15.48;
+export function calcDDAParticipant(p, tier = 'SPECIALIST', rates = _defaultRates) {
+  const svc = p.services ?? {};
 
+  // Individual service hours per month (backward-compat field names via ??)
+  const biIndHrMo      = (svc.biInd?.hrPerWk      ?? svc.biIndividual?.hrPerWk  ?? 0) * 4.33;
+  const skillIndHrMo   = (svc.skillInd?.hrPerWk   ?? svc.skillBuilding?.hrPerWk ?? 0) * 4.33;
+  const commIndHrMo    = (svc.commInd?.hrPerWk     ?? 0) * 4.33;
+  const respiteIndHrMo = (svc.respiteInd?.hrPerWk  ?? 0) * 4.33;
+  const familyIndHrMo  = (svc.familyInd?.hrPerMonth ?? svc.familyEd?.hrPerMonth ?? 0);
+  const crisisHrMo     = (svc.crisis?.hrPerMonth    ?? 0);
+  const assessSessMo   = (svc.assessment?.sessionsPerYear ?? 0) / 12; // each session ≈ 1 hr
+
+  // Group service hours + group sizes (provider time shared across participants)
+  const biGrpHrMo      = (svc.biGrp?.hrPerWk      ?? svc.biGroup?.hrPerWk ?? 0) * 4.33;
+  const biGrpSize      = Math.max(1, svc.biGrp?.groupSize ?? svc.biGroup?.groupSize ?? 4);
+  const skillGrpHrMo   = (svc.skillGrp?.hrPerWk   ?? 0) * 4.33;
+  const skillGrpSize   = Math.max(1, svc.skillGrp?.groupSize ?? 4);
+  const familyGrpHrMo  = (svc.familyGrp?.hrPerMonth ?? 0);
+  const familyGrpSize  = Math.max(1, svc.familyGrp?.groupSize ?? 4);
+  const commGrpHrMo    = (svc.commGrp?.hrPerWk     ?? 0) * 4.33;
+  const commGrpSize    = Math.max(1, svc.commGrp?.groupSize ?? 4);
+  const respiteGrpHrMo = (svc.respiteGrp?.hrPerWk  ?? 0) * 4.33;
+  const respiteGrpSize = Math.max(1, svc.respiteGrp?.groupSize ?? 4);
+
+  const R = key => rates[key] ?? _defaultRates[key] ?? 0;
+
+  // Revenue: each participant billed per unit (4 units/hr) at their applicable rate
   const monthlyRev =
-      biIndMonthlyUnits  * biIndRate
-    + biGrpMonthlyUnits  * biGrpRate
-    + skillMonthlyUnits  * CHIS_RATES.SKILL_IND
-    + familyMonthlyUnits * CHIS_RATES.FAMILY
-    + assessMonthlyUnits * assessRate;
+    biIndHrMo      * 4 * R(TIER_TO_BI_IND[tier] ?? 'bi_ind_spec') +
+    biGrpHrMo      * 4 * R(TIER_TO_BI_GRP[tier] ?? 'bi_grp_spec') +
+    skillIndHrMo   * 4 * R('skill_ind') +
+    skillGrpHrMo   * 4 * R('skill_grp') +
+    familyIndHrMo  * 4 * R('family_ind') +
+    familyGrpHrMo  * 4 * R('family_grp') +
+    commIndHrMo    * 4 * R('comm_ind') +
+    commGrpHrMo    * 4 * R('comm_grp') +
+    respiteIndHrMo * 4 * R('respite_ind') +
+    respiteGrpHrMo * 4 * R('respite_grp') +
+    crisisHrMo     * 4 * R(TIER_TO_CRISIS[tier] ?? 'crisis_spec') +
+    assessSessMo   * 4 * R(TIER_TO_ASSESS[tier] ?? 'assess_spec');
 
-  const monthlyHours =
-    (biIndMonthlyUnits + biGrpMonthlyUnits + skillMonthlyUnits + familyMonthlyUnits + assessMonthlyUnits) / 4;
+  // Billed hours = hours the participant actually receives (for reporting)
+  const billedHrsPerMonth =
+    biIndHrMo + biGrpHrMo + skillIndHrMo + skillGrpHrMo +
+    familyIndHrMo + familyGrpHrMo + commIndHrMo + commGrpHrMo +
+    respiteIndHrMo + respiteGrpHrMo + crisisHrMo + assessSessMo;
+
+  // Provider hours = actual provider time required
+  // Group services: provider time is shared — divide by group size
+  const providerHrsPerMonth =
+    biIndHrMo + biGrpHrMo / biGrpSize +
+    skillIndHrMo + skillGrpHrMo / skillGrpSize +
+    familyIndHrMo + familyGrpHrMo / familyGrpSize +
+    commIndHrMo + commGrpHrMo / commGrpSize +
+    respiteIndHrMo + respiteGrpHrMo / respiteGrpSize +
+    crisisHrMo + assessSessMo;
 
   return {
     monthlyRev,
-    annualRev:   monthlyRev * 12,
-    monthlyHours,
-    annualHours: monthlyHours * 12,
+    annualRev:           monthlyRev * 12,
+    billedHrsPerMonth,
+    providerHrsPerMonth,
+    monthlyHours:        billedHrsPerMonth,  // backward-compat alias
+    annualHours:         billedHrsPerMonth * 12,
   };
 }
 
-export function calcDDAProvider(pv, payrollBurdenPct = 22) {
-  const px = (pv.participants ?? []).map(p => calcDDAParticipant(p, pv.tier));
+export function calcDDAProvider(pv, payrollBurdenPct = 22, rates = _defaultRates) {
+  const px = (pv.participants ?? []).map(p => calcDDAParticipant(p, pv.tier, rates));
 
   const monthlyRev      = px.reduce((a, p) => a + p.monthlyRev, 0);
-  const monthlyBillable = px.reduce((a, p) => a + p.monthlyHours, 0);
-  const adminMonthly    = 5 * 4.33; // 5 admin hrs/week — documentation, team meetings
-  const totalMonthlyHrs = monthlyBillable + adminMonthly;
+  const monthlyBillable = px.reduce((a, p) => a + p.billedHrsPerMonth, 0);
+  const monthlyProvHrs  = px.reduce((a, p) => a + p.providerHrsPerMonth, 0);
+  const adminMonthly    = 5 * 4.33;  // 5 admin hrs/week
+  const totalMonthlyHrs = monthlyProvHrs + adminMonthly;
 
   const burden       = 1 + (payrollBurdenPct ?? 22) / 100;
   const monthlyLabor = totalMonthlyHrs * (pv.hourlyWage ?? 22) * burden;
@@ -116,6 +234,7 @@ export function calcDDAProvider(pv, payrollBurdenPct = 22) {
     monthlyRev,
     annualRev,
     monthlyBillable,
+    monthlyProvHrs,
     adminMonthly,
     totalMonthlyHrs,
     monthlyLabor,
@@ -123,16 +242,17 @@ export function calcDDAProvider(pv, payrollBurdenPct = 22) {
     gross,
     grossMargin:    annualRev > 0 ? gross / annualRev : 0,
     utilization:    totalMonthlyHrs / FTE_HRS,
-    billableShare:  totalMonthlyHrs > 0 ? monthlyBillable / totalMonthlyHrs : 0,
+    billableShare:  totalMonthlyHrs > 0 ? monthlyProvHrs / totalMonthlyHrs : 0,
   };
 }
 
 export function calcChildrensDDAService(config) {
   const payrollBurdenPct = config.payrollBurdenPct ?? 22;
+  const rates            = effectiveRates(config.rateOverrides ?? {});
 
   const providers = (config.providers ?? []).map(pv => ({
     ...pv,
-    metrics: calcDDAProvider(pv, payrollBurdenPct),
+    metrics: calcDDAProvider(pv, payrollBurdenPct, rates),
   }));
 
   const totalCaseload  = providers.reduce((a, pv) => a + pv.metrics.caseloadSize, 0);
@@ -148,7 +268,7 @@ export function calcChildrensDDAService(config) {
     providers,
     totalCaseload,
     totalAnnualRev,
-    totalAnnualLabor: totalAnnualLab,
+    totalAnnualLabor:  totalAnnualLab,
     supervisionCost,
     totalGross,
     totalMargin:   totalAnnualRev > 0 ? totalGross / totalAnnualRev : 0,
@@ -156,10 +276,11 @@ export function calcChildrensDDAService(config) {
   };
 }
 
-// ──────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // UI helpers
-// ──────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 const $k  = n => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+const $r  = n => n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pct = n => `${(n * 100).toFixed(1)}%`;
 const M   = { fontFamily: "'DM Mono',monospace" };
 
@@ -191,80 +312,163 @@ function Stat({ label, value, color = "#5a3800" }) {
   );
 }
 
-// ──────────────────────────────────────────────────────────────────────
-// Participant row
-// ──────────────────────────────────────────────────────────────────────
-function DDAParticipantRow({ p, tier, onUpdate, onRemove }) {
-  const m = calcDDAParticipant(p, tier);
-  const svc = p.services ?? {};
-
-  const updSvc = (field, subField, val) => onUpdate(p.id, "services", {
-    ...svc, [field]: { ...(svc[field] ?? {}), [subField]: val },
-  });
-
+function SvcInput({ label, value, onChange, step = 0.5, max = 40, sublabel }) {
   return (
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: "1.3fr 0.6fr 0.6fr 0.6fr 0.7fr 0.7fr 1fr 0.4fr",
-      gap: 6, alignItems: "center", padding: "6px 8px",
-      borderRadius: 6, background: "#f7f9fc", border: "1px solid #e2e8f0",
-    }}>
-      <input type="text" value={p.name}
-        onChange={e => onUpdate(p.id, "name", e.target.value)}
-        style={textInput}/>
-      <div>
-        <div style={labelStyle}>BI Ind hr/wk</div>
-        <input type="number" min={0} max={40} step={0.5}
-          value={svc.biIndividual?.hrPerWk ?? 0}
-          onChange={e => updSvc("biIndividual", "hrPerWk", +e.target.value)}
-          style={numInput}/>
-      </div>
-      <div>
-        <div style={labelStyle}>BI Grp hr/wk</div>
-        <input type="number" min={0} max={40} step={0.5}
-          value={svc.biGroup?.hrPerWk ?? 0}
-          onChange={e => updSvc("biGroup", "hrPerWk", +e.target.value)}
-          style={numInput}/>
-      </div>
-      <div>
-        <div style={labelStyle}>Skill hr/wk</div>
-        <input type="number" min={0} max={40} step={0.5}
-          value={svc.skillBuilding?.hrPerWk ?? 0}
-          onChange={e => updSvc("skillBuilding", "hrPerWk", +e.target.value)}
-          style={numInput}/>
-      </div>
-      <div>
-        <div style={labelStyle}>Family hr/mo</div>
-        <input type="number" min={0} max={40} step={0.5}
-          value={svc.familyEd?.hrPerMonth ?? 0}
-          onChange={e => updSvc("familyEd", "hrPerMonth", +e.target.value)}
-          style={numInput}/>
-      </div>
-      <div>
-        <div style={labelStyle}>Assess/yr</div>
-        <input type="number" min={0} max={12}
-          value={svc.assessment?.sessionsPerYear ?? 0}
-          onChange={e => updSvc("assessment", "sessionsPerYear", +e.target.value)}
-          style={numInput}/>
-      </div>
-      <div style={{ textAlign: "right" }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#5a3800", ...M }}>{$k(m.monthlyRev)}/mo</div>
-        <div style={{ fontSize: 9, color: "#64748b", ...M }}>{m.monthlyHours.toFixed(1)} hr/mo</div>
-      </div>
-      <button onClick={() => onRemove(p.id)} style={{
-        border: "none", background: "transparent", cursor: "pointer",
-        color: "#cf6e6e", fontSize: 14, padding: 4,
-      }}>✕</button>
+    <div style={{ minWidth: 70 }}>
+      <div style={labelStyle}>{label}</div>
+      {sublabel && <div style={{ fontSize: 8, color: "#94a3b8", ...M }}>{sublabel}</div>}
+      <input type="number" min={0} max={max} step={step}
+        value={value}
+        onChange={e => onChange(+e.target.value)}
+        style={numInput}/>
     </div>
   );
 }
 
-// ──────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Expandable participant row
+// ─────────────────────────────────────────────────────────────────────────────
+function DDAParticipantRow({ p, tier, rates, onUpdate, onRemove }) {
+  const [expanded, setExpanded] = useState(false);
+  const m   = calcDDAParticipant(p, tier, rates);
+  const svc = p.services ?? {};
+
+  const upd = (field, partial) => onUpdate(p.id, "services", { ...svc, [field]: { ...(svc[field] ?? {}), ...partial } });
+
+  return (
+    <div style={{ borderRadius: 6, background: "#f7f9fc", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+      {/* Compact header row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px" }}>
+        <button onClick={() => setExpanded(e => !e)} style={{
+          border: "none", background: "transparent", cursor: "pointer",
+          fontSize: 12, color: "#5a3800", width: 18, flexShrink: 0,
+        }}>{expanded ? "▼" : "▶"}</button>
+        <input type="text" value={p.name}
+          onChange={e => onUpdate(p.id, "name", e.target.value)}
+          style={{ ...textInput, flex: 1, fontSize: 12, minWidth: 100 }}/>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#5a3800", ...M }}>{$k(m.monthlyRev)}/mo</div>
+          <div style={{ fontSize: 9, color: "#64748b", ...M }}>
+            {m.billedHrsPerMonth.toFixed(1)} billed · {m.providerHrsPerMonth.toFixed(1)} prov hr/mo
+          </div>
+        </div>
+        <button onClick={() => onRemove(p.id)} style={{
+          border: "none", background: "transparent", cursor: "pointer",
+          color: "#cf6e6e", fontSize: 14, padding: 4, flexShrink: 0,
+        }}>✕</button>
+      </div>
+
+      {/* Expanded service editor */}
+      {expanded && (
+        <div style={{ padding: "0 10px 14px 36px", borderTop: "1px solid #e2e8f0" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 20, paddingTop: 12 }}>
+
+            {/* Behavior Intervention */}
+            <div>
+              <div style={{ ...labelStyle, color: "#3b5fc0", marginBottom: 6 }}>Behavior Intervention (H2014)</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <SvcInput label="BI Ind hr/wk"
+                  value={svc.biInd?.hrPerWk ?? svc.biIndividual?.hrPerWk ?? 0}
+                  onChange={v => upd("biInd", { hrPerWk: v })}/>
+                <SvcInput label="BI Grp hr/wk"
+                  value={svc.biGrp?.hrPerWk ?? svc.biGroup?.hrPerWk ?? 0}
+                  onChange={v => upd("biGrp", { hrPerWk: v })}/>
+                <SvcInput label="Group size" sublabel="participants"
+                  value={svc.biGrp?.groupSize ?? 4} max={12} step={1}
+                  onChange={v => upd("biGrp", { groupSize: Math.max(1, v) })}/>
+              </div>
+            </div>
+
+            {/* Skill Building */}
+            <div>
+              <div style={{ ...labelStyle, color: "#3b5fc0", marginBottom: 6 }}>Skill Building (H2014)</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <SvcInput label="Skill Ind hr/wk"
+                  value={svc.skillInd?.hrPerWk ?? svc.skillBuilding?.hrPerWk ?? 0}
+                  onChange={v => upd("skillInd", { hrPerWk: v })}/>
+                <SvcInput label="Skill Grp hr/wk"
+                  value={svc.skillGrp?.hrPerWk ?? 0}
+                  onChange={v => upd("skillGrp", { hrPerWk: v })}/>
+                <SvcInput label="Group size" sublabel="participants"
+                  value={svc.skillGrp?.groupSize ?? 4} max={12} step={1}
+                  onChange={v => upd("skillGrp", { groupSize: Math.max(1, v) })}/>
+              </div>
+            </div>
+
+            {/* Family Education */}
+            <div>
+              <div style={{ ...labelStyle, color: "#3b5fc0", marginBottom: 6 }}>Family Education (H0024)</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <SvcInput label="Family Ind hr/mo" max={80}
+                  value={svc.familyInd?.hrPerMonth ?? svc.familyEd?.hrPerMonth ?? 0}
+                  onChange={v => upd("familyInd", { hrPerMonth: v })}/>
+                <SvcInput label="Family Grp hr/mo" max={80}
+                  value={svc.familyGrp?.hrPerMonth ?? 0}
+                  onChange={v => upd("familyGrp", { hrPerMonth: v })}/>
+                <SvcInput label="Group size" sublabel="participants"
+                  value={svc.familyGrp?.groupSize ?? 4} max={12} step={1}
+                  onChange={v => upd("familyGrp", { groupSize: Math.max(1, v) })}/>
+              </div>
+            </div>
+
+            {/* Community Supports */}
+            <div>
+              <div style={{ ...labelStyle, color: "#3b5fc0", marginBottom: 6 }}>Community Supports (H2015)</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <SvcInput label="Comm Ind hr/wk"
+                  value={svc.commInd?.hrPerWk ?? 0}
+                  onChange={v => upd("commInd", { hrPerWk: v })}/>
+                <SvcInput label="Comm Grp hr/wk"
+                  value={svc.commGrp?.hrPerWk ?? 0}
+                  onChange={v => upd("commGrp", { hrPerWk: v })}/>
+                <SvcInput label="Group size" sublabel="participants"
+                  value={svc.commGrp?.groupSize ?? 4} max={12} step={1}
+                  onChange={v => upd("commGrp", { groupSize: Math.max(1, v) })}/>
+              </div>
+            </div>
+
+            {/* Respite Care */}
+            <div>
+              <div style={{ ...labelStyle, color: "#3b5fc0", marginBottom: 6 }}>Respite Care (T1005)</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <SvcInput label="Respite Ind hr/wk"
+                  value={svc.respiteInd?.hrPerWk ?? 0}
+                  onChange={v => upd("respiteInd", { hrPerWk: v })}/>
+                <SvcInput label="Respite Grp hr/wk"
+                  value={svc.respiteGrp?.hrPerWk ?? 0}
+                  onChange={v => upd("respiteGrp", { hrPerWk: v })}/>
+                <SvcInput label="Group size" sublabel="participants"
+                  value={svc.respiteGrp?.groupSize ?? 4} max={12} step={1}
+                  onChange={v => upd("respiteGrp", { groupSize: Math.max(1, v) })}/>
+              </div>
+            </div>
+
+            {/* Assessment & Crisis */}
+            <div>
+              <div style={{ ...labelStyle, color: "#3b5fc0", marginBottom: 6 }}>Assessment & Crisis</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <SvcInput label="Assess sessions/yr" sublabel="≈1hr each"
+                  value={svc.assessment?.sessionsPerYear ?? 0} max={12} step={1}
+                  onChange={v => upd("assessment", { sessionsPerYear: v })}/>
+                <SvcInput label="Crisis hr/mo" sublabel="H2011"
+                  value={svc.crisis?.hrPerMonth ?? 0} max={40}
+                  onChange={v => upd("crisis", { hrPerMonth: v })}/>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Provider card
-// ──────────────────────────────────────────────────────────────────────
-function DDAProviderCard({ pv, payrollBurdenPct, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant }) {
+// ─────────────────────────────────────────────────────────────────────────────
+function DDAProviderCard({ pv, payrollBurdenPct, rates, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant }) {
   const [expanded, setExpanded] = useState(true);
-  const m = calcDDAProvider(pv, payrollBurdenPct);
+  const m = calcDDAProvider(pv, payrollBurdenPct, rates);
 
   const utilColor   = m.utilization > 1.05 ? "#cf6e6e" : m.utilization > 0.85 ? "#22c55e" : m.utilization > 0.65 ? "#f59e0b" : "#cf6e6e";
   const marginColor = m.grossMargin > 0.35 ? "#22c55e" : m.grossMargin > 0.15 ? "#f59e0b" : "#cf6e6e";
@@ -313,31 +517,23 @@ function DDAProviderCard({ pv, payrollBurdenPct, onUpdate, onRemove, onAddPartic
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: expanded ? 12 : 0 }}>
-        <Stat label="Caseload"       value={m.caseloadSize} />
-        <Stat label="Annual Rev"     value={$k(m.annualRev)} color="#D4A520"/>
-        <Stat label="Annual Labor"   value={$k(m.annualLabor)} />
-        <Stat label="Gross"          value={$k(m.gross)} color={marginColor}/>
-        <Stat label="Margin"         value={pct(m.grossMargin)} color={marginColor}/>
-        <Stat label="Utilization"    value={pct(m.utilization)} color={utilColor}/>
-        <Stat label="Billable share" value={pct(m.billableShare)} />
+        <Stat label="Caseload"        value={m.caseloadSize} />
+        <Stat label="Annual Rev"      value={$k(m.annualRev)} color="#D4A520"/>
+        <Stat label="Annual Labor"    value={$k(m.annualLabor)} />
+        <Stat label="Gross"           value={$k(m.gross)} color={marginColor}/>
+        <Stat label="Margin"          value={pct(m.grossMargin)} color={marginColor}/>
+        <Stat label="Utilization"     value={pct(m.utilization)} color={utilColor}/>
+        <Stat label="Billable share"  value={pct(m.billableShare)} />
       </div>
 
       {expanded && (
         <div>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "1.3fr 0.6fr 0.6fr 0.6fr 0.7fr 0.7fr 1fr 0.4fr",
-            gap: 6, padding: "4px 8px", ...labelStyle, marginBottom: 4,
-          }}>
-            <span>Participant</span>
-            <span>BI Ind</span><span>BI Grp</span><span>Skill</span>
-            <span>Family</span><span>Assess</span>
-            <span style={{ textAlign: "right" }}>Revenue</span>
-            <span></span>
+          <div style={{ fontSize: 9, color: "#94a3b8", ...M, marginBottom: 6, marginLeft: 2 }}>
+            Provider hours use group-service efficiency (group hrs ÷ group size). Click ▶ on a participant to edit services.
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {(pv.participants ?? []).map(p =>
-              <DDAParticipantRow key={p.id} p={p} tier={pv.tier}
+              <DDAParticipantRow key={p.id} p={p} tier={pv.tier} rates={rates}
                 onUpdate={(id, f, v) => onUpdateParticipant(pv.id, id, f, v)}
                 onRemove={(id) => onRemoveParticipant(pv.id, id)}/>
             )}
@@ -353,11 +549,12 @@ function DDAProviderCard({ pv, payrollBurdenPct, onUpdate, onRemove, onAddPartic
   );
 }
 
-// ──────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // Roster tab
-// ──────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 export function ChildrensDDARosterTab({ config, onUpdate }) {
   const summary = calcChildrensDDAService(config);
+  const rates   = effectiveRates(config.rateOverrides ?? {});
 
   const updateField = (field, value) => onUpdate({ ...config, [field]: value });
 
@@ -413,20 +610,18 @@ export function ChildrensDDARosterTab({ config, onUpdate }) {
     <div>
       {/* Summary bar */}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
-        <Stat label="Providers"     value={summary.providerCount} />
+        <Stat label="Providers"      value={summary.providerCount} />
         <Stat label="Total caseload" value={summary.totalCaseload} />
-        <Stat label="Annual Rev"    value={$k(summary.totalAnnualRev)} color="#D4A520"/>
-        <Stat label="Direct Labor"  value={$k(summary.totalAnnualLabor)} />
-        <Stat label="Supervision"   value={$k(summary.supervisionCost)} />
-        <Stat label="Gross"         value={$k(summary.totalGross)} color={summary.totalMargin > 0.25 ? "#22c55e" : "#cf6e6e"}/>
-        <Stat label="Margin"        value={pct(summary.totalMargin)} color={summary.totalMargin > 0.25 ? "#22c55e" : "#cf6e6e"}/>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 16, alignItems: "center" }}>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <span style={labelStyle}>Burden %</span>
-            <input type="number" min={0} max={50} step={0.5} value={config.payrollBurdenPct ?? 22}
-              onChange={e => updateField("payrollBurdenPct", +e.target.value)}
-              style={numInput}/>
-          </div>
+        <Stat label="Annual Rev"     value={$k(summary.totalAnnualRev)} color="#D4A520"/>
+        <Stat label="Direct Labor"   value={$k(summary.totalAnnualLabor)} />
+        <Stat label="Supervision"    value={$k(summary.supervisionCost)} />
+        <Stat label="Gross"          value={$k(summary.totalGross)} color={summary.totalMargin > 0.25 ? "#22c55e" : "#cf6e6e"}/>
+        <Stat label="Margin"         value={pct(summary.totalMargin)} color={summary.totalMargin > 0.25 ? "#22c55e" : "#cf6e6e"}/>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
+          <span style={labelStyle}>Burden %</span>
+          <input type="number" min={0} max={50} step={0.5} value={config.payrollBurdenPct ?? 22}
+            onChange={e => updateField("payrollBurdenPct", +e.target.value)}
+            style={numInput}/>
         </div>
       </div>
 
@@ -464,6 +659,7 @@ export function ChildrensDDARosterTab({ config, onUpdate }) {
         {config.providers.map(pv =>
           <DDAProviderCard key={pv.id} pv={pv}
             payrollBurdenPct={config.payrollBurdenPct}
+            rates={rates}
             onUpdate={updateProvider}
             onRemove={removeProvider}
             onAddParticipant={addParticipant}
@@ -481,9 +677,9 @@ export function ChildrensDDARosterTab({ config, onUpdate }) {
   );
 }
 
-// ──────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // Productivity tab
-// ──────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 export function ChildrensDDAProductivityTab({ config }) {
   const summary = calcChildrensDDAService(config);
   const prod    = config.productivity ?? {};
@@ -528,23 +724,23 @@ export function ChildrensDDAProductivityTab({ config }) {
         <div>
           <div style={labelStyle}>Supervision ratio</div>
           <div style={{ fontSize: 20, fontWeight: 800, color: "#5a3800", ...M }}>
-            {summary.providerCount}/{(config.supervision?.count ?? 1)}
+            {summary.providerCount} : {config.supervision?.count ?? 1}
           </div>
         </div>
       </div>
 
       <div style={{ ...card, padding: 0, overflow: "hidden" }}>
         <div style={{
-          display: "grid", gridTemplateColumns: "1.6fr 0.7fr 1fr 1fr 1fr 0.8fr 0.8fr 0.8fr",
+          display: "grid", gridTemplateColumns: "1.6fr 0.7fr 1fr 1fr 1fr 1fr 0.8fr 0.8fr",
           padding: "10px 14px", background: "#eef1f6", borderBottom: "1px solid #d0dae8", ...labelStyle,
         }}>
           <span>Provider</span>
           <span style={{ textAlign: "right" }}>Tier</span>
           <span style={{ textAlign: "right" }}>Caseload</span>
-          <span style={{ textAlign: "right" }}>Billable hr/mo</span>
+          <span style={{ textAlign: "right" }}>Billed hr/mo</span>
+          <span style={{ textAlign: "right" }}>Prov hr/mo</span>
           <span style={{ textAlign: "right" }}>Total hr/mo</span>
           <span style={{ textAlign: "right" }}>Utilization</span>
-          <span style={{ textAlign: "right" }}>Billable %</span>
           <span style={{ textAlign: "right" }}>Margin</span>
         </div>
         {summary.providers.map(pv => {
@@ -552,16 +748,16 @@ export function ChildrensDDAProductivityTab({ config }) {
           const marginColor = pv.metrics.grossMargin > 0.35 ? "#22c55e" : pv.metrics.grossMargin > 0.15 ? "#f59e0b" : "#cf6e6e";
           return (
             <div key={pv.id} style={{
-              display: "grid", gridTemplateColumns: "1.6fr 0.7fr 1fr 1fr 1fr 0.8fr 0.8fr 0.8fr",
+              display: "grid", gridTemplateColumns: "1.6fr 0.7fr 1fr 1fr 1fr 1fr 0.8fr 0.8fr",
               padding: "10px 14px", borderBottom: "1px solid #f1f5f9", alignItems: "center", fontSize: 12, ...M,
             }}>
               <span style={{ color: "#5a3800", fontWeight: 600 }}>{pv.name}</span>
               <span style={{ textAlign: "right", fontSize: 10, color: "#64748b" }}>{TIER_LABELS[pv.tier] ?? pv.tier}</span>
               <span style={{ textAlign: "right" }}>{pv.metrics.caseloadSize}</span>
               <span style={{ textAlign: "right" }}>{pv.metrics.monthlyBillable.toFixed(1)}</span>
+              <span style={{ textAlign: "right" }}>{pv.metrics.monthlyProvHrs.toFixed(1)}</span>
               <span style={{ textAlign: "right" }}>{pv.metrics.totalMonthlyHrs.toFixed(1)}</span>
               <span style={{ textAlign: "right", color: utilColor, fontWeight: 700 }}>{pct(pv.metrics.utilization)}</span>
-              <span style={{ textAlign: "right" }}>{pct(pv.metrics.billableShare)}</span>
               <span style={{ textAlign: "right", color: marginColor, fontWeight: 700 }}>{pct(pv.metrics.grossMargin)}</span>
             </div>
           );
@@ -569,20 +765,25 @@ export function ChildrensDDAProductivityTab({ config }) {
       </div>
 
       <div style={{ marginTop: 16, padding: 14, background: "#fffbe8", border: "1px solid #f4e4a8", borderRadius: 8, fontSize: 11, color: "#5a3800", ...M, lineHeight: 1.6 }}>
-        <strong>Supervision note:</strong> {summary.providerCount} direct providers ÷ {config.supervision?.count ?? 1} supervisors =&nbsp;
+        <strong>Supervision note:</strong> {summary.providerCount} direct providers ÷ {config.supervision?.count ?? 1} supervisor{(config.supervision?.count ?? 1) !== 1 ? 's' : ''} =&nbsp;
         {summary.providerCount > 0 ? (summary.providerCount / (config.supervision?.count ?? 1)).toFixed(1) : 0} providers/supervisor
         (target: ≤{config.supervision?.providersPerSupervisor ?? 8}).&nbsp;
         {summary.providerCount / (config.supervision?.count ?? 1) > (config.supervision?.providersPerSupervisor ?? 8)
           ? "⚠️ Over ratio — consider adding a supervisor."
           : "✓ Within recommended ratio."}
       </div>
+      <div style={{ marginTop: 10, padding: 12, background: "#f7f9fc", border: "1px solid #d0dae8", borderRadius: 8, fontSize: 10, color: "#64748b", ...M }}>
+        <strong>Group service note:</strong> "Prov hr/mo" shows the actual provider time after applying group efficiency
+        (group hrs ÷ group size). "Billed hr/mo" shows total hours the participant receives, which drives revenue.
+        Utilization is based on provider hours, not billed hours.
+      </div>
     </div>
   );
 }
 
-// ──────────────────────────────────────────────────────────────────────
-// P&L tab (with office grouping when officeName is set)
-// ──────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// P&L tab (with optional office grouping)
+// ─────────────────────────────────────────────────────────────────────────────
 export function ChildrensDDAPLTab({ config }) {
   const summary = calcChildrensDDAService(config);
 
@@ -594,7 +795,6 @@ export function ChildrensDDAPLTab({ config }) {
     );
   }
 
-  // Group by officeName when at least one provider has one set
   const offices = {};
   summary.providers.forEach(pv => {
     const key = pv.officeName?.trim() || '— Unassigned —';
@@ -626,9 +826,7 @@ export function ChildrensDDAPLTab({ config }) {
     const labor = pvs.reduce((a, pv) => a + pv.metrics.annualLabor, 0);
     const gross = rev - labor;
     return (
-      <div key={`sub_${label}`} style={{
-        ...rowStyle, background: "#f7f9fc", fontWeight: 700, borderTop: "1px solid #d0dae8",
-      }}>
+      <div key={`sub_${label}`} style={{ ...rowStyle, background: "#f7f9fc", fontWeight: 700, borderTop: "1px solid #d0dae8" }}>
         <span style={{ color: "#475569" }}>{label} subtotal</span>
         <span style={{ textAlign: "right", color: "#D4A520" }}>{$k(rev)}</span>
         <span style={{ textAlign: "right" }}>{$k(labor)}</span>
@@ -669,7 +867,6 @@ export function ChildrensDDAPLTab({ config }) {
           : summary.providers.map(renderProviderRow)
         }
 
-        {/* Supervision cost row */}
         <div style={{ ...rowStyle, background: "#fdf4e7", color: "#78350f" }}>
           <span style={{ fontStyle: "italic" }}>Clinical supervision ({config.supervision?.count ?? 1} supervisor{(config.supervision?.count ?? 1) !== 1 ? 's' : ''})</span>
           <span style={{ textAlign: "right" }}>—</span>
@@ -678,7 +875,6 @@ export function ChildrensDDAPLTab({ config }) {
           <span style={{ textAlign: "right" }}>—</span>
         </div>
 
-        {/* Total row */}
         <div style={{
           display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
           padding: "12px 14px", background: "#141d2c", color: "#D4A520",
@@ -695,6 +891,115 @@ export function ChildrensDDAPLTab({ config }) {
       <div style={{ marginTop: 16, padding: 14, background: "#f7f9fc", border: "1px solid #d0dae8", borderRadius: 8, fontSize: 11, color: "#475569", ...M, lineHeight: 1.6 }}>
         <strong>Note:</strong> Direct labor only. Supervision is the clinical supervisor cost at {$k((config.supervision?.count ?? 1) * (config.supervision?.salary ?? 65000))}/yr salary + {config.payrollBurdenPct ?? 22}% burden.
         Company overhead, management fees, and billing fees flow through the Whole Company P&amp;L roll-up.
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rate Schedule tab — editable Idaho CHIS fee schedule
+// ─────────────────────────────────────────────────────────────────────────────
+export function ChildrensDDARateScheduleTab({ config, onUpdate }) {
+  const overrides    = config.rateOverrides ?? {};
+  const hasOverrides = Object.keys(overrides).length > 0;
+
+  const setRate = (key, val) => onUpdate({ ...config, rateOverrides: { ...overrides, [key]: val } });
+  const resetRate = (key) => {
+    const { [key]: _removed, ...rest } = overrides;
+    onUpdate({ ...config, rateOverrides: rest });
+  };
+  const resetAll = () => onUpdate({ ...config, rateOverrides: {} });
+
+  // Group rows by `group` field, preserving table order
+  const groups = {};
+  DDA_RATE_TABLE.forEach(r => {
+    if (!groups[r.group]) groups[r.group] = [];
+    groups[r.group].push(r);
+  });
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <h3 style={{ ...M, fontSize: 14, color: "#5a3800", margin: 0, letterSpacing: 1, textTransform: "uppercase" }}>
+          Idaho CHIS Rate Schedule
+        </h3>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ fontSize: 10, color: "#64748b", ...M }}>
+            {hasOverrides ? `${Object.keys(overrides).length} rate${Object.keys(overrides).length !== 1 ? 's' : ''} overridden` : 'All rates at Idaho defaults'}
+          </div>
+          {hasOverrides && (
+            <button onClick={resetAll} style={{
+              padding: "4px 10px", fontSize: 10, cursor: "pointer",
+              border: "1px solid #d0dae8", borderRadius: 5, background: "#fff", ...M,
+            }}>Reset all to defaults</button>
+          )}
+        </div>
+      </div>
+
+      <div style={{ fontSize: 10, color: "#64748b", ...M, marginBottom: 16, lineHeight: 1.6 }}>
+        All rates are per 15-minute unit, post-9/1/2025 (post-4% reduction). Edit any rate to override it for scenario modeling.
+        Overridden rates are highlighted in amber. Click ↩ to reset an individual rate to its Idaho default.
+      </div>
+
+      {Object.entries(groups).map(([groupName, rows]) => (
+        <div key={groupName} style={{ marginBottom: 20 }}>
+          <div style={{
+            padding: "7px 12px", background: "#141d2c", color: "#D4A520",
+            borderRadius: "6px 6px 0 0", fontSize: 11, fontWeight: 700, ...M,
+          }}>{groupName}</div>
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "0.6fr 0.9fr 2.2fr 1.3fr 0.9fr 0.7fr",
+            padding: "6px 12px", background: "#eef1f6",
+            borderBottom: "1px solid #d0dae8", ...labelStyle,
+          }}>
+            <span>Code</span>
+            <span>Modifier</span>
+            <span>Description</span>
+            <span>Tier</span>
+            <span style={{ textAlign: "right" }}>Rate / 15min</span>
+            <span style={{ textAlign: "right" }}>Rate / hr</span>
+          </div>
+
+          {rows.map(r => {
+            const isOverridden = r.key in overrides;
+            const activeRate   = isOverridden ? overrides[r.key] : r.defaultRate;
+            return (
+              <div key={r.key} style={{
+                display: "grid",
+                gridTemplateColumns: "0.6fr 0.9fr 2.2fr 1.3fr 0.9fr 0.7fr",
+                padding: "7px 12px", borderBottom: "1px solid #f1f5f9",
+                alignItems: "center", fontSize: 11, ...M,
+                background: isOverridden ? "#fffbe8" : "#fff",
+              }}>
+                <span style={{ fontWeight: 600, color: "#3b5fc0" }}>{r.code}</span>
+                <span style={{ color: "#64748b", fontSize: 10 }}>{r.modifier || '—'}</span>
+                <span style={{ color: "#334155" }}>{r.description}</span>
+                <span style={{ color: "#475569", fontSize: 10 }}>{r.tier}</span>
+                <div style={{ display: "flex", gap: 4, alignItems: "center", justifyContent: "flex-end" }}>
+                  <input
+                    type="number" min={0} max={200} step={0.01}
+                    value={activeRate}
+                    onChange={e => setRate(r.key, +e.target.value)}
+                    style={{ ...numInput, width: 68, border: isOverridden ? "1px solid #f59e0b" : undefined }}/>
+                  {isOverridden && (
+                    <button onClick={() => resetRate(r.key)} title={`Reset to $${r.defaultRate}`} style={{
+                      border: "none", background: "transparent", cursor: "pointer",
+                      color: "#f59e0b", fontSize: 13, padding: 0, lineHeight: 1,
+                    }}>↩</button>
+                  )}
+                </div>
+                <span style={{ textAlign: "right", color: "#64748b" }}>{$r(activeRate * 4)}</span>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+
+      <div style={{ padding: 12, background: "#f7f9fc", border: "1px solid #d0dae8", borderRadius: 8, fontSize: 10, color: "#64748b", ...M, lineHeight: 1.7, marginTop: 4 }}>
+        <strong>Source:</strong> Idaho CHIS fee schedule, effective 9/1/2025. Rates reflect the statewide 4% reduction.
+        EBM = Evidence-Based Model (TF modifier). HQ = group service. HA = Technician. HN = Specialist (Bachelor's + licensure). HO = Professional (Master's + licensure). HM = Paraprofessional / Tech in crisis context.
       </div>
     </div>
   );

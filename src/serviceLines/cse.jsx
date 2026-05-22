@@ -1,15 +1,36 @@
 import { useState } from "react";
 
-// Idaho H2023 Supported Employment rate post-9/1/2025
+// Idaho Adult DDA / Employment rates, post-9/1/2025
 const CSE_RATES = {
-  SUPPORTED_EMPLOYMENT: 11.44,  // H2023 — $11.44 / 15min
+  SUPPORTED_EMPLOYMENT: 11.44,  // H2023  — Supported Employment
+  COMM_DEV_THERAPY:      6.01,  // 97537  — Community/Home Development Therapy
+  CENTER_DEV_THERAPY:    4.00,  // H2032  — Center-Based Development Therapy
+  DT_EVALUATION:        16.27,  // H2000  — Development Therapy Evaluation
+  COMMUNITY_CRISIS:     10.90,  // H2011  — Community Crisis Intervention
 };
+
+const CODE_LABELS = {
+  SUPPORTED_EMPLOYMENT: 'H2023 – Supported Employment ($11.44/15min)',
+  COMM_DEV_THERAPY:     '97537 – Comm/Home Dev Therapy ($6.01/15min)',
+  CENTER_DEV_THERAPY:   'H2032 – Center-Based Dev Therapy ($4.00/15min)',
+  DT_EVALUATION:        'H2000 – Dev Therapy Evaluation ($16.27/15min)',
+  COMMUNITY_CRISIS:     'H2011 – Community Crisis ($10.90/15min)',
+};
+
+const BILLING_CODES = Object.keys(CSE_RATES);
 
 const PHASES = ['initial', 'stabilization', 'retention'];
 const PHASE_LABELS = {
   initial:       'Initial Intensive',
   stabilization: 'Stabilization',
   retention:     'Long-Term Retention',
+};
+
+// Typical weekly hours by phase (reference only — not enforced)
+const PHASE_THRESHOLDS = {
+  initial:       { min: 20, typical: 25 },
+  stabilization: { min: 10, typical: 15 },
+  retention:     { min: 2,  typical: 5  },
 };
 
 // ──────────────────────────────────────────────────────────────────────
@@ -22,8 +43,9 @@ export function mkCSEParticipant(name = 'New Participant') {
   return {
     id: `csep_${cseUid()}`,
     name,
-    hoursPerWeek: 20,
-    phase: 'initial',
+    hoursPerWeek:  20,
+    phase:         'initial',
+    billingCode:   'SUPPORTED_EMPLOYMENT',
   };
 }
 
@@ -67,9 +89,10 @@ export function defaultCSEConfig() {
 // Calculators
 // ──────────────────────────────────────────────────────────────────────
 export function calcCSEParticipant(p) {
+  const rate         = CSE_RATES[p.billingCode ?? 'SUPPORTED_EMPLOYMENT'] ?? CSE_RATES.SUPPORTED_EMPLOYMENT;
   const monthlyHours = (p.hoursPerWeek ?? 20) * 4.33;
   const monthlyUnits = monthlyHours * 4;  // 4 units per hour (15-min units)
-  const monthlyRev   = monthlyUnits * CSE_RATES.SUPPORTED_EMPLOYMENT;
+  const monthlyRev   = monthlyUnits * rate;
   return {
     monthlyRev,
     annualRev:   monthlyRev * 12,
@@ -178,11 +201,13 @@ function Stat({ label, value, color = "#5a3800" }) {
 // Participant row
 // ──────────────────────────────────────────────────────────────────────
 function CSEParticipantRow({ p, onUpdate, onRemove }) {
-  const m = calcCSEParticipant(p);
+  const m             = calcCSEParticipant(p);
+  const thresholds    = PHASE_THRESHOLDS[p.phase ?? 'initial'];
+  const belowTypical  = (p.hoursPerWeek ?? 20) < thresholds.typical;
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "1.6fr 0.8fr 1.2fr 1fr 0.4fr",
+      gridTemplateColumns: "1.4fr 0.7fr 1fr 1.6fr 0.9fr 0.4fr",
       gap: 8, alignItems: "center", padding: "6px 8px",
       borderRadius: 6, background: "#f7f9fc", border: "1px solid #e2e8f0",
     }}>
@@ -190,10 +215,10 @@ function CSEParticipantRow({ p, onUpdate, onRemove }) {
         onChange={e => onUpdate(p.id, "name", e.target.value)}
         style={textInput}/>
       <div>
-        <div style={labelStyle}>Hours / week</div>
+        <div style={labelStyle}>Hr / wk</div>
         <input type="number" min={0} max={40} step={0.5} value={p.hoursPerWeek ?? 20}
           onChange={e => onUpdate(p.id, "hoursPerWeek", +e.target.value)}
-          style={numInput}/>
+          style={{ ...numInput, border: belowTypical ? "1px solid #f59e0b" : undefined }}/>
       </div>
       <div>
         <div style={labelStyle}>Phase</div>
@@ -201,6 +226,14 @@ function CSEParticipantRow({ p, onUpdate, onRemove }) {
           onChange={e => onUpdate(p.id, "phase", e.target.value)}
           style={{ ...textInput, fontSize: 11, padding: "3px 6px" }}>
           {PHASES.map(ph => <option key={ph} value={ph}>{PHASE_LABELS[ph]}</option>)}
+        </select>
+      </div>
+      <div>
+        <div style={labelStyle}>Billing code</div>
+        <select value={p.billingCode ?? 'SUPPORTED_EMPLOYMENT'}
+          onChange={e => onUpdate(p.id, "billingCode", e.target.value)}
+          style={{ ...textInput, fontSize: 10, padding: "3px 6px", width: "100%" }}>
+          {BILLING_CODES.map(c => <option key={c} value={c}>{CODE_LABELS[c]}</option>)}
         </select>
       </div>
       <div style={{ textAlign: "right" }}>
@@ -283,12 +316,13 @@ function CSESpecialistCard({ s, payrollBurdenPct, onUpdate, onRemove, onAddParti
         <div>
           <div style={{
             display: "grid",
-            gridTemplateColumns: "1.6fr 0.8fr 1.2fr 1fr 0.4fr",
+            gridTemplateColumns: "1.4fr 0.7fr 1fr 1.6fr 0.9fr 0.4fr",
             gap: 8, padding: "4px 8px", ...labelStyle, marginBottom: 4,
           }}>
             <span>Participant</span>
-            <span>Hrs / week</span>
+            <span>Hr/wk</span>
             <span>Phase</span>
+            <span>Billing code</span>
             <span style={{ textAlign: "right" }}>Revenue</span>
             <span></span>
           </div>
@@ -521,6 +555,43 @@ export function CSEProductivityTab({ config }) {
         </div>
       </div>
 
+      {/* Phase scaling thresholds */}
+      <div style={{ ...card, marginBottom: 16 }}>
+        <div style={{ ...labelStyle, marginBottom: 10 }}>Phase-based service intensity thresholds</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          {PHASES.map(ph => (
+            <div key={ph} style={{ padding: "10px 14px", background: "#f7f9fc", borderRadius: 7, border: "1px solid #e2e8f0" }}>
+              <div style={{ ...labelStyle, color: "#3b5fc0", marginBottom: 4 }}>{PHASE_LABELS[ph]}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#5a3800", ...M }}>
+                {PHASE_THRESHOLDS[ph].typical} hr/wk <span style={{ fontWeight: 400, fontSize: 10, color: "#64748b" }}>typical</span>
+              </div>
+              <div style={{ fontSize: 10, color: "#94a3b8", ...M, marginTop: 2 }}>min: {PHASE_THRESHOLDS[ph].min} hr/wk</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 10, color: "#64748b", ...M, marginTop: 10, lineHeight: 1.5 }}>
+          Amber input highlight indicates a participant's hours are below the typical threshold for their phase.
+          This does not affect calculations — it's a planning flag only.
+        </div>
+      </div>
+
+      {/* Rate reference */}
+      <div style={{ ...card, marginBottom: 16 }}>
+        <div style={{ ...labelStyle, marginBottom: 8 }}>Idaho adult DDA / CSE billing code reference</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 0.5fr 0.5fr", gap: 4, fontSize: 10, ...M }}>
+          <div style={{ ...labelStyle, fontSize: 8 }}>Code</div>
+          <div style={{ ...labelStyle, fontSize: 8, textAlign: "right" }}>Per 15-min</div>
+          <div style={{ ...labelStyle, fontSize: 8, textAlign: "right" }}>Per hour</div>
+          {BILLING_CODES.map(c => (
+            <div key={c} style={{ display: "contents" }}>
+              <span style={{ color: "#334155", padding: "3px 0" }}>{CODE_LABELS[c]}</span>
+              <span style={{ textAlign: "right", color: "#D4A520", fontWeight: 700 }}>${CSE_RATES[c].toFixed(2)}</span>
+              <span style={{ textAlign: "right", color: "#64748b" }}>${(CSE_RATES[c] * 4).toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Specialist table */}
       <div style={{ ...card, padding: 0, overflow: "hidden" }}>
         <div style={{
@@ -670,7 +741,7 @@ export function CSEPLTab({ config }) {
       </div>
 
       <div style={{ marginTop: 16, padding: 14, background: "#f7f9fc", border: "1px solid #d0dae8", borderRadius: 8, fontSize: 11, color: "#475569", ...M, lineHeight: 1.6 }}>
-        <strong>Note:</strong> Revenue is gross authorized at H2023 ({$k(CSE_RATES.SUPPORTED_EMPLOYMENT * 4)}/hr). Direct labor only — company overhead, management fees, and billing fees flow through the Whole Company P&amp;L roll-up.
+        <strong>Note:</strong> Revenue reflects each participant's billing code rate (H2023 at {$k(CSE_RATES.SUPPORTED_EMPLOYMENT * 4)}/hr, 97537 at {$k(CSE_RATES.COMM_DEV_THERAPY * 4)}/hr, etc.). Direct labor only — company overhead, management fees, and billing fees flow through the Whole Company P&amp;L roll-up.
       </div>
     </div>
   );

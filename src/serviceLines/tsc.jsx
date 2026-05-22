@@ -74,6 +74,7 @@ export function mkCoordinator(name = "New Coordinator", hourlyWage = 22) {
     name,
     hourlyWage,
     adminHrsPerWeek: 5,
+    tscType: 'mixed',   // 'adult' | 'children' | 'mixed'
     officeName: '',
     participants: [],
   };
@@ -106,10 +107,14 @@ export function defaultTSCConfig() {
       qaReworkPct:          3,
     },
     revenue: {
-      completionRate:     92,
-      billingSuccessRate: 97,
-      collectionRate:     99,
-      billingLagDays:     30,
+      completionRate:          92,
+      billingSuccessRate:       97,
+      collectionRate:           99,
+      billingLagDays:           30,
+      faceToFaceComplianceRate: 90,  // % of contacts meeting face-to-face requirement
+      planDevCompletionRate:    95,  // % of ISP plan dev completed on time
+      caseloadChurnRate:        15,  // % annual caseload turnover
+      denialWriteOffRate:        3,  // % of billed claims written off after denial
     },
     scenario: {
       rateAdjPct:        0,
@@ -425,6 +430,17 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
         <input type="text" value={coord.name}
           onChange={e => onUpdate(coord.id, "name", e.target.value)}
           style={{ ...textInput, fontWeight:700, flex:1, fontSize:14 }}/>
+
+        <div>
+          <div style={labelStyle}>TSC type</div>
+          <select value={coord.tscType ?? 'mixed'}
+            onChange={e => onUpdate(coord.id, "tscType", e.target.value)}
+            style={{ ...textInput, fontSize:11, padding:"3px 6px" }}>
+            <option value="adult">Adult</option>
+            <option value="children">Children's</option>
+            <option value="mixed">Mixed</option>
+          </select>
+        </div>
 
         <div>
           <div style={labelStyle}>Wage / hr</div>
@@ -987,6 +1003,45 @@ export function TSCStaffingTab({ config, onUpdate }) {
             {((rev.completionRate ?? 92) * (rev.billingSuccessRate ?? 97) * (rev.collectionRate ?? 99) / 10000).toFixed(1)}%
           </div>
           <div style={{ fontSize:9, color:"#64748b", marginTop:2 }}>of authorized revenue collected</div>
+        </div>
+      </div>
+
+      {/* Operational compliance assumptions */}
+      <h3 style={{ ...M, fontSize:14, color:"#5a3800", margin:"20px 0 14px 0", letterSpacing:1, textTransform:"uppercase" }}>
+        Operational compliance assumptions
+      </h3>
+
+      <div style={{ ...card, display:"flex", gap:24, flexWrap:"wrap", alignItems:"flex-start" }}>
+        <div>
+          <div style={labelStyle}>Face-to-face compliance %</div>
+          <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Contacts meeting F2F requirement</div>
+          <input type="number" min={0} max={100} value={rev.faceToFaceComplianceRate ?? 90}
+            onChange={e => updateRev("faceToFaceComplianceRate", +e.target.value)}
+            style={{ ...numInput, width:64 }}/>
+        </div>
+        <div>
+          <div style={labelStyle}>Plan dev completion %</div>
+          <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>ISP plans completed on time</div>
+          <input type="number" min={0} max={100} value={rev.planDevCompletionRate ?? 95}
+            onChange={e => updateRev("planDevCompletionRate", +e.target.value)}
+            style={{ ...numInput, width:64 }}/>
+        </div>
+        <div>
+          <div style={labelStyle}>Annual caseload churn %</div>
+          <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Annual participant turnover rate</div>
+          <input type="number" min={0} max={100} value={rev.caseloadChurnRate ?? 15}
+            onChange={e => updateRev("caseloadChurnRate", +e.target.value)}
+            style={{ ...numInput, width:64 }}/>
+        </div>
+        <div>
+          <div style={labelStyle}>Denial write-off %</div>
+          <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Billed claims written off after denial</div>
+          <input type="number" min={0} max={20} step={0.5} value={rev.denialWriteOffRate ?? 3}
+            onChange={e => updateRev("denialWriteOffRate", +e.target.value)}
+            style={{ ...numInput, width:64 }}/>
+        </div>
+        <div style={{ padding:"10px 14px", background:"#fffbe8", border:"1px solid #f4e4a8", borderRadius:8, fontSize:10, ...M, lineHeight:1.6, maxWidth:260 }}>
+          <strong>Note:</strong> These fields are operational planning inputs. Face-to-face and plan dev rates inform compliance risk; churn rate informs recruitment/onboarding cost modeling; denial write-off reduces net collected revenue.
         </div>
       </div>
     </div>
