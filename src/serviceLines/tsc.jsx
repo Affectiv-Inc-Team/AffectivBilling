@@ -443,12 +443,6 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
           </select>
         </div>
 
-        <div>
-          <div style={labelStyle}>Wage / hr</div>
-          <input type="number" min={10} max={60} step={0.5} value={coord.hourlyWage}
-            onChange={e => onUpdate(coord.id, "hourlyWage", +e.target.value)}
-            style={numInput}/>
-        </div>
         {wageDisplayMode(userRole) !== 'hidden' && (
           <div>
             <div style={labelStyle}>Wage / hr</div>

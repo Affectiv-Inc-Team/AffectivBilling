@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { canSeeCompanyDollars, wageDisplayMode } from '../lib/access';
 
 // Idaho Adult DDA / Employment rates, post-9/1/2025
 const CSE_RATES = {
@@ -200,7 +201,7 @@ function Stat({ label, value, color = "#5a3800" }) {
 // ──────────────────────────────────────────────────────────────────────
 // Participant row
 // ──────────────────────────────────────────────────────────────────────
-function CSEParticipantRow({ p, onUpdate, onRemove }) {
+function CSEParticipantRow({ p, onUpdate, onRemove, userRole }) {
   const m             = calcCSEParticipant(p);
   const thresholds    = PHASE_THRESHOLDS[p.phase ?? 'initial'];
   const belowTypical  = (p.hoursPerWeek ?? 20) < thresholds.typical;
@@ -237,7 +238,7 @@ function CSEParticipantRow({ p, onUpdate, onRemove }) {
         </select>
       </div>
       <div style={{ textAlign: "right" }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#5a3800", ...M }}>{$k(m.monthlyRev)}/mo</div>
+        {canSeeCompanyDollars(userRole) && <div style={{ fontSize: 13, fontWeight: 700, color: "#5a3800", ...M }}>{$k(m.monthlyRev)}/mo</div>}
         <div style={{ fontSize: 9, color: "#64748b", ...M }}>{m.monthlyHours.toFixed(1)} hr/mo</div>
       </div>
       <button onClick={() => onRemove(p.id)} style={{
@@ -251,7 +252,7 @@ function CSEParticipantRow({ p, onUpdate, onRemove }) {
 // ──────────────────────────────────────────────────────────────────────
 // Specialist card
 // ──────────────────────────────────────────────────────────────────────
-function CSESpecialistCard({ s, payrollBurdenPct, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant }) {
+function CSESpecialistCard({ s, payrollBurdenPct, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant, userRole }) {
   const [expanded, setExpanded] = useState(true);
   const m = calcCSESpecialist(s, payrollBurdenPct);
 
@@ -280,12 +281,15 @@ function CSESpecialistCard({ s, payrollBurdenPct, onUpdate, onRemove, onAddParti
           </select>
         </div>
 
-        <div>
-          <div style={labelStyle}>Wage / hr</div>
-          <input type="number" min={10} max={60} step={0.5} value={s.hourlyWage}
-            onChange={e => onUpdate(s.id, "hourlyWage", +e.target.value)}
-            style={numInput}/>
-        </div>
+        {wageDisplayMode(userRole) !== 'hidden' && (
+          <div>
+            <div style={labelStyle}>Wage / hr</div>
+            <input type="number" min={10} max={60} step={0.5} value={s.hourlyWage}
+              onChange={e => onUpdate(s.id, "hourlyWage", +e.target.value)}
+              readOnly={wageDisplayMode(userRole) !== 'dollars'}
+              style={numInput}/>
+          </div>
+        )}
 
         <div>
           <div style={labelStyle}>Office</div>
@@ -304,9 +308,9 @@ function CSESpecialistCard({ s, payrollBurdenPct, onUpdate, onRemove, onAddParti
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: expanded ? 12 : 0 }}>
         <Stat label="Caseload"      value={m.caseloadSize} />
-        <Stat label="Annual Rev"    value={$k(m.annualRev)} color="#D4A520"/>
-        <Stat label="Annual Labor"  value={$k(m.annualLabor)} />
-        <Stat label="Gross"         value={$k(m.gross)} color={marginColor}/>
+        {canSeeCompanyDollars(userRole) && <Stat label="Annual Rev"   value={$k(m.annualRev)} color="#D4A520"/>}
+        {canSeeCompanyDollars(userRole) && <Stat label="Annual Labor" value={$k(m.annualLabor)} />}
+        {canSeeCompanyDollars(userRole) && <Stat label="Gross"        value={$k(m.gross)} color={marginColor}/>}
         <Stat label="Margin"        value={pct(m.grossMargin)} color={marginColor}/>
         <Stat label="Utilization"   value={pct(m.utilization)} color={utilColor}/>
         <Stat label="Billable share" value={pct(m.billableShare)} />
@@ -330,7 +334,8 @@ function CSESpecialistCard({ s, payrollBurdenPct, onUpdate, onRemove, onAddParti
             {(s.participants ?? []).map(p =>
               <CSEParticipantRow key={p.id} p={p}
                 onUpdate={(id, f, v) => onUpdateParticipant(s.id, id, f, v)}
-                onRemove={(id) => onRemoveParticipant(s.id, id)}/>
+                onRemove={(id) => onRemoveParticipant(s.id, id)}
+                userRole={userRole}/>
             )}
           </div>
           <button onClick={() => onAddParticipant(s.id)} style={{
@@ -347,7 +352,7 @@ function CSESpecialistCard({ s, payrollBurdenPct, onUpdate, onRemove, onAddParti
 // ──────────────────────────────────────────────────────────────────────
 // Roster tab
 // ──────────────────────────────────────────────────────────────────────
-export function CSERosterTab({ config, onUpdate }) {
+export function CSERosterTab({ config, onUpdate, userRole }) {
   const summary = calcCSEService(config);
 
   const updateField = (field, value) => onUpdate({ ...config, [field]: value });
@@ -406,10 +411,10 @@ export function CSERosterTab({ config, onUpdate }) {
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
         <Stat label="Specialists"    value={summary.specialistCount} />
         <Stat label="Total caseload"  value={summary.totalCaseload} />
-        <Stat label="Annual Rev"      value={$k(summary.totalAnnualRev)} color="#D4A520"/>
-        <Stat label="Direct Labor"    value={$k(summary.totalAnnualLabor)} />
-        <Stat label="Job Development" value={$k(summary.jobDevCost)} />
-        <Stat label="Gross"           value={$k(summary.totalGross)} color={summary.totalMargin > 0.2 ? "#22c55e" : "#cf6e6e"}/>
+        {canSeeCompanyDollars(userRole) && <Stat label="Annual Rev"      value={$k(summary.totalAnnualRev)} color="#D4A520"/>}
+        {canSeeCompanyDollars(userRole) && <Stat label="Direct Labor"    value={$k(summary.totalAnnualLabor)} />}
+        {canSeeCompanyDollars(userRole) && <Stat label="Job Development" value={$k(summary.jobDevCost)} />}
+        {canSeeCompanyDollars(userRole) && <Stat label="Gross"           value={$k(summary.totalGross)} color={summary.totalMargin > 0.2 ? "#22c55e" : "#cf6e6e"}/>}
         <Stat label="Margin"          value={pct(summary.totalMargin)} color={summary.totalMargin > 0.2 ? "#22c55e" : "#cf6e6e"}/>
         <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
           <span style={labelStyle}>Burden %</span>
@@ -442,9 +447,11 @@ export function CSERosterTab({ config, onUpdate }) {
           <input type="number" min={0} max={100} value={jd.conversionRate ?? 15}
             onChange={e => updateJD("conversionRate", +e.target.value)} style={{ ...numInput, width: 48 }}/>
         </div>
-        <div style={{ fontSize: 10, color: "#64748b", ...M }}>
-          Annual cost: {$k((jd.fteCount ?? 1) * (jd.salary ?? 52000) * (1 + (config.payrollBurdenPct ?? 22) / 100))}
-        </div>
+        {canSeeCompanyDollars(userRole) && (
+          <div style={{ fontSize: 10, color: "#64748b", ...M }}>
+            Annual cost: {$k((jd.fteCount ?? 1) * (jd.salary ?? 52000) * (1 + (config.payrollBurdenPct ?? 22) / 100))}
+          </div>
+        )}
       </div>
 
       {/* Specialist cards */}
@@ -462,7 +469,8 @@ export function CSERosterTab({ config, onUpdate }) {
             onRemove={removeSpecialist}
             onAddParticipant={addParticipant}
             onUpdateParticipant={updateParticipant}
-            onRemoveParticipant={removeParticipant}/>
+            onRemoveParticipant={removeParticipant}
+            userRole={userRole}/>
         )}
       </div>
 
@@ -478,7 +486,7 @@ export function CSERosterTab({ config, onUpdate }) {
 // ──────────────────────────────────────────────────────────────────────
 // Productivity tab
 // ──────────────────────────────────────────────────────────────────────
-export function CSEProductivityTab({ config }) {
+export function CSEProductivityTab({ config, userRole }) {
   const summary = calcCSEService(config);
   const prod    = config.productivity ?? {};
   const revenue = config.revenue      ?? {};
@@ -545,12 +553,16 @@ export function CSEProductivityTab({ config }) {
           ].map(({ label, value, color }) => (
             <div key={label} style={{ textAlign: "center" }}>
               <div style={{ fontSize: 10, color: "#64748b", ...M, marginBottom: 2 }}>{label}</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color, ...M }}>{$k(value)}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color, ...M }}>
+                {canSeeCompanyDollars(userRole) ? $k(value) : "—"}
+              </div>
             </div>
           ))}
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 10, color: "#cf6e6e", ...M, marginBottom: 2 }}>Total leakage</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#cf6e6e", ...M }}>{$k(wf.authorized - wf.collected)}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#cf6e6e", ...M }}>
+              {canSeeCompanyDollars(userRole) ? $k(wf.authorized - wf.collected) : "—"}
+            </div>
           </div>
         </div>
       </div>
@@ -634,9 +646,10 @@ export function CSEProductivityTab({ config }) {
 // ──────────────────────────────────────────────────────────────────────
 // P&L tab (with office grouping when officeName is set)
 // ──────────────────────────────────────────────────────────────────────
-export function CSEPLTab({ config }) {
-  const summary = calcCSEService(config);
-  const jd      = config.jobDevelopment ?? { fteCount: 1, salary: 52000 };
+export function CSEPLTab({ config, userRole }) {
+  const summary     = calcCSEService(config);
+  const jd          = config.jobDevelopment ?? { fteCount: 1, salary: 52000 };
+  const showDollars = canSeeCompanyDollars(userRole);
 
   if (summary.specialistCount === 0) {
     return (
@@ -653,8 +666,9 @@ export function CSEPLTab({ config }) {
   });
   const isMultiOffice = Object.keys(offices).some(k => k !== '— Unassigned —');
 
+  const cols = showDollars ? "2fr 1fr 1fr 1fr 1fr" : "2fr 1fr";
   const rowStyle = {
-    display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
+    display: "grid", gridTemplateColumns: cols,
     padding: "10px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 12, ...M,
   };
 
@@ -663,9 +677,9 @@ export function CSEPLTab({ config }) {
       <span style={{ color: "#5a3800", fontWeight: 600 }}>{s.name}
         <span style={{ fontSize: 9, color: "#94a3b8", marginLeft: 6 }}>{s.profile === 'rural' ? '🌾 Rural' : '🏙 Urban'}</span>
       </span>
-      <span style={{ textAlign: "right", color: "#D4A520" }}>{$k(s.metrics.annualRev)}</span>
-      <span style={{ textAlign: "right" }}>{$k(s.metrics.annualLabor)}</span>
-      <span style={{ textAlign: "right", color: s.metrics.gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(s.metrics.gross)}</span>
+      {showDollars && <span style={{ textAlign: "right", color: "#D4A520" }}>{$k(s.metrics.annualRev)}</span>}
+      {showDollars && <span style={{ textAlign: "right" }}>{$k(s.metrics.annualLabor)}</span>}
+      {showDollars && <span style={{ textAlign: "right", color: s.metrics.gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(s.metrics.gross)}</span>}
       <span style={{ textAlign: "right", color: s.metrics.grossMargin > 0.3 ? "#22c55e" : s.metrics.grossMargin > 0.15 ? "#f59e0b" : "#cf6e6e" }}>
         {pct(s.metrics.grossMargin)}
       </span>
@@ -679,9 +693,9 @@ export function CSEPLTab({ config }) {
     return (
       <div key={`sub_${label}`} style={{ ...rowStyle, background: "#f7f9fc", fontWeight: 700, borderTop: "1px solid #d0dae8" }}>
         <span style={{ color: "#475569" }}>{label} subtotal</span>
-        <span style={{ textAlign: "right", color: "#D4A520" }}>{$k(rev)}</span>
-        <span style={{ textAlign: "right" }}>{$k(labor)}</span>
-        <span style={{ textAlign: "right", color: gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(gross)}</span>
+        {showDollars && <span style={{ textAlign: "right", color: "#D4A520" }}>{$k(rev)}</span>}
+        {showDollars && <span style={{ textAlign: "right" }}>{$k(labor)}</span>}
+        {showDollars && <span style={{ textAlign: "right", color: gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(gross)}</span>}
         <span style={{ textAlign: "right", color: rev > 0 && gross / rev > 0.3 ? "#22c55e" : "#f59e0b" }}>{rev > 0 ? pct(gross / rev) : "—"}</span>
       </div>
     );
@@ -695,13 +709,13 @@ export function CSEPLTab({ config }) {
 
       <div style={{ ...card, padding: 0, overflow: "hidden" }}>
         <div style={{
-          display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
+          display: "grid", gridTemplateColumns: cols,
           padding: "10px 14px", background: "#eef1f6", borderBottom: "1px solid #d0dae8", ...labelStyle,
         }}>
           <span>Specialist</span>
-          <span style={{ textAlign: "right" }}>Annual Rev</span>
-          <span style={{ textAlign: "right" }}>Annual Labor</span>
-          <span style={{ textAlign: "right" }}>Gross</span>
+          {showDollars && <span style={{ textAlign: "right" }}>Annual Rev</span>}
+          {showDollars && <span style={{ textAlign: "right" }}>Annual Labor</span>}
+          {showDollars && <span style={{ textAlign: "right" }}>Gross</span>}
           <span style={{ textAlign: "right" }}>Margin</span>
         </div>
 
@@ -719,23 +733,25 @@ export function CSEPLTab({ config }) {
         }
 
         {/* Job development cost row */}
-        <div style={{ ...rowStyle, background: "#fdf4e7", color: "#78350f" }}>
-          <span style={{ fontStyle: "italic" }}>Job development staff ({jd.fteCount ?? 1} FTE × {$k(jd.salary ?? 52000)}/yr)</span>
-          <span style={{ textAlign: "right" }}>—</span>
-          <span style={{ textAlign: "right" }}>{$k(summary.jobDevCost)}</span>
-          <span style={{ textAlign: "right", color: "#cf6e6e" }}>({$k(summary.jobDevCost)})</span>
-          <span style={{ textAlign: "right" }}>—</span>
-        </div>
+        {showDollars && (
+          <div style={{ ...rowStyle, background: "#fdf4e7", color: "#78350f" }}>
+            <span style={{ fontStyle: "italic" }}>Job development staff ({jd.fteCount ?? 1} FTE × {$k(jd.salary ?? 52000)}/yr)</span>
+            <span style={{ textAlign: "right" }}>—</span>
+            <span style={{ textAlign: "right" }}>{$k(summary.jobDevCost)}</span>
+            <span style={{ textAlign: "right", color: "#cf6e6e" }}>({$k(summary.jobDevCost)})</span>
+            <span style={{ textAlign: "right" }}>—</span>
+          </div>
+        )}
 
         <div style={{
-          display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
+          display: "grid", gridTemplateColumns: cols,
           padding: "12px 14px", background: "#141d2c", color: "#D4A520",
           fontSize: 13, fontWeight: 800, ...M,
         }}>
           <span>Total</span>
-          <span style={{ textAlign: "right" }}>{$k(summary.totalAnnualRev)}</span>
-          <span style={{ textAlign: "right", color: "#e4eaf2" }}>{$k(summary.totalAnnualLabor + summary.jobDevCost)}</span>
-          <span style={{ textAlign: "right", color: summary.totalGross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(summary.totalGross)}</span>
+          {showDollars && <span style={{ textAlign: "right" }}>{$k(summary.totalAnnualRev)}</span>}
+          {showDollars && <span style={{ textAlign: "right", color: "#e4eaf2" }}>{$k(summary.totalAnnualLabor + summary.jobDevCost)}</span>}
+          {showDollars && <span style={{ textAlign: "right", color: summary.totalGross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(summary.totalGross)}</span>}
           <span style={{ textAlign: "right" }}>{pct(summary.totalMargin)}</span>
         </div>
       </div>

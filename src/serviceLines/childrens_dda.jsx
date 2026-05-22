@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { canSeeCompanyDollars, wageDisplayMode } from '../lib/access';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Idaho CHIS (Children's Habilitation Intervention Services) rate table
@@ -328,7 +329,7 @@ function SvcInput({ label, value, onChange, step = 0.5, max = 40, sublabel }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Expandable participant row
 // ─────────────────────────────────────────────────────────────────────────────
-function DDAParticipantRow({ p, tier, rates, onUpdate, onRemove }) {
+function DDAParticipantRow({ p, tier, rates, onUpdate, onRemove, userRole }) {
   const [expanded, setExpanded] = useState(false);
   const m   = calcDDAParticipant(p, tier, rates);
   const svc = p.services ?? {};
@@ -347,7 +348,7 @@ function DDAParticipantRow({ p, tier, rates, onUpdate, onRemove }) {
           onChange={e => onUpdate(p.id, "name", e.target.value)}
           style={{ ...textInput, flex: 1, fontSize: 12, minWidth: 100 }}/>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#5a3800", ...M }}>{$k(m.monthlyRev)}/mo</div>
+          {canSeeCompanyDollars(userRole) && <div style={{ fontSize: 13, fontWeight: 700, color: "#5a3800", ...M }}>{$k(m.monthlyRev)}/mo</div>}
           <div style={{ fontSize: 9, color: "#64748b", ...M }}>
             {m.billedHrsPerMonth.toFixed(1)} billed · {m.providerHrsPerMonth.toFixed(1)} prov hr/mo
           </div>
@@ -466,7 +467,7 @@ function DDAParticipantRow({ p, tier, rates, onUpdate, onRemove }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Provider card
 // ─────────────────────────────────────────────────────────────────────────────
-function DDAProviderCard({ pv, payrollBurdenPct, rates, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant }) {
+function DDAProviderCard({ pv, payrollBurdenPct, rates, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant, userRole }) {
   const [expanded, setExpanded] = useState(true);
   const m = calcDDAProvider(pv, payrollBurdenPct, rates);
 
@@ -494,12 +495,15 @@ function DDAProviderCard({ pv, payrollBurdenPct, rates, onUpdate, onRemove, onAd
           </select>
         </div>
 
-        <div>
-          <div style={labelStyle}>Wage / hr</div>
-          <input type="number" min={10} max={80} step={0.5} value={pv.hourlyWage}
-            onChange={e => onUpdate(pv.id, "hourlyWage", +e.target.value)}
-            style={numInput}/>
-        </div>
+        {wageDisplayMode(userRole) !== 'hidden' && (
+          <div>
+            <div style={labelStyle}>Wage / hr</div>
+            <input type="number" min={10} max={80} step={0.5} value={pv.hourlyWage}
+              onChange={e => onUpdate(pv.id, "hourlyWage", +e.target.value)}
+              readOnly={wageDisplayMode(userRole) !== 'dollars'}
+              style={numInput}/>
+          </div>
+        )}
 
         <div>
           <div style={labelStyle}>Office</div>
@@ -518,9 +522,9 @@ function DDAProviderCard({ pv, payrollBurdenPct, rates, onUpdate, onRemove, onAd
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: expanded ? 12 : 0 }}>
         <Stat label="Caseload"        value={m.caseloadSize} />
-        <Stat label="Annual Rev"      value={$k(m.annualRev)} color="#D4A520"/>
-        <Stat label="Annual Labor"    value={$k(m.annualLabor)} />
-        <Stat label="Gross"           value={$k(m.gross)} color={marginColor}/>
+        {canSeeCompanyDollars(userRole) && <Stat label="Annual Rev"   value={$k(m.annualRev)} color="#D4A520"/>}
+        {canSeeCompanyDollars(userRole) && <Stat label="Annual Labor" value={$k(m.annualLabor)} />}
+        {canSeeCompanyDollars(userRole) && <Stat label="Gross"        value={$k(m.gross)} color={marginColor}/>}
         <Stat label="Margin"          value={pct(m.grossMargin)} color={marginColor}/>
         <Stat label="Utilization"     value={pct(m.utilization)} color={utilColor}/>
         <Stat label="Billable share"  value={pct(m.billableShare)} />
@@ -535,7 +539,8 @@ function DDAProviderCard({ pv, payrollBurdenPct, rates, onUpdate, onRemove, onAd
             {(pv.participants ?? []).map(p =>
               <DDAParticipantRow key={p.id} p={p} tier={pv.tier} rates={rates}
                 onUpdate={(id, f, v) => onUpdateParticipant(pv.id, id, f, v)}
-                onRemove={(id) => onRemoveParticipant(pv.id, id)}/>
+                onRemove={(id) => onRemoveParticipant(pv.id, id)}
+                userRole={userRole}/>
             )}
           </div>
           <button onClick={() => onAddParticipant(pv.id)} style={{
@@ -552,7 +557,7 @@ function DDAProviderCard({ pv, payrollBurdenPct, rates, onUpdate, onRemove, onAd
 // ─────────────────────────────────────────────────────────────────────────────
 // Roster tab
 // ─────────────────────────────────────────────────────────────────────────────
-export function ChildrensDDARosterTab({ config, onUpdate }) {
+export function ChildrensDDARosterTab({ config, onUpdate, userRole }) {
   const summary = calcChildrensDDAService(config);
   const rates   = effectiveRates(config.rateOverrides ?? {});
 
@@ -612,10 +617,10 @@ export function ChildrensDDARosterTab({ config, onUpdate }) {
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
         <Stat label="Providers"      value={summary.providerCount} />
         <Stat label="Total caseload" value={summary.totalCaseload} />
-        <Stat label="Annual Rev"     value={$k(summary.totalAnnualRev)} color="#D4A520"/>
-        <Stat label="Direct Labor"   value={$k(summary.totalAnnualLabor)} />
-        <Stat label="Supervision"    value={$k(summary.supervisionCost)} />
-        <Stat label="Gross"          value={$k(summary.totalGross)} color={summary.totalMargin > 0.25 ? "#22c55e" : "#cf6e6e"}/>
+        {canSeeCompanyDollars(userRole) && <Stat label="Annual Rev"   value={$k(summary.totalAnnualRev)} color="#D4A520"/>}
+        {canSeeCompanyDollars(userRole) && <Stat label="Direct Labor" value={$k(summary.totalAnnualLabor)} />}
+        {canSeeCompanyDollars(userRole) && <Stat label="Supervision"  value={$k(summary.supervisionCost)} />}
+        {canSeeCompanyDollars(userRole) && <Stat label="Gross"        value={$k(summary.totalGross)} color={summary.totalMargin > 0.25 ? "#22c55e" : "#cf6e6e"}/>}
         <Stat label="Margin"         value={pct(summary.totalMargin)} color={summary.totalMargin > 0.25 ? "#22c55e" : "#cf6e6e"}/>
         <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
           <span style={labelStyle}>Burden %</span>
@@ -643,9 +648,11 @@ export function ChildrensDDARosterTab({ config, onUpdate }) {
           <input type="number" min={1} max={20} value={sup.providersPerSupervisor ?? 8}
             onChange={e => updateSup("providersPerSupervisor", +e.target.value)} style={{ ...numInput, width: 48 }}/>
         </div>
-        <div style={{ fontSize: 10, color: "#64748b", ...M }}>
-          Annual cost: {$k((sup.count ?? 1) * (sup.salary ?? 65000) * (1 + (config.payrollBurdenPct ?? 22) / 100))}
-        </div>
+        {canSeeCompanyDollars(userRole) && (
+          <div style={{ fontSize: 10, color: "#64748b", ...M }}>
+            Annual cost: {$k((sup.count ?? 1) * (sup.salary ?? 65000) * (1 + (config.payrollBurdenPct ?? 22) / 100))}
+          </div>
+        )}
       </div>
 
       {/* Provider cards */}
@@ -664,7 +671,8 @@ export function ChildrensDDARosterTab({ config, onUpdate }) {
             onRemove={removeProvider}
             onAddParticipant={addParticipant}
             onUpdateParticipant={updateParticipant}
-            onRemoveParticipant={removeParticipant}/>
+            onRemoveParticipant={removeParticipant}
+            userRole={userRole}/>
         )}
       </div>
 
@@ -680,7 +688,7 @@ export function ChildrensDDARosterTab({ config, onUpdate }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Productivity tab
 // ─────────────────────────────────────────────────────────────────────────────
-export function ChildrensDDAProductivityTab({ config }) {
+export function ChildrensDDAProductivityTab({ config, userRole }) {
   const summary = calcChildrensDDAService(config);
   const prod    = config.productivity ?? {};
 
@@ -784,8 +792,9 @@ export function ChildrensDDAProductivityTab({ config }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // P&L tab (with optional office grouping)
 // ─────────────────────────────────────────────────────────────────────────────
-export function ChildrensDDAPLTab({ config }) {
-  const summary = calcChildrensDDAService(config);
+export function ChildrensDDAPLTab({ config, userRole }) {
+  const summary     = calcChildrensDDAService(config);
+  const showDollars = canSeeCompanyDollars(userRole);
 
   if (summary.providerCount === 0) {
     return (
@@ -802,8 +811,9 @@ export function ChildrensDDAPLTab({ config }) {
   });
   const isMultiOffice = Object.keys(offices).some(k => k !== '— Unassigned —');
 
+  const cols = showDollars ? "2fr 1fr 1fr 1fr 1fr" : "2fr 1fr";
   const rowStyle = {
-    display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
+    display: "grid", gridTemplateColumns: cols,
     padding: "10px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 12, ...M,
   };
 
@@ -812,9 +822,9 @@ export function ChildrensDDAPLTab({ config }) {
       <span style={{ color: "#5a3800", fontWeight: 600 }}>{pv.name}
         <span style={{ fontSize: 9, color: "#94a3b8", marginLeft: 6 }}>{TIER_LABELS[pv.tier] ?? pv.tier}</span>
       </span>
-      <span style={{ textAlign: "right", color: "#D4A520" }}>{$k(pv.metrics.annualRev)}</span>
-      <span style={{ textAlign: "right" }}>{$k(pv.metrics.annualLabor)}</span>
-      <span style={{ textAlign: "right", color: pv.metrics.gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(pv.metrics.gross)}</span>
+      {showDollars && <span style={{ textAlign: "right", color: "#D4A520" }}>{$k(pv.metrics.annualRev)}</span>}
+      {showDollars && <span style={{ textAlign: "right" }}>{$k(pv.metrics.annualLabor)}</span>}
+      {showDollars && <span style={{ textAlign: "right", color: pv.metrics.gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(pv.metrics.gross)}</span>}
       <span style={{ textAlign: "right", color: pv.metrics.grossMargin > 0.3 ? "#22c55e" : pv.metrics.grossMargin > 0.15 ? "#f59e0b" : "#cf6e6e" }}>
         {pct(pv.metrics.grossMargin)}
       </span>
@@ -828,9 +838,9 @@ export function ChildrensDDAPLTab({ config }) {
     return (
       <div key={`sub_${label}`} style={{ ...rowStyle, background: "#f7f9fc", fontWeight: 700, borderTop: "1px solid #d0dae8" }}>
         <span style={{ color: "#475569" }}>{label} subtotal</span>
-        <span style={{ textAlign: "right", color: "#D4A520" }}>{$k(rev)}</span>
-        <span style={{ textAlign: "right" }}>{$k(labor)}</span>
-        <span style={{ textAlign: "right", color: gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(gross)}</span>
+        {showDollars && <span style={{ textAlign: "right", color: "#D4A520" }}>{$k(rev)}</span>}
+        {showDollars && <span style={{ textAlign: "right" }}>{$k(labor)}</span>}
+        {showDollars && <span style={{ textAlign: "right", color: gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(gross)}</span>}
         <span style={{ textAlign: "right", color: rev > 0 && gross / rev > 0.3 ? "#22c55e" : "#f59e0b" }}>{rev > 0 ? pct(gross / rev) : "—"}</span>
       </div>
     );
@@ -844,13 +854,13 @@ export function ChildrensDDAPLTab({ config }) {
 
       <div style={{ ...card, padding: 0, overflow: "hidden" }}>
         <div style={{
-          display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
+          display: "grid", gridTemplateColumns: cols,
           padding: "10px 14px", background: "#eef1f6", borderBottom: "1px solid #d0dae8", ...labelStyle,
         }}>
           <span>Provider</span>
-          <span style={{ textAlign: "right" }}>Annual Rev</span>
-          <span style={{ textAlign: "right" }}>Annual Labor</span>
-          <span style={{ textAlign: "right" }}>Gross</span>
+          {showDollars && <span style={{ textAlign: "right" }}>Annual Rev</span>}
+          {showDollars && <span style={{ textAlign: "right" }}>Annual Labor</span>}
+          {showDollars && <span style={{ textAlign: "right" }}>Gross</span>}
           <span style={{ textAlign: "right" }}>Margin</span>
         </div>
 
@@ -867,29 +877,33 @@ export function ChildrensDDAPLTab({ config }) {
           : summary.providers.map(renderProviderRow)
         }
 
-        <div style={{ ...rowStyle, background: "#fdf4e7", color: "#78350f" }}>
-          <span style={{ fontStyle: "italic" }}>Clinical supervision ({config.supervision?.count ?? 1} supervisor{(config.supervision?.count ?? 1) !== 1 ? 's' : ''})</span>
-          <span style={{ textAlign: "right" }}>—</span>
-          <span style={{ textAlign: "right" }}>{$k(summary.supervisionCost)}</span>
-          <span style={{ textAlign: "right", color: "#cf6e6e" }}>({$k(summary.supervisionCost)})</span>
-          <span style={{ textAlign: "right" }}>—</span>
-        </div>
+        {showDollars && (
+          <div style={{ ...rowStyle, background: "#fdf4e7", color: "#78350f" }}>
+            <span style={{ fontStyle: "italic" }}>Clinical supervision ({config.supervision?.count ?? 1} supervisor{(config.supervision?.count ?? 1) !== 1 ? 's' : ''})</span>
+            <span style={{ textAlign: "right" }}>—</span>
+            <span style={{ textAlign: "right" }}>{$k(summary.supervisionCost)}</span>
+            <span style={{ textAlign: "right", color: "#cf6e6e" }}>({$k(summary.supervisionCost)})</span>
+            <span style={{ textAlign: "right" }}>—</span>
+          </div>
+        )}
 
         <div style={{
-          display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
+          display: "grid", gridTemplateColumns: cols,
           padding: "12px 14px", background: "#141d2c", color: "#D4A520",
           fontSize: 13, fontWeight: 800, ...M,
         }}>
           <span>Total</span>
-          <span style={{ textAlign: "right" }}>{$k(summary.totalAnnualRev)}</span>
-          <span style={{ textAlign: "right", color: "#e4eaf2" }}>{$k(summary.totalAnnualLabor + summary.supervisionCost)}</span>
-          <span style={{ textAlign: "right", color: summary.totalGross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(summary.totalGross)}</span>
+          {showDollars && <span style={{ textAlign: "right" }}>{$k(summary.totalAnnualRev)}</span>}
+          {showDollars && <span style={{ textAlign: "right", color: "#e4eaf2" }}>{$k(summary.totalAnnualLabor + summary.supervisionCost)}</span>}
+          {showDollars && <span style={{ textAlign: "right", color: summary.totalGross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(summary.totalGross)}</span>}
           <span style={{ textAlign: "right" }}>{pct(summary.totalMargin)}</span>
         </div>
       </div>
 
       <div style={{ marginTop: 16, padding: 14, background: "#f7f9fc", border: "1px solid #d0dae8", borderRadius: 8, fontSize: 11, color: "#475569", ...M, lineHeight: 1.6 }}>
-        <strong>Note:</strong> Direct labor only. Supervision is the clinical supervisor cost at {$k((config.supervision?.count ?? 1) * (config.supervision?.salary ?? 65000))}/yr salary + {config.payrollBurdenPct ?? 22}% burden.
+        <strong>Note:</strong> Direct labor only. Supervision is the clinical supervisor cost
+        {showDollars && <> at {$k((config.supervision?.count ?? 1) * (config.supervision?.salary ?? 65000))}/yr salary</>}
+        {' '}+ {config.payrollBurdenPct ?? 22}% burden.
         Company overhead, management fees, and billing fees flow through the Whole Company P&amp;L roll-up.
       </div>
     </div>
