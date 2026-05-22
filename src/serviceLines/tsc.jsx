@@ -715,16 +715,16 @@ export function TSCPLTab({ config, userRole }) {
   const isMultiOffice = Object.keys(offices).some(k => k !== '— Unassigned —');
 
   const rowStyle = {
-    display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",
+    display:"grid", gridTemplateColumns:cols,
     padding:"10px 14px", borderBottom:"1px solid #f1f5f9", fontSize:12, ...M,
   };
 
   const renderCoordRow = (c) => (
     <div key={c.id} style={rowStyle}>
       <span style={{ color:"#5a3800", fontWeight:600 }}>{c.name}</span>
-      <span style={{ textAlign:"right", color:"#D4A520" }}>{$k(c.metrics.annualRev)}</span>
-      <span style={{ textAlign:"right" }}>{$k(c.metrics.annualLabor)}</span>
-      <span style={{ textAlign:"right", color: c.metrics.gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(c.metrics.gross)}</span>
+      {showDollars && <span style={{ textAlign:"right", color:"#D4A520" }}>{$k(c.metrics.annualRev)}</span>}
+      {showDollars && <span style={{ textAlign:"right" }}>{$k(c.metrics.annualLabor)}</span>}
+      {showDollars && <span style={{ textAlign:"right", color: c.metrics.gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(c.metrics.gross)}</span>}
       <span style={{ textAlign:"right", color: c.metrics.grossMargin > 0.3 ? "#22c55e" : c.metrics.grossMargin > 0.15 ? "#f59e0b" : "#cf6e6e" }}>
         {pct(c.metrics.grossMargin)}
       </span>
@@ -738,9 +738,9 @@ export function TSCPLTab({ config, userRole }) {
     return (
       <div key={`sub_${label}`} style={{ ...rowStyle, background:"#f7f9fc", fontWeight:700, borderTop:"1px solid #d0dae8" }}>
         <span style={{ color:"#475569" }}>{label} subtotal</span>
-        <span style={{ textAlign:"right", color:"#D4A520" }}>{$k(rev)}</span>
-        <span style={{ textAlign:"right" }}>{$k(labor)}</span>
-        <span style={{ textAlign:"right", color: gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(gross)}</span>
+        {showDollars && <span style={{ textAlign:"right", color:"#D4A520" }}>{$k(rev)}</span>}
+        {showDollars && <span style={{ textAlign:"right" }}>{$k(labor)}</span>}
+        {showDollars && <span style={{ textAlign:"right", color: gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(gross)}</span>}
         <span style={{ textAlign:"right", color: rev > 0 && gross/rev > 0.3 ? "#22c55e" : "#f59e0b" }}>{rev > 0 ? pct(gross/rev) : "—"}</span>
       </div>
     );
@@ -774,22 +774,6 @@ export function TSCPLTab({ config, userRole }) {
           : summary.coordinators.map(renderCoordRow)
         }
 
-        <div style={{
-          display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",
-          padding:"12px 14px", background:"#141d2c", color:"#D4A520",
-          fontSize:13, fontWeight:800, ...M,
-        }}>
-        {summary.coordinators.map(c => (
-          <div key={c.id} style={{ display:"grid", gridTemplateColumns:cols, padding:"10px 14px", borderBottom:"1px solid #f1f5f9", fontSize:12, ...M }}>
-            <span style={{ color:"#5a3800", fontWeight:600 }}>{c.name}</span>
-            {showDollars && <span style={{ textAlign:"right", color:"#D4A520" }}>{$k(c.metrics.annualRev)}</span>}
-            {showDollars && <span style={{ textAlign:"right" }}>{$k(c.metrics.annualLabor)}</span>}
-            {showDollars && <span style={{ textAlign:"right", color: c.metrics.gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(c.metrics.gross)}</span>}
-            <span style={{ textAlign:"right", color: c.metrics.grossMargin > 0.3 ? "#22c55e" : c.metrics.grossMargin > 0.15 ? "#f59e0b" : "#cf6e6e" }}>
-              {pct(c.metrics.grossMargin)}
-            </span>
-          </div>
-        ))}
         <div style={{ display:"grid", gridTemplateColumns:cols, padding:"12px 14px", background:"#141d2c", color:"#D4A520", fontSize:13, fontWeight:800, ...M }}>
           <span>Total</span>
           {showDollars && <span style={{ textAlign:"right" }}>{$k(summary.totalAnnualRev)}</span>}
