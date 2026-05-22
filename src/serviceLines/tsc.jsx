@@ -75,7 +75,20 @@ export function mkCoordinator(name = "New Coordinator", hourlyWage = 22) {
     name,
     hourlyWage,
     adminHrsPerWeek: 5,
+    tscType: 'mixed',   // 'adult' | 'children' | 'mixed'
+    officeName: '',
     participants: [],
+  };
+}
+
+export function mkAdminStaffMember(role = "Scheduler") {
+  return {
+    id: `tscadm_${tscUid()}`,
+    role,
+    mode: "salary",   // 'salary' | 'hourly'
+    value: 55000,
+    ftePct: 100,
+    benefitsPct: 22,
   };
 }
 
@@ -86,6 +99,29 @@ export function defaultTSCConfig() {
     defaultUnitsPerParticipant: 16,
     defaultHourlyWage: 22,
     defaultAdminHrsPerWeek: 5,
+    adminStaff: [],
+    productivity: {
+      billableHoursPerDay:  6,
+      documentationTimePct: 15,
+      travelTimePct:        10,
+      noShowPct:            8,
+      qaReworkPct:          3,
+    },
+    revenue: {
+      completionRate:          92,
+      billingSuccessRate:       97,
+      collectionRate:           99,
+      billingLagDays:           30,
+      faceToFaceComplianceRate: 90,  // % of contacts meeting face-to-face requirement
+      planDevCompletionRate:    95,  // % of ISP plan dev completed on time
+      caseloadChurnRate:        15,  // % annual caseload turnover
+      denialWriteOffRate:        3,  // % of billed claims written off after denial
+    },
+    scenario: {
+      rateAdjPct:        0,
+      caseloadAdjPct:    0,
+      productivityAdjPct: 0,
+    },
   };
 }
 
@@ -168,6 +204,111 @@ export function calcTSCService(config) {
     totalMargin: totalAnnualRev > 0 ? totalGross / totalAnnualRev : 0,
     coordinatorCount: coordinators.length,
   };
+}
+
+export function calcTSCAdminStaff(adminStaff = []) {
+  const staff = adminStaff.map(m => {
+    const annualBase = m.mode === 'salary'
+      ? (m.value ?? 55000) * ((m.ftePct ?? 100) / 100)
+      : (m.value ?? 25) * 2080 * ((m.ftePct ?? 100) / 100);
+    const annualCost = annualBase * (1 + (m.benefitsPct ?? 22) / 100);
+    return { ...m, annualBase, annualCost };
+  });
+  return { staff, totalAnnualCost: staff.reduce((a, s) => a + s.annualCost, 0) };
+}
+
+export function calcTSCRevenueWaterfall(grossAuthorized, revenue = {}) {
+  const completionRate     = (revenue.completionRate     ?? 92) / 100;
+  const billingSuccessRate = (revenue.billingSuccessRate ?? 97) / 100;
+  const collectionRate     = (revenue.collectionRate     ?? 99) / 100;
+  const earned    = grossAuthorized * completionRate;
+  const billed    = earned          * billingSuccessRate;
+  const collected = billed          * collectionRate;
+  const leakagePct = grossAuthorized > 0 ? (grossAuthorized - collected) / grossAuthorized : 0;
+  return { authorized: grossAuthorized, earned, billed, collected, leakagePct };
+}
+
+export function calcTSCProductivityFactors(productivity = {}) {
+  const docPct    = (productivity.documentationTimePct ?? 15) / 100;
+  const travelPct = (productivity.travelTimePct        ?? 10) / 100;
+  const noShowPct = (productivity.noShowPct            ??  8) / 100;
+  const qaPct     = (productivity.qaReworkPct          ??  3) / 100;
+  const effectiveBillablePct  = Math.max(0, 1 - docPct - travelPct - noShowPct - qaPct);
+  const netBillableHrsPerDay  = (productivity.billableHoursPerDay ?? 6) * effectiveBillablePct;
+  return { effectiveBillablePct, netBillableHrsPerDay };
+}
+
+export function calcTSCBreakEven(config) {
+  const adminResult   = calcTSCAdminStaff(config.adminStaff ?? []);
+  const burdenPct     = (config.payrollBurdenPct ?? 22) / 100;
+  const wage          = config.defaultHourlyWage ?? 22;
+  // Fixed cost = admin staff + cost of one coordinator with zero caseload
+  const coordFixedMonthly = (config.defaultAdminHrsPerWeek ?? 5) * 4.33 * wage * (1 + burdenPct);
+  const fixedCosts    = adminResult.totalAnnualCost + (coordFixedMonthly * 12);
+
+  const summary = calcTSCService(config);
+  const totalPx = summary.coordinators.reduce((a, c) => a + c.metrics.caseloadSize, 0);
+  const revenuePerParticipant = totalPx > 0 ? summary.totalAnnualRev / totalPx : 0;
+
+  const breakEvenCaseload = revenuePerParticipant > 0
+    ? Math.ceil(fixedCosts / revenuePerParticipant)
+    : null;
+
+  const safetyMarginPct = (breakEvenCaseload && totalPx > 0)
+    ? (totalPx - breakEvenCaseload) / totalPx
+    : null;
+
+  return {
+    breakEvenCaseload,
+    currentCaseload: summary.totalCaseload,
+    revenuePerParticipant,
+    fixedCosts,
+    safetyMarginPct,
+  };
+}
+
+export function calcTSCScenario(config) {
+  const base = calcTSCService(config);
+
+  const rateAdj        = 1 + (config.scenario?.rateAdjPct        ?? 0) / 100;
+  const caseloadAdj    = 1 + (config.scenario?.caseloadAdjPct    ?? 0) / 100;
+  const productivityAdj = 1 + (config.scenario?.productivityAdjPct ?? 0) / 100;
+
+  // Build a modified config for scenario calculation
+  const scenarioCoords = (config.coordinators ?? []).map(c => ({
+    ...c,
+    participants: (c.participants ?? []).map(p => ({
+      ...p,
+      unitsCoord:   Math.round((p.unitsCoord   ?? 0) * caseloadAdj * productivityAdj),
+      unitsPlanDev: Math.round((p.unitsPlanDev ?? 0) * caseloadAdj * productivityAdj),
+      unitsCrisis:  Math.round((p.unitsCrisis  ?? 0) * caseloadAdj * productivityAdj),
+    })),
+    hourlyWage: (c.hourlyWage ?? 22), // labor cost unchanged by rate adj
+  }));
+
+  // Apply rate adjustment by scaling the revenue result directly
+  const scenarioSummary = calcTSCService({ ...config, coordinators: scenarioCoords });
+  const scenarioAnnualRev = scenarioSummary.totalAnnualRev * rateAdj;
+  const scenarioGross     = scenarioAnnualRev - scenarioSummary.totalAnnualLabor;
+  const scenarioMargin    = scenarioAnnualRev > 0 ? scenarioGross / scenarioAnnualRev : 0;
+
+  const scenario = {
+    totalAnnualRev:   scenarioAnnualRev,
+    totalAnnualLabor: scenarioSummary.totalAnnualLabor,
+    totalGross:       scenarioGross,
+    totalMargin:      scenarioMargin,
+    coordinatorCount: scenarioSummary.coordinatorCount,
+    totalCaseload:    scenarioSummary.totalCaseload,
+  };
+
+  const delta = {
+    totalAnnualRev:   scenarioAnnualRev - base.totalAnnualRev,
+    totalAnnualLabor: scenario.totalAnnualLabor - base.totalAnnualLabor,
+    totalGross:       scenarioGross - base.totalGross,
+    totalMargin:      scenarioMargin - base.totalMargin,
+  };
+
+  return { base, scenario, delta };
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -291,6 +432,23 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
           onChange={e => onUpdate(coord.id, "name", e.target.value)}
           style={{ ...textInput, fontWeight:700, flex:1, fontSize:14 }}/>
 
+        <div>
+          <div style={labelStyle}>TSC type</div>
+          <select value={coord.tscType ?? 'mixed'}
+            onChange={e => onUpdate(coord.id, "tscType", e.target.value)}
+            style={{ ...textInput, fontSize:11, padding:"3px 6px" }}>
+            <option value="adult">Adult</option>
+            <option value="children">Children's</option>
+            <option value="mixed">Mixed</option>
+          </select>
+        </div>
+
+        <div>
+          <div style={labelStyle}>Wage / hr</div>
+          <input type="number" min={10} max={60} step={0.5} value={coord.hourlyWage}
+            onChange={e => onUpdate(coord.id, "hourlyWage", +e.target.value)}
+            style={numInput}/>
+        </div>
         {wageDisplayMode(userRole) !== 'hidden' && (
           <div>
             <div style={labelStyle}>Wage / hr</div>
@@ -306,6 +464,14 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
           <input type="number" min={0} max={40} step={0.5} value={coord.adminHrsPerWeek}
             onChange={e => onUpdate(coord.id, "adminHrsPerWeek", +e.target.value)}
             style={numInput}/>
+        </div>
+
+        <div>
+          <div style={labelStyle}>Office</div>
+          <input type="text" value={coord.officeName ?? ''}
+            onChange={e => onUpdate(coord.id, "officeName", e.target.value)}
+            placeholder="optional"
+            style={{ ...textInput, width: 90, fontSize: 11 }}/>
         </div>
 
         <button onClick={() => onRemove(coord.id)} style={{
@@ -541,6 +707,45 @@ export function TSCPLTab({ config, userRole }) {
     );
   }
 
+  const offices = {};
+  summary.coordinators.forEach(c => {
+    const key = c.officeName?.trim() || '— Unassigned —';
+    (offices[key] = offices[key] || []).push(c);
+  });
+  const isMultiOffice = Object.keys(offices).some(k => k !== '— Unassigned —');
+
+  const rowStyle = {
+    display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",
+    padding:"10px 14px", borderBottom:"1px solid #f1f5f9", fontSize:12, ...M,
+  };
+
+  const renderCoordRow = (c) => (
+    <div key={c.id} style={rowStyle}>
+      <span style={{ color:"#5a3800", fontWeight:600 }}>{c.name}</span>
+      <span style={{ textAlign:"right", color:"#D4A520" }}>{$k(c.metrics.annualRev)}</span>
+      <span style={{ textAlign:"right" }}>{$k(c.metrics.annualLabor)}</span>
+      <span style={{ textAlign:"right", color: c.metrics.gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(c.metrics.gross)}</span>
+      <span style={{ textAlign:"right", color: c.metrics.grossMargin > 0.3 ? "#22c55e" : c.metrics.grossMargin > 0.15 ? "#f59e0b" : "#cf6e6e" }}>
+        {pct(c.metrics.grossMargin)}
+      </span>
+    </div>
+  );
+
+  const renderOfficeSubtotal = (coords, label) => {
+    const rev   = coords.reduce((a, c) => a + c.metrics.annualRev, 0);
+    const labor = coords.reduce((a, c) => a + c.metrics.annualLabor, 0);
+    const gross = rev - labor;
+    return (
+      <div key={`sub_${label}`} style={{ ...rowStyle, background:"#f7f9fc", fontWeight:700, borderTop:"1px solid #d0dae8" }}>
+        <span style={{ color:"#475569" }}>{label} subtotal</span>
+        <span style={{ textAlign:"right", color:"#D4A520" }}>{$k(rev)}</span>
+        <span style={{ textAlign:"right" }}>{$k(labor)}</span>
+        <span style={{ textAlign:"right", color: gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(gross)}</span>
+        <span style={{ textAlign:"right", color: rev > 0 && gross/rev > 0.3 ? "#22c55e" : "#f59e0b" }}>{rev > 0 ? pct(gross/rev) : "—"}</span>
+      </div>
+    );
+  };
+
   return (
     <div>
       <h3 style={{ ...M, fontSize:14, color:"#5a3800", margin:"0 0 14px 0", letterSpacing:1, textTransform:"uppercase" }}>
@@ -555,6 +760,25 @@ export function TSCPLTab({ config, userRole }) {
           {showDollars && <span style={{ textAlign:"right" }}>Gross</span>}
           <span style={{ textAlign:"right" }}>Margin</span>
         </div>
+
+        {isMultiOffice
+          ? Object.entries(offices).map(([office, coords]) => (
+              <div key={office}>
+                <div style={{ ...rowStyle, background:"#eef7ff", fontWeight:700, fontSize:10, color:"#3b5fc0", borderBottom:"1px solid #c7d9f0" }}>
+                  <span>📍 {office}</span>
+                </div>
+                {coords.map(renderCoordRow)}
+                {renderOfficeSubtotal(coords, office)}
+              </div>
+            ))
+          : summary.coordinators.map(renderCoordRow)
+        }
+
+        <div style={{
+          display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",
+          padding:"12px 14px", background:"#141d2c", color:"#D4A520",
+          fontSize:13, fontWeight:800, ...M,
+        }}>
         {summary.coordinators.map(c => (
           <div key={c.id} style={{ display:"grid", gridTemplateColumns:cols, padding:"10px 14px", borderBottom:"1px solid #f1f5f9", fontSize:12, ...M }}>
             <span style={{ color:"#5a3800", fontWeight:600 }}>{c.name}</span>
@@ -579,6 +803,390 @@ export function TSCPLTab({ config, userRole }) {
         <strong>Note:</strong> This P&amp;L is the TSC service line in isolation — direct labor only.
         Allocated company overhead, management fees, and billing fees flow through the Whole Company P&amp;L
         roll-up tab using the company's chosen allocation method.
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Staffing tab — admin & management staff matrix
+// ──────────────────────────────────────────────────────────────────────
+export function TSCStaffingTab({ config, onUpdate }) {
+  const adminResult = calcTSCAdminStaff(config.adminStaff ?? []);
+  const prod = config.productivity ?? {};
+  const rev  = config.revenue      ?? {};
+
+  const updateProd = (field, val) =>
+    onUpdate({ ...config, productivity: { ...prod, [field]: val } });
+  const updateRev = (field, val) =>
+    onUpdate({ ...config, revenue: { ...rev, [field]: val } });
+
+  const addStaff = () => onUpdate({
+    ...config,
+    adminStaff: [...(config.adminStaff ?? []), mkAdminStaffMember()],
+  });
+  const removeStaff = (id) => onUpdate({
+    ...config,
+    adminStaff: (config.adminStaff ?? []).filter(m => m.id !== id),
+  });
+  const updateStaff = (id, field, val) => onUpdate({
+    ...config,
+    adminStaff: (config.adminStaff ?? []).map(m => m.id === id ? { ...m, [field]: val } : m),
+  });
+
+  const factors = calcTSCProductivityFactors(prod);
+  const nonBillablePct = ((prod.documentationTimePct ?? 15) + (prod.travelTimePct ?? 10) + (prod.noShowPct ?? 8) + (prod.qaReworkPct ?? 3));
+
+  return (
+    <div>
+      <h3 style={{ ...M, fontSize:14, color:"#5a3800", margin:"0 0 14px 0", letterSpacing:1, textTransform:"uppercase" }}>
+        Administrative & management staffing
+      </h3>
+
+      {/* Admin staff table */}
+      <div style={{ ...card, marginBottom:20 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+          <div style={{ display:"flex", gap:16 }}>
+            <div>
+              <div style={labelStyle}>Admin staff count</div>
+              <div style={{ fontSize:18, fontWeight:800, color:"#5a3800", ...M }}>{(config.adminStaff ?? []).length}</div>
+            </div>
+            <div>
+              <div style={labelStyle}>Total annual cost</div>
+              <div style={{ fontSize:18, fontWeight:800, color:"#cf6e6e", ...M }}>{$k(adminResult.totalAnnualCost)}</div>
+            </div>
+          </div>
+          <button onClick={addStaff} style={{
+            padding:"6px 14px", background:"#fff", border:"1px dashed #c8d4e4",
+            borderRadius:6, color:"#5a3800", cursor:"pointer", fontSize:12, fontWeight:600, ...M,
+          }}>+ Add staff</button>
+        </div>
+
+        {(config.adminStaff ?? []).length === 0 && (
+          <div style={{ textAlign:"center", padding:20, color:"#94a3b8", fontSize:12, ...M }}>
+            No admin staff added. Direct coordinator labor only.
+          </div>
+        )}
+
+        {adminResult.staff.length > 0 && (
+          <>
+            <div style={{
+              display:"grid", gridTemplateColumns:"2fr 0.8fr 1fr 0.7fr 0.7fr 1fr 0.4fr",
+              padding:"8px 10px", background:"#eef1f6", borderRadius:6,
+              ...labelStyle, marginBottom:6,
+            }}>
+              <span>Role</span>
+              <span style={{ textAlign:"right" }}>Mode</span>
+              <span style={{ textAlign:"right" }}>Value</span>
+              <span style={{ textAlign:"right" }}>FTE %</span>
+              <span style={{ textAlign:"right" }}>Benefits %</span>
+              <span style={{ textAlign:"right" }}>Annual cost</span>
+              <span></span>
+            </div>
+            {adminResult.staff.map(m => (
+              <div key={m.id} style={{
+                display:"grid", gridTemplateColumns:"2fr 0.8fr 1fr 0.7fr 0.7fr 1fr 0.4fr",
+                gap:6, alignItems:"center", padding:"6px 10px",
+                borderBottom:"1px solid #f1f5f9", fontSize:12, ...M,
+              }}>
+                <input type="text" value={m.role}
+                  onChange={e => updateStaff(m.id, "role", e.target.value)}
+                  style={{ ...textInput, fontSize:12 }}/>
+                <select value={m.mode}
+                  onChange={e => updateStaff(m.id, "mode", e.target.value)}
+                  style={{ ...textInput, fontSize:11, padding:"3px 6px", textAlign:"right" }}>
+                  <option value="salary">Salary</option>
+                  <option value="hourly">Hourly</option>
+                </select>
+                <input type="number" min={0} value={m.value}
+                  onChange={e => updateStaff(m.id, "value", +e.target.value)}
+                  style={{ ...numInput, width:"100%" }}/>
+                <input type="number" min={0} max={100} value={m.ftePct}
+                  onChange={e => updateStaff(m.id, "ftePct", +e.target.value)}
+                  style={{ ...numInput, width:"100%" }}/>
+                <input type="number" min={0} max={50} value={m.benefitsPct}
+                  onChange={e => updateStaff(m.id, "benefitsPct", +e.target.value)}
+                  style={{ ...numInput, width:"100%" }}/>
+                <span style={{ textAlign:"right", color:"#cf6e6e", fontWeight:700 }}>{$k(m.annualCost)}</span>
+                <button onClick={() => removeStaff(m.id)} style={{
+                  border:"none", background:"transparent", cursor:"pointer",
+                  color:"#cf6e6e", fontSize:14, padding:4,
+                }}>✕</button>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
+      {/* Productivity assumptions */}
+      <h3 style={{ ...M, fontSize:14, color:"#5a3800", margin:"0 0 14px 0", letterSpacing:1, textTransform:"uppercase" }}>
+        Productivity assumptions
+      </h3>
+
+      <div style={{ ...card, marginBottom:20, display:"flex", gap:24, flexWrap:"wrap", alignItems:"flex-start" }}>
+        <div>
+          <div style={labelStyle}>Billable hours / day</div>
+          <input type="number" min={1} max={10} step={0.5} value={prod.billableHoursPerDay ?? 6}
+            onChange={e => updateProd("billableHoursPerDay", +e.target.value)}
+            style={{ ...numInput, width:64, marginTop:4 }}/>
+        </div>
+        <div>
+          <div style={labelStyle}>Documentation time %</div>
+          <input type="number" min={0} max={50} value={prod.documentationTimePct ?? 15}
+            onChange={e => updateProd("documentationTimePct", +e.target.value)}
+            style={{ ...numInput, width:64, marginTop:4 }}/>
+        </div>
+        <div>
+          <div style={labelStyle}>Travel time %</div>
+          <input type="number" min={0} max={50} value={prod.travelTimePct ?? 10}
+            onChange={e => updateProd("travelTimePct", +e.target.value)}
+            style={{ ...numInput, width:64, marginTop:4 }}/>
+        </div>
+        <div>
+          <div style={labelStyle}>No-show %</div>
+          <input type="number" min={0} max={50} value={prod.noShowPct ?? 8}
+            onChange={e => updateProd("noShowPct", +e.target.value)}
+            style={{ ...numInput, width:64, marginTop:4 }}/>
+        </div>
+        <div>
+          <div style={labelStyle}>QA rework %</div>
+          <input type="number" min={0} max={20} value={prod.qaReworkPct ?? 3}
+            onChange={e => updateProd("qaReworkPct", +e.target.value)}
+            style={{ ...numInput, width:64, marginTop:4 }}/>
+        </div>
+
+        {/* Visual breakdown bar */}
+        <div style={{ flex:1, minWidth:200 }}>
+          <div style={labelStyle}>Hours breakdown (per 8-hr day)</div>
+          <div style={{ display:"flex", height:20, borderRadius:4, overflow:"hidden", marginTop:6, border:"1px solid #d0dae8" }}>
+            {[
+              { label:"Billable", pct: factors.effectiveBillablePct * 100, color:"#22c55e" },
+              { label:"Docs",     pct: prod.documentationTimePct ?? 15,    color:"#f59e0b" },
+              { label:"Travel",   pct: prod.travelTimePct        ?? 10,    color:"#94a3b8" },
+              { label:"No-show",  pct: prod.noShowPct            ??  8,    color:"#cf6e6e" },
+              { label:"QA",       pct: prod.qaReworkPct          ??  3,    color:"#a78bfa" },
+            ].map(seg => (
+              <div key={seg.label} style={{ width:`${Math.max(seg.pct, 0)}%`, background:seg.color, minWidth: seg.pct > 0 ? 2 : 0 }}/>
+            ))}
+          </div>
+          <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginTop:4, fontSize:9, color:"#64748b", ...M }}>
+            <span>🟩 Billable {(factors.effectiveBillablePct * 100).toFixed(0)}%</span>
+            <span>🟨 Docs {prod.documentationTimePct ?? 15}%</span>
+            <span>⬜ Travel {prod.travelTimePct ?? 10}%</span>
+            <span>🟥 No-show {prod.noShowPct ?? 8}%</span>
+            <span>🟪 QA {prod.qaReworkPct ?? 3}%</span>
+          </div>
+          {nonBillablePct > 60 && (
+            <div style={{ marginTop:6, fontSize:10, color:"#cf6e6e", ...M }}>
+              ⚠️ Non-billable burden exceeds 60% — coordinators may be under-producing.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Revenue assumptions */}
+      <h3 style={{ ...M, fontSize:14, color:"#5a3800", margin:"0 0 14px 0", letterSpacing:1, textTransform:"uppercase" }}>
+        Revenue collection assumptions
+      </h3>
+
+      <div style={{ ...card, display:"flex", gap:24, flexWrap:"wrap", alignItems:"flex-start" }}>
+        <div>
+          <div style={labelStyle}>Completion rate %</div>
+          <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Authorized units actually completed</div>
+          <input type="number" min={0} max={100} value={rev.completionRate ?? 92}
+            onChange={e => updateRev("completionRate", +e.target.value)}
+            style={{ ...numInput, width:64 }}/>
+        </div>
+        <div>
+          <div style={labelStyle}>Billing success %</div>
+          <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Completed units successfully billed</div>
+          <input type="number" min={0} max={100} value={rev.billingSuccessRate ?? 97}
+            onChange={e => updateRev("billingSuccessRate", +e.target.value)}
+            style={{ ...numInput, width:64 }}/>
+        </div>
+        <div>
+          <div style={labelStyle}>Collection rate %</div>
+          <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Billed claims paid</div>
+          <input type="number" min={0} max={100} value={rev.collectionRate ?? 99}
+            onChange={e => updateRev("collectionRate", +e.target.value)}
+            style={{ ...numInput, width:64 }}/>
+        </div>
+        <div>
+          <div style={labelStyle}>Billing lag (days)</div>
+          <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Days from service to payment</div>
+          <input type="number" min={0} max={180} value={rev.billingLagDays ?? 30}
+            onChange={e => updateRev("billingLagDays", +e.target.value)}
+            style={{ ...numInput, width:64 }}/>
+        </div>
+        <div style={{ padding:"10px 14px", background:"#eef1f6", borderRadius:8, fontSize:11, ...M }}>
+          <div style={labelStyle}>Effective collection rate</div>
+          <div style={{ fontSize:18, fontWeight:800, color:"#22c55e", ...M }}>
+            {((rev.completionRate ?? 92) * (rev.billingSuccessRate ?? 97) * (rev.collectionRate ?? 99) / 10000).toFixed(1)}%
+          </div>
+          <div style={{ fontSize:9, color:"#64748b", marginTop:2 }}>of authorized revenue collected</div>
+        </div>
+      </div>
+
+      {/* Operational compliance assumptions */}
+      <h3 style={{ ...M, fontSize:14, color:"#5a3800", margin:"20px 0 14px 0", letterSpacing:1, textTransform:"uppercase" }}>
+        Operational compliance assumptions
+      </h3>
+
+      <div style={{ ...card, display:"flex", gap:24, flexWrap:"wrap", alignItems:"flex-start" }}>
+        <div>
+          <div style={labelStyle}>Face-to-face compliance %</div>
+          <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Contacts meeting F2F requirement</div>
+          <input type="number" min={0} max={100} value={rev.faceToFaceComplianceRate ?? 90}
+            onChange={e => updateRev("faceToFaceComplianceRate", +e.target.value)}
+            style={{ ...numInput, width:64 }}/>
+        </div>
+        <div>
+          <div style={labelStyle}>Plan dev completion %</div>
+          <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>ISP plans completed on time</div>
+          <input type="number" min={0} max={100} value={rev.planDevCompletionRate ?? 95}
+            onChange={e => updateRev("planDevCompletionRate", +e.target.value)}
+            style={{ ...numInput, width:64 }}/>
+        </div>
+        <div>
+          <div style={labelStyle}>Annual caseload churn %</div>
+          <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Annual participant turnover rate</div>
+          <input type="number" min={0} max={100} value={rev.caseloadChurnRate ?? 15}
+            onChange={e => updateRev("caseloadChurnRate", +e.target.value)}
+            style={{ ...numInput, width:64 }}/>
+        </div>
+        <div>
+          <div style={labelStyle}>Denial write-off %</div>
+          <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Billed claims written off after denial</div>
+          <input type="number" min={0} max={20} step={0.5} value={rev.denialWriteOffRate ?? 3}
+            onChange={e => updateRev("denialWriteOffRate", +e.target.value)}
+            style={{ ...numInput, width:64 }}/>
+        </div>
+        <div style={{ padding:"10px 14px", background:"#fffbe8", border:"1px solid #f4e4a8", borderRadius:8, fontSize:10, ...M, lineHeight:1.6, maxWidth:260 }}>
+          <strong>Note:</strong> These fields are operational planning inputs. Face-to-face and plan dev rates inform compliance risk; churn rate informs recruitment/onboarding cost modeling; denial write-off reduces net collected revenue.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Scenario tab — rate / caseload / productivity adjustments
+// ──────────────────────────────────────────────────────────────────────
+export function TSCScenarioTab({ config, onUpdate }) {
+  const sc = config.scenario ?? { rateAdjPct: 0, caseloadAdjPct: 0, productivityAdjPct: 0 };
+
+  const updateScenario = (field, val) =>
+    onUpdate({ ...config, scenario: { ...sc, [field]: val } });
+
+  const { base, scenario, delta } = calcTSCScenario(config);
+  const bev = calcTSCBreakEven(config);
+
+  const $d = n => (n >= 0 ? "+" : "") + n.toLocaleString("en-US", { style:"currency", currency:"USD", maximumFractionDigits:0 });
+  const pctD = n => (n >= 0 ? "+" : "") + (n * 100).toFixed(1) + "%";
+  const deltaColor = n => n >= 0 ? "#22c55e" : "#cf6e6e";
+
+  return (
+    <div>
+      <h3 style={{ ...M, fontSize:14, color:"#5a3800", margin:"0 0 14px 0", letterSpacing:1, textTransform:"uppercase" }}>
+        Scenario modeling
+      </h3>
+
+      {/* Adjustment inputs */}
+      <div style={{ ...card, marginBottom:20, display:"flex", gap:32, flexWrap:"wrap" }}>
+        {[
+          { label:"Rate adjustment %", field:"rateAdjPct", hint:"Change to reimbursement rates", val: sc.rateAdjPct ?? 0 },
+          { label:"Caseload adjustment %", field:"caseloadAdjPct", hint:"Scale participant unit volume", val: sc.caseloadAdjPct ?? 0 },
+          { label:"Productivity adjustment %", field:"productivityAdjPct", hint:"Scale billable units per participant", val: sc.productivityAdjPct ?? 0 },
+        ].map(({ label, field, hint, val }) => (
+          <div key={field}>
+            <div style={labelStyle}>{label}</div>
+            <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>{hint}</div>
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <input type="range" min={-50} max={50} value={val}
+                onChange={e => updateScenario(field, +e.target.value)}
+                style={{ width:120 }}/>
+              <input type="number" min={-50} max={50} value={val}
+                onChange={e => updateScenario(field, +e.target.value)}
+                style={{ ...numInput, width:56 }}/>
+              <span style={{ fontSize:11, ...M }}>%</span>
+            </div>
+          </div>
+        ))}
+        <button onClick={() => onUpdate({ ...config, scenario: { rateAdjPct:0, caseloadAdjPct:0, productivityAdjPct:0 } })}
+          style={{ alignSelf:"flex-end", padding:"6px 12px", background:"#fff", border:"1px solid #c8d4e4", borderRadius:5, fontSize:10, cursor:"pointer", ...M }}>
+          Reset
+        </button>
+      </div>
+
+      {/* Base vs scenario comparison */}
+      <div style={{ ...card, padding:0, overflow:"hidden", marginBottom:20 }}>
+        <div style={{
+          display:"grid", gridTemplateColumns:"1.5fr 1fr 1fr 1fr",
+          padding:"10px 14px", background:"#eef1f6", borderBottom:"1px solid #d0dae8", ...labelStyle,
+        }}>
+          <span>Metric</span>
+          <span style={{ textAlign:"right" }}>Base</span>
+          <span style={{ textAlign:"right" }}>Scenario</span>
+          <span style={{ textAlign:"right" }}>Delta</span>
+        </div>
+        {[
+          { label:"Annual Revenue",    base: base.totalAnnualRev,   scen: scenario.totalAnnualRev,   d: delta.totalAnnualRev,   fmt: $k, fmtD: $d },
+          { label:"Annual Labor",      base: base.totalAnnualLabor, scen: scenario.totalAnnualLabor, d: delta.totalAnnualLabor, fmt: $k, fmtD: $d },
+          { label:"Gross",             base: base.totalGross,       scen: scenario.totalGross,       d: delta.totalGross,       fmt: $k, fmtD: $d },
+          { label:"Margin",            base: base.totalMargin,      scen: scenario.totalMargin,      d: delta.totalMargin,      fmt: pct, fmtD: pctD },
+          { label:"Coordinators",      base: base.coordinatorCount, scen: scenario.coordinatorCount, d: scenario.coordinatorCount - base.coordinatorCount, fmt: n => n, fmtD: n => (n >= 0 ? "+" : "") + n },
+          { label:"Total Caseload",    base: base.totalCaseload,    scen: scenario.totalCaseload,    d: scenario.totalCaseload - base.totalCaseload,    fmt: n => n, fmtD: n => (n >= 0 ? "+" : "") + n },
+        ].map(({ label, base: b, scen, d, fmt, fmtD }) => (
+          <div key={label} style={{
+            display:"grid", gridTemplateColumns:"1.5fr 1fr 1fr 1fr",
+            padding:"10px 14px", borderBottom:"1px solid #f1f5f9", fontSize:12, ...M,
+          }}>
+            <span style={{ color:"#475569" }}>{label}</span>
+            <span style={{ textAlign:"right", color:"#5a3800" }}>{fmt(b)}</span>
+            <span style={{ textAlign:"right", color:"#D4A520", fontWeight:700 }}>{fmt(scen)}</span>
+            <span style={{ textAlign:"right", color: deltaColor(d), fontWeight:700 }}>{fmtD(d)}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Break-even analysis */}
+      <h3 style={{ ...M, fontSize:14, color:"#5a3800", margin:"0 0 14px 0", letterSpacing:1, textTransform:"uppercase" }}>
+        Break-even analysis
+      </h3>
+
+      <div style={{ ...card, display:"flex", gap:20, flexWrap:"wrap" }}>
+        <div>
+          <div style={labelStyle}>Break-even caseload</div>
+          <div style={{ fontSize:24, fontWeight:800, color:"#5a3800", ...M }}>
+            {bev.breakEvenCaseload ?? "—"}
+          </div>
+          <div style={{ fontSize:9, color:"#64748b", ...M }}>participants needed to cover fixed costs</div>
+        </div>
+        <div>
+          <div style={labelStyle}>Current caseload</div>
+          <div style={{ fontSize:24, fontWeight:800, color: bev.currentCaseload >= (bev.breakEvenCaseload ?? 0) ? "#22c55e" : "#cf6e6e", ...M }}>
+            {bev.currentCaseload}
+          </div>
+        </div>
+        <div>
+          <div style={labelStyle}>Safety margin</div>
+          <div style={{ fontSize:24, fontWeight:800, color: (bev.safetyMarginPct ?? 0) > 0.2 ? "#22c55e" : "#cf6e6e", ...M }}>
+            {bev.safetyMarginPct != null ? pct(bev.safetyMarginPct) : "—"}
+          </div>
+          <div style={{ fontSize:9, color:"#64748b", ...M }}>above break-even</div>
+        </div>
+        <div>
+          <div style={labelStyle}>Rev per participant/yr</div>
+          <div style={{ fontSize:24, fontWeight:800, color:"#D4A520", ...M }}>
+            {bev.revenuePerParticipant > 0 ? $k(bev.revenuePerParticipant) : "—"}
+          </div>
+        </div>
+        <div>
+          <div style={labelStyle}>Fixed costs (admin)</div>
+          <div style={{ fontSize:24, fontWeight:800, color:"#cf6e6e", ...M }}>
+            {$k(bev.fixedCosts)}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -4,6 +4,9 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { migrateConfig, getSelectedCompany, createServiceLine, createSharedConfig } from "../lib/companyShape.js";
 import { SERVICE_LINE_TYPES, SERVICE_LINE_DEFS, getShortLabel, getGroupedPickerOptions } from "../serviceLines/types.js";
 import { ratesForLine } from "../data/idahoRates.js";
+import { TSCRosterTab, TSCProductivityTab, TSCPLTab, TSCStaffingTab, TSCScenarioTab, calcTSCService } from "../serviceLines/tsc.jsx";
+import { ChildrensDDARosterTab, ChildrensDDAProductivityTab, ChildrensDDAPLTab, ChildrensDDARateScheduleTab, calcChildrensDDAService } from "../serviceLines/childrens_dda.jsx";
+import { CSERosterTab, CSEProductivityTab, CSEPLTab, calcCSEService } from "../serviceLines/cse.jsx";
 import { budgetRowVisibility, canAddServiceLine, canEditServiceLines, canSeeCompanyDollars, canSeeControl, canSeeTopNumbers, editMode, wageDisplayMode, ROLE_TIERS } from "../lib/access.js";
 import { TSCRosterTab, TSCProductivityTab, TSCPLTab, calcTSCService } from "../serviceLines/tsc.jsx";
 
@@ -2305,6 +2308,19 @@ const SUB_TABS = {
     { id: "tsc_roster",       label: "👥 Roster & Caseload" },
     { id: "tsc_productivity", label: "📈 Productivity" },
     { id: "tsc_pl",           label: "💵 P&L" },
+    { id: "tsc_staffing",     label: "🏢 Staffing" },
+    { id: "tsc_scenario",     label: "🔬 Scenario" },
+  ],
+  CHILDRENS_DDA: [
+    { id: "chdda_roster",       label: "👥 Roster" },
+    { id: "chdda_productivity", label: "📈 Productivity" },
+    { id: "chdda_pl",           label: "💵 P&L" },
+    { id: "chdda_rates",        label: "📋 Rate Schedule" },
+  ],
+  VOC_SERVICES: [
+    { id: "cse_roster",       label: "👥 Specialists & Caseload" },
+    { id: "cse_productivity", label: "📈 Productivity" },
+    { id: "cse_pl",           label: "💵 P&L" },
   ],
 };
 
@@ -2573,9 +2589,11 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
   };
 
   // ── Service-line accessors ──
-  const dailySL  = company?.serviceLines.find(sl => sl.type === SERVICE_LINE_TYPES.RES_HAB_DAILY  && !sl.archived);
-  const hourlySL = company?.serviceLines.find(sl => sl.type === SERVICE_LINE_TYPES.RES_HAB_HOURLY && !sl.archived);
-  const tscSL    = company?.serviceLines.find(sl => sl.type === SERVICE_LINE_TYPES.TSC            && !sl.archived);
+  const dailySL       = company?.serviceLines.find(sl => sl.type === SERVICE_LINE_TYPES.RES_HAB_DAILY   && !sl.archived);
+  const hourlySL      = company?.serviceLines.find(sl => sl.type === SERVICE_LINE_TYPES.RES_HAB_HOURLY  && !sl.archived);
+  const tscSL         = company?.serviceLines.find(sl => sl.type === SERVICE_LINE_TYPES.TSC             && !sl.archived);
+  const childrensddaSL = company?.serviceLines.find(sl => sl.type === SERVICE_LINE_TYPES.CHILDRENS_DDA  && !sl.archived);
+  const cseSL          = company?.serviceLines.find(sl => sl.type === SERVICE_LINE_TYPES.VOC_SERVICES   && !sl.archived);
 
   const indHomes = [
     ...expandHomeTypes(dailySL?.config?.homes ?? []),
@@ -2661,14 +2679,24 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
     [tscSL]
   );
 
+  const childrensddaSummary = useMemo(
+    () => childrensddaSL ? calcChildrensDDAService(childrensddaSL.config) : { totalAnnualRev: 0, totalAnnualLabor: 0, providerCount: 0, totalCaseload: 0 },
+    [childrensddaSL]
+  );
+
+  const cseSummary = useMemo(
+    () => cseSL ? calcCSEService(cseSL.config) : { totalAnnualRev: 0, totalAnnualLabor: 0, specialistCount: 0, totalCaseload: 0 },
+    [cseSL]
+  );
+
   const co = useMemo(() => {
     const totalHomes   = indHomes.length;
     const totalClients = indHomes.reduce((a, h) => a + (h.nHigh || 0) + (h.nIntense || 0), 0);
     const dailyRev     = indHomeMetrics.reduce((a, h) => a + h.metrics.rev, 0);
     const dailyLabor   = indHomeMetrics.reduce((a, h) => a + h.metrics.labor, 0);
-    const annualRevGross    = dailyRev * 365 + hourlyTotals.annualRev + tscSummary.totalAnnualRev;
+    const annualRevGross    = dailyRev * 365 + hourlyTotals.annualRev + tscSummary.totalAnnualRev + childrensddaSummary.totalAnnualRev + cseSummary.totalAnnualRev;
     const annualRevNet      = annualRevGross * (occupancy / 100);
-    const annualDirectLabor = (dailyLabor * 365 + hourlyTotals.annualLabor + tscSummary.totalAnnualLabor) * (occupancy / 100);
+    const annualDirectLabor = (dailyLabor * 365 + hourlyTotals.annualLabor + tscSummary.totalAnnualLabor + childrensddaSummary.totalAnnualLabor + cseSummary.totalAnnualLabor) * (occupancy / 100);
     const payrollBurden     = annualDirectLabor * 0.22;
     const totalLabor        = annualDirectLabor + payrollBurden;
     const mgmtTotal         = mgmt.reduce((a, m) => a + (m.salary || 0), 0) * 1.22;
@@ -2708,7 +2736,7 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
       ebitda, ebitdaMargin, stateTax, federalTax, totalTax, netIncome, netMargin,
       slBreakdown,
     };
-  }, [indHomeMetrics, indHomes, occupancy, mgmt, overhead, entityType, ownerRate, rates, mgmtFeePct, billingFeePct, hourlyTotals, tscSummary]);
+  }, [indHomeMetrics, indHomes, occupancy, mgmt, overhead, entityType, ownerRate, rates, mgmtFeePct, billingFeePct, hourlyTotals, tscSummary, childrensddaSummary, cseSummary]);
 
   // Hourly handlers
   const updateHourly = (id, f, v) => setHourlyPx(p => p.map(h => h.id === id ? { ...h, [f]: v } : h));
@@ -3009,6 +3037,40 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
               )}
               {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_productivity" &&
                 <TSCProductivityTab config={activeSL.config}/>}
+              {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_pl" &&
+                <TSCPLTab config={activeSL.config}/>}
+              {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_staffing" && (
+                <TSCStaffingTab config={activeSL.config}
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}/>
+              )}
+              {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_scenario" && (
+                <TSCScenarioTab config={activeSL.config}
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}/>
+              )}
+
+              {/* CHILDRENS_DDA tabs */}
+              {activeSLType === SERVICE_LINE_TYPES.CHILDRENS_DDA && activeSL && subTab === "chdda_roster" && (
+                <ChildrensDDARosterTab config={activeSL.config}
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}/>
+              )}
+              {activeSLType === SERVICE_LINE_TYPES.CHILDRENS_DDA && activeSL && subTab === "chdda_productivity" &&
+                <ChildrensDDAProductivityTab config={activeSL.config}/>}
+              {activeSLType === SERVICE_LINE_TYPES.CHILDRENS_DDA && activeSL && subTab === "chdda_pl" &&
+                <ChildrensDDAPLTab config={activeSL.config}/>}
+              {activeSLType === SERVICE_LINE_TYPES.CHILDRENS_DDA && activeSL && subTab === "chdda_rates" && (
+                <ChildrensDDARateScheduleTab config={activeSL.config}
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}/>
+              )}
+
+              {/* VOC_SERVICES / CSE tabs */}
+              {activeSLType === SERVICE_LINE_TYPES.VOC_SERVICES && activeSL && subTab === "cse_roster" && (
+                <CSERosterTab config={activeSL.config}
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}/>
+              )}
+              {activeSLType === SERVICE_LINE_TYPES.VOC_SERVICES && activeSL && subTab === "cse_productivity" &&
+                <CSEProductivityTab config={activeSL.config}/>}
+              {activeSLType === SERVICE_LINE_TYPES.VOC_SERVICES && activeSL && subTab === "cse_pl" &&
+                <CSEPLTab config={activeSL.config}/>}
               {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_pl" && canSeeCompanyDollars(userRole) && (() => {
                 const revShare = co.annualRevGross > 0 ? tscSummary.totalAnnualRev / co.annualRevGross : 1;
                 const slCo = calcSLCo({ annualRevGrossRaw:tscSummary.totalAnnualRev,
