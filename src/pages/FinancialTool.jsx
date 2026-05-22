@@ -1016,7 +1016,7 @@ function HomeMixEditor({ homes, onUpdate, onAdd, onRemove, wage, setWage, rates 
                   readOnly={!canEdit}
                   style={{ background:"none", border:"none", color:"#5a3800", fontWeight:800, fontSize:15, fontFamily:"'Sora',sans-serif", padding:0, width:200, outline:"none", cursor: canEdit ? undefined : "default" }}/>
                 <div style={{ fontSize:10, color:"#9a8050", ...M, marginTop:2 }}>
-                  {m.laborHrs}hr labor{showDollars ? ` · ${$d(m.rev)} rev` : ""}{showWageCost ? ` · ${$d(m.labor)} labor cost/day` : ""}
+                  {m.laborHrs}hr labor{showDollars ? ` · ${$d(m.rev)} rev` : ""}{showDollars ? ` · ${$d(m.labor)} labor cost/day` : ""}
                 </div>
               </div>
             </div>
