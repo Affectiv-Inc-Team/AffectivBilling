@@ -133,12 +133,12 @@ export function calcTSCParticipant(p) {
   const rateCrisis = p.isParapro ? TSC_RATES.CRISIS_PARAPRO : TSC_RATES.CRISIS;
   const ratePlan   = TSC_RATES.PLAN_DEV;
 
-  // unitsPlanDev is stored as annual units; divide by 12 for monthly revenue/hours
+  // G9007 is authorized annually (max 48 units/yr); divide by 12 for monthly contribution
   const monthlyRev = (p.unitsCoord    ?? 0) * rateCoord
                    + (p.unitsPlanDev  ?? 0) / 12 * ratePlan
                    + (p.unitsCrisis   ?? 0) * rateCrisis;
 
-  // 1 unit = 15 min, so 4 units = 1 hour
+  // 1 unit = 15 min, so 4 units = 1 hour; G9007 prorated monthly
   const monthlyHours = ((p.unitsCoord ?? 0) + (p.unitsPlanDev ?? 0) / 12 + (p.unitsCrisis ?? 0)) / 4;
 
   return {
@@ -378,7 +378,7 @@ function ParticipantRow({ p, onUpdate, onRemove }) {
       </div>
       <div>
         <div style={labelStyle}>G9007 u/yr</div>
-        <input type="number" min={0} max={96} value={p.unitsPlanDev ?? 0}
+        <input type="number" min={0} max={48} value={p.unitsPlanDev ?? 0}
           onChange={e => onUpdate(p.id, "unitsPlanDev", +e.target.value)}
           style={numInput}/>
       </div>
@@ -402,7 +402,7 @@ function ParticipantRow({ p, onUpdate, onRemove }) {
 // ──────────────────────────────────────────────────────────────────────
 // Coordinator card (shows roster, expandable participant list)
 // ──────────────────────────────────────────────────────────────────────
-function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant, payrollBurdenPct, userRole }) {
+function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant, payrollBurdenPct, userRole, hideParticipants = false }) {
   const [expanded, setExpanded] = useState(true);
   const m = calcTSCCoordinator(coord, payrollBurdenPct);
 
@@ -418,10 +418,12 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
   return (
     <div style={card}>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-        <button onClick={() => setExpanded(e => !e)} style={{
-          border:"none", background:"transparent", cursor:"pointer",
-          fontSize:14, color:"#5a3800", width:20,
-        }}>{expanded ? "▼" : "▶"}</button>
+        {!hideParticipants && (
+          <button onClick={() => setExpanded(e => !e)} style={{
+            border:"none", background:"transparent", cursor:"pointer",
+            fontSize:14, color:"#5a3800", width:20,
+          }}>{expanded ? "▼" : "▶"}</button>
+        )}
 
         <input type="text" value={coord.name}
           onChange={e => onUpdate(coord.id, "name", e.target.value)}
@@ -470,7 +472,7 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
         }}>Remove coordinator</button>
       </div>
 
-      <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom: expanded ? 12 : 0 }}>
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom: (!hideParticipants && expanded) ? 12 : 0 }}>
         <Stat label="Caseload"        value={m.caseloadSize} />
         {canSeeCompanyDollars(userRole) && <Stat label="Annual Rev"   value={$k(m.annualRev)} color="#D4A520"/>}
         {canSeeCompanyDollars(userRole) && <Stat label="Annual Labor" value={$k(m.annualLabor)} />}
@@ -480,7 +482,7 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
         <Stat label="Billable share"  value={pct(m.billableShare)} />
       </div>
 
-      {expanded && (
+      {!hideParticipants && expanded && (
         <div>
           <div style={{ display:"grid",
             gridTemplateColumns:"1.4fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
@@ -604,6 +606,281 @@ export function TSCRosterTab({ config, onUpdate, userRole }) {
         background:"#D4A520", border:"none", borderRadius:6,
         color:"#5a3800", cursor:"pointer", fontSize:12, fontWeight:700, ...M,
       }}>+ Add coordinator</button>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Participant row for flat (cross-coordinator) view
+// ──────────────────────────────────────────────────────────────────────
+function ParticipantFlatRow({ p, coordId, coordinators, onUpdate, onReassign, onRemove }) {
+  const m = calcTSCParticipant(p);
+  return (
+    <div style={{
+      display:"grid",
+      gridTemplateColumns:"1.4fr 1.2fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
+      gap:8, alignItems:"center", padding:"6px 8px",
+      borderRadius:6, background:"#f7f9fc", border:"1px solid #e2e8f0",
+    }}>
+      <input
+        type="text" value={p.name}
+        onChange={e => onUpdate(coordId, p.id, "name", e.target.value)}
+        style={textInput}
+      />
+      <select value={coordId}
+        onChange={e => onReassign(coordId, p.id, e.target.value)}
+        style={{ ...textInput, fontSize:11, padding:"3px 6px" }}>
+        {coordinators.map(c => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </select>
+      <div>
+        <div style={labelStyle}>G9002</div>
+        <input type="number" min={0} max={200} value={p.unitsCoord ?? 0}
+          onChange={e => onUpdate(coordId, p.id, "unitsCoord", +e.target.value)}
+          style={numInput}/>
+      </div>
+      <div>
+        <div style={labelStyle}>G9007 u/yr</div>
+        <input type="number" min={0} max={48} value={p.unitsPlanDev ?? 0}
+          onChange={e => onUpdate(coordId, p.id, "unitsPlanDev", +e.target.value)}
+          style={numInput}/>
+      </div>
+      <label style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, color:"#64748b", ...M }}>
+        <input type="checkbox" checked={!!p.isParapro}
+          onChange={e => onUpdate(coordId, p.id, "isParapro", e.target.checked)}/>
+        HM
+      </label>
+      <div style={{ textAlign:"right" }}>
+        <div style={{ fontSize:13, fontWeight:700, color:"#5a3800", ...M }}>{$k(m.monthlyRev)}/mo</div>
+        <div style={{ fontSize:9, color:"#64748b", ...M }}>{m.monthlyHours.toFixed(1)} hr/mo</div>
+      </div>
+      <button onClick={() => onRemove(coordId, p.id)} style={{
+        border:"none", background:"transparent", cursor:"pointer",
+        color:"#cf6e6e", fontSize:14, padding:4,
+      }}>✕</button>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Coordinators tab — manage coordinators and their participants
+// ──────────────────────────────────────────────────────────────────────
+export function TSCCoordinatorsTab({ config, onUpdate, userRole }) {
+  const summary = calcTSCService(config);
+
+  const updateCoord = (coordId, field, value) =>
+    onUpdate({
+      ...config,
+      coordinators: config.coordinators.map(c => c.id === coordId ? { ...c, [field]: value } : c),
+    });
+  const removeCoord = (coordId) =>
+    onUpdate({
+      ...config,
+      coordinators: config.coordinators.filter(c => c.id !== coordId),
+    });
+  const addCoord = () => onUpdate({
+    ...config,
+    coordinators: [
+      ...config.coordinators,
+      mkCoordinator(`Coordinator ${config.coordinators.length + 1}`, config.defaultHourlyWage),
+    ],
+  });
+  const addParticipant = (coordId) => onUpdate({
+    ...config,
+    coordinators: config.coordinators.map(c =>
+      c.id === coordId
+        ? { ...c, participants: [...c.participants, mkParticipant(`Participant ${c.participants.length + 1}`, config.defaultUnitsPerParticipant)] }
+        : c
+    ),
+  });
+  const updateParticipant = (coordId, pId, field, value) => onUpdate({
+    ...config,
+    coordinators: config.coordinators.map(c =>
+      c.id === coordId
+        ? { ...c, participants: c.participants.map(p => p.id === pId ? { ...p, [field]: value } : p) }
+        : c
+    ),
+  });
+  const removeParticipant = (coordId, pId) => onUpdate({
+    ...config,
+    coordinators: config.coordinators.map(c =>
+      c.id === coordId
+        ? { ...c, participants: c.participants.filter(p => p.id !== pId) }
+        : c
+    ),
+  });
+
+  return (
+    <div>
+      <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:16, alignItems:"center" }}>
+        <Stat label="Coordinators"   value={summary.coordinatorCount} />
+        <Stat label="Total caseload" value={summary.totalCaseload} />
+        {canSeeCompanyDollars(userRole) && <Stat label="Annual Rev"   value={$k(summary.totalAnnualRev)} color="#D4A520"/>}
+        {canSeeCompanyDollars(userRole) && <Stat label="Annual Labor" value={$k(summary.totalAnnualLabor)} />}
+        {canSeeCompanyDollars(userRole) && <Stat label="Gross"        value={$k(summary.totalGross)} color={summary.totalMargin > 0.3 ? "#22c55e" : "#cf6e6e"}/>}
+        <Stat label="Margin" value={pct(summary.totalMargin)} color={summary.totalMargin > 0.3 ? "#22c55e" : "#cf6e6e"}/>
+        <div style={{ marginLeft:"auto", display:"flex", gap:8, alignItems:"center" }}>
+          <span style={labelStyle}>Burden %</span>
+          <input type="number" min={0} max={50} step={0.5} value={config.payrollBurdenPct ?? 22}
+            onChange={e => onUpdate({ ...config, payrollBurdenPct: +e.target.value })}
+            style={numInput}/>
+        </div>
+      </div>
+
+      <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        {config.coordinators.length === 0 && (
+          <div style={{ ...card, textAlign:"center", padding:40, color:"#64748b" }}>
+            <div style={{ fontSize:13, marginBottom:8 }}>No coordinators yet.</div>
+            <div style={{ fontSize:11, color:"#94a3b8" }}>Add a coordinator to start building your TSC caseload model.</div>
+          </div>
+        )}
+        {config.coordinators.map(coord =>
+          <CoordinatorCard key={coord.id} coord={coord}
+            payrollBurdenPct={config.payrollBurdenPct}
+            onUpdate={updateCoord}
+            onRemove={removeCoord}
+            onAddParticipant={addParticipant}
+            onUpdateParticipant={updateParticipant}
+            onRemoveParticipant={removeParticipant}
+            userRole={userRole}/>
+        )}
+      </div>
+
+      <button onClick={addCoord} style={{
+        marginTop:16, padding:"8px 18px",
+        background:"#D4A520", border:"none", borderRadius:6,
+        color:"#5a3800", cursor:"pointer", fontSize:12, fontWeight:700, ...M,
+      }}>+ Add coordinator</button>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Participants tab — flat cross-coordinator participant list
+// ──────────────────────────────────────────────────────────────────────
+export function TSCParticipantsTab({ config, onUpdate }) {
+  const allParticipants = (config.coordinators ?? []).flatMap(c =>
+    (c.participants ?? []).map(p => ({ ...p, coordId: c.id, coordName: c.name }))
+  );
+  const totalUnitsCoord   = allParticipants.reduce((a, p) => a + (p.unitsCoord   ?? 0), 0);
+  const totalUnitsPlanDev = allParticipants.reduce((a, p) => a + (p.unitsPlanDev ?? 0), 0);
+
+  const noCoords = (config.coordinators ?? []).length === 0;
+
+  const updateParticipant = (coordId, pId, field, value) => onUpdate({
+    ...config,
+    coordinators: config.coordinators.map(c =>
+      c.id === coordId
+        ? { ...c, participants: c.participants.map(p => p.id === pId ? { ...p, [field]: value } : p) }
+        : c
+    ),
+  });
+
+  const removeParticipant = (coordId, pId) => onUpdate({
+    ...config,
+    coordinators: config.coordinators.map(c =>
+      c.id === coordId
+        ? { ...c, participants: c.participants.filter(p => p.id !== pId) }
+        : c
+    ),
+  });
+
+  const reassignParticipant = (oldCoordId, pId, newCoordId) => {
+    if (oldCoordId === newCoordId) return;
+    const participant = (config.coordinators.find(c => c.id === oldCoordId)?.participants ?? []).find(p => p.id === pId);
+    if (!participant) return;
+    onUpdate({
+      ...config,
+      coordinators: config.coordinators.map(c => {
+        if (c.id === oldCoordId) return { ...c, participants: c.participants.filter(p => p.id !== pId) };
+        if (c.id === newCoordId) return { ...c, participants: [...c.participants, participant] };
+        return c;
+      }),
+    });
+  };
+
+  const addParticipant = () => {
+    const firstCoord = config.coordinators[0];
+    if (!firstCoord) return;
+    onUpdate({
+      ...config,
+      coordinators: config.coordinators.map(c =>
+        c.id === firstCoord.id
+          ? { ...c, participants: [...c.participants, mkParticipant(`Participant ${allParticipants.length + 1}`, config.defaultUnitsPerParticipant)] }
+          : c
+      ),
+    });
+  };
+
+  return (
+    <div>
+      <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:16 }}>
+        <Stat label="Total participants" value={allParticipants.length} />
+        <Stat label="G9002 units/mo"     value={totalUnitsCoord} />
+        <Stat label="G9007 units/yr"     value={totalUnitsPlanDev} />
+      </div>
+
+      {noCoords && (
+        <div style={{ ...card, textAlign:"center", padding:40, color:"#64748b", marginBottom:12 }}>
+          <div style={{ fontSize:13, marginBottom:8 }}>No coordinators found.</div>
+          <div style={{ fontSize:11, color:"#94a3b8" }}>Add a coordinator in the Coordinators tab before adding participants.</div>
+        </div>
+      )}
+
+      {!noCoords && allParticipants.length === 0 && (
+        <div style={{ ...card, textAlign:"center", padding:40, color:"#64748b", marginBottom:12 }}>
+          <div style={{ fontSize:13, marginBottom:8 }}>No participants yet.</div>
+          <div style={{ fontSize:11, color:"#94a3b8" }}>Add participants and assign them to coordinators.</div>
+        </div>
+      )}
+
+      {allParticipants.length > 0 && (
+        <div style={{ ...card, padding:0, overflow:"hidden", marginBottom:12 }}>
+          <div style={{
+            display:"grid",
+            gridTemplateColumns:"1.4fr 1.2fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
+            gap:8, padding:"8px 12px",
+            background:"#eef1f6", borderBottom:"1px solid #d0dae8",
+            ...labelStyle,
+          }}>
+            <span>Participant</span>
+            <span>Coordinator</span>
+            <span>G9002 u/mo</span>
+            <span>G9007 u/yr</span>
+            <span>Para</span>
+            <span style={{ textAlign:"right" }}>Revenue</span>
+            <span></span>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:6, padding:"8px 12px" }}>
+            {allParticipants.map(p =>
+              <ParticipantFlatRow
+                key={p.id}
+                p={p}
+                coordId={p.coordId}
+                coordinators={config.coordinators}
+                onUpdate={updateParticipant}
+                onReassign={reassignParticipant}
+                onRemove={removeParticipant}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      <button
+        onClick={addParticipant}
+        disabled={noCoords}
+        title={noCoords ? "Add a coordinator first" : ""}
+        style={{
+          marginTop:4, padding:"8px 18px",
+          background: noCoords ? "#e2e8f0" : "#D4A520",
+          border:"none", borderRadius:6,
+          color: noCoords ? "#94a3b8" : "#5a3800",
+          cursor: noCoords ? "not-allowed" : "pointer",
+          fontSize:12, fontWeight:700, ...M,
+        }}
+      >+ Add participant</button>
     </div>
   );
 }

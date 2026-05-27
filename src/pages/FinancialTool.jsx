@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { migrateConfig, getSelectedCompany, createServiceLine, createSharedConfig } from "../lib/companyShape.js";
 import { SERVICE_LINE_TYPES, SERVICE_LINE_DEFS, getShortLabel, getGroupedPickerOptions } from "../serviceLines/types.js";
 import { ratesForLine } from "../data/idahoRates.js";
-import { TSCRosterTab, TSCProductivityTab, TSCPLTab, TSCStaffingTab, TSCScenarioTab, calcTSCService } from "../serviceLines/tsc.jsx";
+import { TSCRosterTab, TSCCoordinatorsTab, TSCParticipantsTab, TSCProductivityTab, TSCPLTab, TSCStaffingTab, TSCScenarioTab, calcTSCService } from "../serviceLines/tsc.jsx";
 import { ChildrensDDARosterTab, ChildrensDDAProductivityTab, ChildrensDDAPLTab, ChildrensDDARateScheduleTab, calcChildrensDDAService } from "../serviceLines/childrens_dda.jsx";
 import { CSERosterTab, CSEProductivityTab, CSEPLTab, calcCSEService } from "../serviceLines/cse.jsx";
 import { budgetRowVisibility, canAddServiceLine, canEditServiceLines, canSeeCompanyDollars, canSeeControl, canSeeTopNumbers, editMode, wageDisplayMode, ROLE_TIERS } from "../lib/access.js";
@@ -2304,7 +2304,8 @@ const SUB_TABS = {
     { id: "hourly_pl", label: "💵 P&L" },
   ],
   TSC: [
-    { id: "tsc_roster",       label: "👥 Roster & Caseload" },
+    { id: "tsc_coordinators", label: "👤 Coordinators" },
+    { id: "tsc_participants", label: "👥 Participants" },
     { id: "tsc_productivity", label: "📈 Productivity" },
     { id: "tsc_pl",           label: "💵 P&L" },
     { id: "tsc_staffing",     label: "🏢 Staffing" },
@@ -3029,10 +3030,14 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
               })()}
 
               {/* TSC tabs */}
-              {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_roster" && (
-                <TSCRosterTab config={activeSL.config}
+              {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_coordinators" && (
+                <TSCCoordinatorsTab config={activeSL.config}
                   onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}
                   userRole={userRole}/>
+              )}
+              {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_participants" && (
+                <TSCParticipantsTab config={activeSL.config}
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}/>
               )}
               {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_productivity" &&
                 <TSCProductivityTab config={activeSL.config}/>}
