@@ -1,66 +1,71 @@
-# Prompt: Idaho Human Services Projection & Budget Tools
+# Idaho Human Services Projection Tools — Design Specification
 
-**From:** Shawn Johansson  
-**Date:** Mon 5/18/2026 1:14 PM  
-**Context:** Design requirements for a suite of financial projection and operational budgeting tools for Idaho Medicaid-related human services lines (TSC, Children’s DDA, CSE). These tools should mirror the philosophy and structure of existing Residential Habilitation (ResHab) projection models, with a strong emphasis on operational intelligence, scalability, and future web/Affectiv integration.[page:1]
+**Author:** Shawn Johansson  
+**Date:** May 18, 2026  
+**Purpose:** Design requirements for a suite of financial projection and operational budgeting tools covering Idaho Medicaid human services lines — TSC, Children's DDA, and CSE. These tools should mirror the philosophy and structure of existing Residential Habilitation (ResHab) projection models, with a strong emphasis on operational intelligence, scalability, and future Affectiv integration.
 
 ---
 
 ## Global Objectives
 
-- Build robust financial projection and operational budgeting tools for:
-  - Idaho Targeted Service Coordination (TSC)
-  - Idaho Children’s Developmental Disability Agency (DDA)
-  - Idaho Community Supported Employment (CSE)[page:1]
-- Mirror the structure and philosophy of existing ResHab models:
-  - Revenue tied directly to authorizations and realistic utilization
-  - Staffing tied to caseload and service intensity
-  - Operational scalability and margin visibility at every level[page:1]
-- Emphasize:
-  - Operational intelligence over simple accounting
-  - Scenario testing (rates, staffing, productivity)
-  - Future web app / Affectiv module / multi-state scalability[page:1]
+Build robust financial projection and operational budgeting tools for:
+
+- Idaho Targeted Service Coordination (TSC)
+- Idaho Children's Developmental Disability Agency (DDA)
+- Idaho Community Supported Employment (CSE)
+
+Mirror the structure and philosophy of existing ResHab models:
+
+- Revenue tied directly to authorizations and realistic utilization
+- Staffing tied to caseload and service intensity
+- Operational scalability and margin visibility at every level
+
+Emphasize:
+
+- Operational intelligence over simple accounting
+- Scenario testing across rates, staffing, and productivity
+- Future web app / Affectiv module / multi-state scalability
 
 ---
 
 ## Shared Core Design Requirements
 
-Across all three tools, the models should provide:[page:1]
+All three tools share a consistent structural pattern: **inputs → assumptions → rate tables → staffing/caseload matrices → P&L → dashboards → scenario toggles.** Maintaining this pattern across tools supports reuse and future integration.
 
-- **Inputs & Assumptions**
-  - Input sheets with editable assumptions
-  - Service rate tables (by code, service, or line)
-  - Staffing matrices (roles, compensation, benefits)
-  - Caseload matrices (participants, service intensity, ratios)[page:1]
+### Inputs & Assumptions
 
-- **Revenue Logic**
-  - Revenue based on:
-    - Authorized units vs realistic/actual units
-    - Utilization scenarios (ideal, realistic, conservative)
-    - Service mix and intensity
-  - Distinct tracking of:
-    - Authorized revenue
-    - Earned revenue
-    - Successfully billed revenue
-    - Collected revenue[page:1]
+- Editable input sheets with explicit, traceable assumptions
+- Service rate tables by code, service, or line
+- Staffing matrices covering roles, compensation, and benefits
+- Caseload matrices covering participants, service intensity, and ratios
 
-- **Expense Logic**
-  - Labor expenditures by role (salary and hourly modes)
-  - Benefits, PTO, and payroll tax load percentages
-  - Administrative and overhead allocations (compliance, IT, rent, software, insurance, training, etc.)[page:1]
+### Revenue Logic
 
-- **Dashboards & Outputs**
-  - Revenue dashboards (by service, role, participant, office)
-  - Operational dashboards (caseloads, productivity, utilization, documentation completion, authorization usage)
-  - Financial dashboards (EBITDA, net margin, labor %, admin %, revenue per FTE, contribution margin, cost per billable hour)[page:1]
+- Revenue calculated from authorized units vs. realistic/actual units
+- Utilization scenarios: ideal, realistic, and conservative
+- Distinct tracking of authorized revenue, earned revenue, successfully billed revenue, and collected revenue
 
-- **Scenario Modeling**
-  - Toggling for:
-    - Rate increases/reductions
-    - Caseload changes
-    - Staffing mix changes
-    - Productivity shifts
-    - Seasonal impacts where applicable[page:1]
+### Expense Logic
+
+- Labor costs by role (salary and hourly modes)
+- Benefits, PTO, and payroll tax load percentages
+- Administrative and overhead allocations (compliance, IT, rent, software, insurance, training)
+
+### Dashboards & Outputs
+
+- **Revenue dashboards:** by service, role, participant, and office
+- **Operational dashboards:** caseloads, productivity, utilization, documentation completion, authorization usage
+- **Financial dashboards:** EBITDA, net margin, labor %, admin %, revenue per FTE, contribution margin, cost per billable hour
+
+### Scenario Modeling
+
+Toggle for:
+
+- Rate increases/reductions
+- Caseload changes
+- Staffing mix changes
+- Productivity shifts
+- Seasonal impacts where applicable
 
 ---
 
@@ -68,341 +73,218 @@ Across all three tools, the models should provide:[page:1]
 
 ### Purpose
 
-Build a financial projection and operational budgeting tool for Idaho Medicaid Targeted Service Coordination (TSC) services, structurally aligned with existing ResHab models but adapted to TSC operations.[page:1]
+Build a financial projection and operational budgeting tool for Idaho Medicaid Targeted Service Coordination services, structurally aligned with existing ResHab models but adapted to TSC operations.
 
 ### Primary Goals
 
-- Forecast revenue based on:
-  - Caseloads
-  - Service mix
-  - Productivity
-  - Medicaid billing limitations[page:1]
-- Forecast labor and operational expenditures by role.[page:1]
-- Model scaling scenarios as caseloads increase or decrease.[page:1]
-- Show profitability by:
-  - Office
-  - Region
-  - Director
-  - Company[page:1]
-- Enable scenario testing for:
-  - Reimbursement changes
-  - Staffing changes
-  - Productivity assumptions[page:1]
-- Surface operational leverage points and break-even thresholds.[page:1]
+- Forecast revenue based on caseloads, service mix, productivity, and Medicaid billing limitations
+- Forecast labor and operational expenditures by role
+- Model scaling scenarios as caseloads grow or contract
+- Show profitability at the office, region, director, and company levels
+- Enable scenario testing for reimbursement changes, staffing changes, and productivity assumptions
+- Surface operational leverage points and break-even thresholds
 
-### Design Philosophy (TSC)
+### Design Philosophy
 
-- Revenue tied directly to service authorizations and realistic utilization.
-- Caseloads are the core operational driver.
-- Staffing scales according to caseload thresholds.
-- Labor and overhead ratios stay visible at all times.
-- Productivity assumptions are editable, with at least three scenarios:
-  - Ideal utilization
-  - Realistic utilization
-  - Conservative utilization[page:1]
+- Revenue tied directly to service authorizations and realistic utilization
+- Caseloads are the core operational driver
+- Staffing scales automatically according to caseload thresholds
+- Labor and overhead ratios remain visible at all times
+- Productivity assumptions are editable with three scenarios: ideal, realistic, and conservative
 
-### Revenue Drivers (TSC)
+### Revenue Drivers
 
-Revenue should scale based on:[page:1]
+Revenue scales based on:
 
-- Number of participants  
-- Service eligibility  
-- Average billable units  
-- Case manager productivity  
-- Documentation completion rates  
-- Missed billing assumptions[page:1]
+- Number of participants
+- Service eligibility
+- Average billable units
+- Case manager productivity
+- Documentation completion rates
+- Missed billing assumptions
 
-### Expense Drivers (TSC)
+### Expense Drivers
 
-Expenses should scale based on:[page:1]
+Expenses scale based on:
 
-- Staffing structure  
-- Supervisory layers  
-- Administrative burden  
-- Compliance requirements  
-- Regional office overhead[page:1]
+- Staffing structure and supervisory layers
+- Administrative and compliance burden
+- Regional office overhead
 
-### Services to Include (TSC)
+### Services to Include
 
-1. **Targeted Service Coordination**  
-   - Likely primary code: `T2023` (or Idaho-specific equivalent)[page:1]
-   - Editable fields:
-     - Monthly unit caps
-     - Annual authorization assumptions
-     - Average completed contacts
-     - Average travel burden
-     - Rural vs urban productivity[page:1]
+**1. Targeted Service Coordination**
 
-2. **Plan Development**
-   - Include:
-     - Annual person-centered plan development
-     - Initial vs annual renewals
-     - Average hours required
-     - Completion ratios[page:1]
-   - Known limitation:
-     - Historically capped around ~12 hours annually per participant (make this configurable).[page:1]
+- Primary code: `G9002` (15-min unit)
+- Editable fields: monthly unit caps, annual authorization assumptions, average completed contacts, average travel burden, rural vs. urban productivity
 
-3. **Quarterly Monitoring / Contact Requirements**
-   - Operational assumptions for:
-     - Face-to-face monitoring
-     - Phone monitoring
-     - Annual reassessments
-     - Documentation requirements[page:1]
-   - Configurable:
-     - Average completion rates
-     - Non-billable coordination time
-     - Travel time burden[page:1]
+**2. Plan Development**
+
+- Primary code: `G9007` (15-min unit; 48-unit annual ceiling — configurable)
+- Include initial plan development and annual renewals
+- Configurable: average hours required, completion ratios
+
+**3. Quarterly Monitoring / Contact Requirements**
+
+- Operational assumptions for face-to-face monitoring, phone monitoring, annual reassessments, and documentation requirements
+- Configurable: average completion rates, non-billable coordination time, travel time burden
 
 ### Idaho TSC Considerations
 
-- **Caseload Ratios (examples to compare)**
-  - 25 participants
-  - 35 participants
-  - 45 participants
-  - 60 participants[page:1]
+| Caseload Ratio   | Strategy Label   |
+|------------------|------------------|
+| 25 participants  | High-touch       |
+| 35 participants  | Standard         |
+| 45 participants  | Lean efficiency  |
+| 60 participants  | Stretch target   |
 
-- **Caseload Strategy Labels**
-  - High-touch
-  - Standard
-  - Lean efficiency[page:1]
+**Productivity assumptions to model:**
 
-- **Productivity Assumptions**
-  - Billable hours per day
-  - Documentation completion lag
-  - No-show percentages
-  - Travel time loss
-  - Rework from QA corrections[page:1]
+- Billable hours per day
+- Documentation completion lag
+- No-show percentages
+- Travel time loss
+- Rework from QA corrections
 
-### Staffing Structure (TSC)
+### Staffing Structure
 
 **Direct Service Roles**
 
-- TSC / Service Coordinator  
-- Lead TSC  
-- Clinical Supervisor  
-- QA Reviewer[page:1]
+- TSC / Service Coordinator
+- Lead TSC
+- Clinical Supervisor
+- QA Reviewer
 
 **Administrative Roles**
 
-- Scheduler  
-- Intake Coordinator  
-- Billing Specialist  
-- Payroll / HR allocation  
-- Director  
-- Executive oversight[page:1]
+- Scheduler
+- Intake Coordinator
+- Billing Specialist
+- Payroll / HR allocation
+- Director
+- Executive oversight
 
 **Shared Services**
 
-- Intrinsic compliance support  
-- Affectiv software allocation  
-- Accounting / bookkeeping  
-- IT  
-- Office rent  
-- Insurance  
-- Training[page:1]
+- Intrinsic compliance support
+- Affectiv software allocation
+- Accounting / bookkeeping, IT, office rent, insurance, training
 
-**Compensation Modes Needed**
+**Compensation Modes**
 
-- Salary mode  
-- Hourly mode  
-- Benefits load %  
-- PTO burden %  
-- Payroll tax burden %[page:1]
+- Salary and hourly modes
+- Benefits load %, PTO burden %, payroll tax burden %
 
 ### TSC Outputs
 
-- **Revenue**
-  - Monthly recurring revenue
-  - Revenue by service type
-  - Revenue by coordinator
-  - Revenue per participant
-  - Revenue by office[page:1]
-
-- **Operations**
-  - Caseload per coordinator
-  - Productivity ratios
-  - Documentation completion %
-  - Utilization %
-  - Authorization usage %[page:1]
-
-- **Financial**
-  - EBITDA
-  - Net margin
-  - Labor %
-  - Administrative %
-  - Revenue per FTE
-  - Contribution margin by coordinator[page:1]
-
-### TSC Model Structure
-
-- Input sheets
-- Editable assumptions
-- Service rate tables
-- Staffing matrix
-- Caseload matrix
-- P&L outputs
-- Dashboard outputs
-- Scenario toggles[page:1]
+| Category    | Metrics                                                                                                   |
+|-------------|-----------------------------------------------------------------------------------------------------------|
+| Revenue     | Monthly recurring revenue; by service type, coordinator, participant, and office                          |
+| Operations  | Caseload per coordinator; productivity ratios; documentation completion %; utilization %; authorization usage % |
+| Financial   | EBITDA; net margin; labor %; administrative %; revenue per FTE; contribution margin per coordinator       |
 
 ---
 
-## Tool 2: Idaho Children’s Developmental Disability Agency (DDA)
+## Tool 2: Idaho Children's Developmental Disability Agency (DDA)
 
 ### Purpose
 
-Build a comprehensive financial and operational budgeting tool for Idaho Children’s DDA services, aligned with ResHab and TSC philosophies.[page:1]
+Build a comprehensive financial and operational budgeting tool for Idaho Children's DDA services, aligned with ResHab and TSC philosophies.
 
-### Core Philosophy (DDA)
+### Core Philosophy
 
-- Revenue tied to authorizations and utilization.
-- Staffing tied to caseload and service intensity.
-- Operational scalability is explicitly visible.
-- Financial forecasting by role and service line.
-- High visibility into labor burden and compliance overhead.[page:1]
+- Revenue tied to authorizations and realistic utilization
+- Staffing tied to caseload and service intensity
+- Operational scalability explicitly visible at each stage
+- Financial forecasting by role and service line
+- High visibility into labor burden and compliance overhead
 
-### Leadership Questions to Answer
+### Leadership Questions the Tool Must Answer
 
-- Which staffing structures are sustainable?
-- Which services are profitable vs loss leaders?
+- Which staffing structures are financially sustainable?
+- Which services are profitable vs. loss leaders?
 - How does scaling affect margin?
 - What is the impact of Medicaid rate changes?
-- What are clinical productivity thresholds?[page:1]
+- What are the thresholds for clinical productivity?
 
-### Core Services & Structures (DDA)
+### Core Services & Structures
 
 **Behavioral Intervention (BI)**
 
-- Include:
-  - Individual BI
-  - Group BI
-  - BI supervision
-  - BI consultation[page:1]
-- Configurable:
-  - 15-minute billing structures
-  - Session utilization
-  - Cancellation assumptions
-  - Parent training ratios
-  - School-based sessions
-  - Community-based sessions[page:1]
+- Individual BI, group BI, BI supervision, and BI consultation
+- Configurable: 15-minute billing units, session utilization, cancellation assumptions, parent training ratios, school-based and community-based sessions
 
 **Developmental Therapy (DT)**
 
-- Include:
-  - Individual DT
-  - Group DT
-  - Supervision structures[page:1]
-- Need:
-  - Productivity assumptions
-  - Therapist caseload assumptions
-  - Session cancellation rates[page:1]
+- Individual DT, group DT, and supervision structures
+- Configurable: productivity assumptions, therapist caseloads, session cancellation rates
 
 **Family Education / Training**
 
-- Need:
-  - Parent training units
-  - Group training
-  - Travel assumptions
-  - Non-billable prep time[page:1]
+- Parent training units, group training
+- Configurable: travel assumptions, non-billable prep time
 
-**Interdisciplinary Training / Supervision**
+**Interdisciplinary Supervision**
 
-- Include:
-  - Clinical supervision time
-  - BCBA/QIDP oversight
-  - Documentation review
-  - Program oversight[page:1]
+- Clinical supervision time, BCBA/QIDP oversight, documentation review, program oversight
 
-### Time & Effort Accounting (DDA)
+### Time & Effort Accounting
 
-Model and differentiate:[page:1]
+Model and distinguish:
 
-- Direct billable time  
-- Drive time  
-- Documentation time  
-- Parent coordination time  
-- School coordination time  
-- Team meetings  
-- Non-billable utilization loss[page:1]
+- Direct billable time
+- Drive time
+- Documentation time
+- Parent coordination time
+- School coordination time
+- Team meetings
+- Non-billable utilization loss
 
-### Staffing Structure (DDA)
+### Staffing Structure
 
-**Clinical Roles**
+**Clinical Roles:** Behavioral Intervention Professional, DT Provider, Clinical Supervisor, BCBA, QIDP, Program Manager
 
-- Behavioral Intervention Professional  
-- DT Provider  
-- Clinical Supervisor  
-- BCBA  
-- QIDP  
-- Program Manager[page:1]
+**Administrative Roles:** Intake Coordinator, Scheduler, Billing Specialist, QA Reviewer, Director, HR/Payroll allocation
 
-**Administrative Roles**
+**Shared Infrastructure:** Intrinsic compliance support, Affectiv allocation, insurance, office rent, training costs, mileage reimbursement
 
-- Intake Coordinator  
-- Scheduler  
-- Billing Specialist  
-- QA Reviewer  
-- Director  
-- HR/Payroll allocation[page:1]
+### Productivity Modeling
 
-**Shared Infrastructure**
+Editable assumptions for:
 
-- Intrinsic compliance support  
-- Affectiv allocation  
-- Insurance  
-- Office rent  
-- Training costs  
-- Mileage reimbursement[page:1]
+- Billable hours/day and billable % of payroll hours
+- Cancellation/no-show rates
+- Documentation completion lag
+- School calendar fluctuations and summer utilization changes
 
-### Productivity Modeling (DDA)
+Scenario comparisons: ideal productivity, realistic productivity, burnout-risk productivity.
 
-Editable assumptions for:[page:1]
+### Financial Outputs
 
-- Billable hours/day  
-- Billable % of payroll hours  
-- Cancellation/no-show rates  
-- Documentation completion lag  
-- School calendar fluctuations  
-- Summer utilization changes[page:1]
+- Revenue per clinician and per participant
+- Margin per service line
+- Labor ratios and clinical supervision burden
+- Cost per billable hour
+- EBITDA and break-even caseloads
 
-Scenario comparisons between:[page:1]
+### Children's DDA Nuances
 
-- Ideal productivity  
-- Realistic productivity  
-- Burnout-risk productivity[page:1]
+The tool must reflect that:
 
-### Financial Outputs (DDA)
+- Services are heavily labor dependent
+- High drive time directly compresses margin
+- Supervision requirements add significant indirect labor burden
+- School calendars materially impact annual revenue
+- Parent cancellations structurally reduce utilization
 
-- Revenue per clinician  
-- Revenue per participant  
-- Margin per service line  
-- Labor ratios  
-- Clinical supervision burden  
-- Cost per billable hour  
-- EBITDA  
-- Break-even caseloads[page:1]
-
-### Children’s DDA Nuances
-
-The tool should reflect that:[page:1]
-
-- Services are heavily labor dependent.  
-- High drive time reduces margin.  
-- Supervision requirements add indirect labor burden.  
-- School calendars materially impact revenue.  
-- Parent cancellations affect utilization.[page:1]
-
-Include seasonality modeling for:[page:1]
-
-- Summer spikes  
-- School-year reductions  
-- Holiday utilization changes[page:1]
+Include seasonality modeling for summer spikes, school-year reductions, and holiday utilization changes.
 
 ### Long-Term DDA Goals
 
-- Multi-agency rollup reporting  
-- Affectiv integration  
-- Real-time productivity analytics  
-- AI-assisted staffing optimization[page:1]
+- Multi-agency rollup reporting
+- Affectiv integration
+- Real-time productivity analytics
+- AI-assisted staffing optimization
 
 ---
 
@@ -410,153 +292,89 @@ Include seasonality modeling for:[page:1]
 
 ### Purpose
 
-Build an operational and financial projection tool for Idaho Community Supported Employment (CSE) services, aligned with ResHab model sophistication.[page:1]
+Build an operational and financial projection tool for Idaho Community Supported Employment services, aligned with ResHab model sophistication.
 
-### Core Philosophy (CSE)
+### Core Philosophy
 
-- Revenue driven by participant utilization.
-- Staffing driven by caseload and intensity.
-- Financial scaling visible at every stage.
-- Role-based budgeting.
-- Operational KPI visibility.[page:1]
+- Revenue driven by participant utilization
+- Staffing driven by caseload and intensity
+- Financial scaling visible at every stage
+- Role-based budgeting with clear operational KPI visibility
 
-### Strategic Questions
+### Strategic Questions to Model
 
-Model:[page:1]
+- Sustainable employment service delivery structures
+- Coach productivity thresholds
+- Placement success and retention impacts
+- Labor efficiency and scaling strategies
 
-- Sustainable employment service delivery  
-- Coach productivity  
-- Placement success  
-- Retention impacts  
-- Labor efficiency  
-- Scaling strategies[page:1]
-
-### Services & Rate Structures (CSE)
+### Services & Rate Structures
 
 **Job Coaching / Supported Employment**
 
-- Common code: `H2023` Supported Employment (or Idaho-specific equivalent).[page:1]
-- Need:
-  - Individual support modeling
-  - Group support modeling
-  - Community support time
-  - Employer coordination time[page:1]
+- Primary code: `H2023` Supported Employment (or Idaho-specific equivalent)
+- Model: individual support, group support, community support time, and employer coordination time
 
 **Job Development**
 
-- Include:
-  - Intake/job discovery
-  - Employer outreach
-  - Resume/interview support
-  - Placement activities[page:1]
-- Assumptions:
-  - Non-billable prep
-  - Travel
-  - Outreach conversion rates[page:1]
+- Include: intake/job discovery, employer outreach, resume and interview support, placement activities
+- Configurable: non-billable prep time, travel, outreach conversion rates
 
 **Stabilization / Retention Services**
 
-- Need:
-  - Follow-along supports
-  - Reduced support phases
-  - Long-term retention modeling[page:1]
+- Follow-along supports, reduced support phases, long-term retention modeling
 
-### Key Operational Variables (CSE)
+### Key Operational Variables
 
-Editable assumptions for:[page:1]
+Editable assumptions for:
 
-- Average participant hours/week  
-- Average coaching intensity  
-- Rural travel burden  
-- Employer density  
-- Transportation challenges  
-- Seasonal employment variation[page:1]
+- Average participant hours/week and coaching intensity
+- Rural travel burden and employer density
+- Transportation challenges and seasonal employment variation
 
-### Staffing Model (CSE)
+### Staffing Structure
 
-**Direct Roles**
+**Direct Roles:** Employment Specialist, Job Coach, Senior Job Coach, Employment Supervisor
 
-- Employment Specialist  
-- Job Coach  
-- Senior Job Coach  
-- Employment Supervisor[page:1]
+**Administrative Roles:** Intake Coordinator, Billing, QA, Director, Recruiting Coordinator
 
-**Administrative Roles**
+**Shared Services:** Intrinsic support allocation, Affectiv software allocation, insurance, mileage, office overhead, recruiting/training costs
 
-- Intake Coordinator  
-- Billing  
-- QA  
-- Director  
-- Recruiting Coordinator[page:1]
+### Productivity Modeling
 
-**Shared Services**
+Configurable assumptions for:
 
-- Intrinsic support allocation  
-- Affectiv software allocation  
-- Insurance  
-- Mileage  
-- Office overhead  
-- Recruiting/training costs[page:1]
+- Billable hours/day, drive time %, documentation time
+- Employer outreach conversion rates, placement success rates, retention percentages
+- Staff turnover impact
 
-### Productivity Modeling (CSE)
+Scenario comparisons: rural office, urban office, high-intensity participant mix, independent participant mix.
 
-Configurable assumptions for:[page:1]
+### Financial Outputs
 
-- Billable hours/day  
-- Drive time %  
-- Documentation time  
-- Employer outreach conversion rates  
-- Placement success rates  
-- Retention percentages  
-- Staff turnover impact[page:1]
+- Revenue per job coach and per participant
+- Margin by office
+- Labor ratios, placement conversion rates, retention outcomes
+- EBITDA and cost per successful placement
 
-Scenario comparisons for:[page:1]
+### Scaling Logic
 
-- Rural office  
-- Urban office  
-- High-intensity participant mix  
-- Independent participant mix[page:1]
+The model should automatically flag when new hires are required based on caseload thresholds, geographic spread, participant intensity, and documentation burden — and when supervisors, QA staff, or dedicated intake staff become necessary.
 
-### Financial Outputs (CSE)
+### Long-Term CSE Vision
 
-Dashboards for:[page:1]
+Design as the foundation for:
 
-- Revenue per job coach  
-- Revenue per participant  
-- Margin by office  
-- Labor ratios  
-- Placement conversion rates  
-- Retention outcomes  
-- EBITDA  
-- Cost per successful placement[page:1]
-
-### Scaling Logic (CSE)
-
-The model should automatically indicate when new hires are required based on:[page:1]
-
-- Caseload thresholds  
-- Geographic spread  
-- Participant intensity  
-- Documentation burden[page:1]
-
-It should also indicate when:[page:1]
-
-- Supervisors are required  
-- QA becomes necessary  
-- Dedicated intake staff become necessary[page:1]
-
-### Long-Term CSE Structure
-
-Design as though it will become:[page:1]
-
-- A web-based operational intelligence platform  
-- A module inside Affectiv  
-- A multi-state scalable forecasting engine[page:1]
+- A web-based operational intelligence platform
+- A module inside Affectiv
+- A multi-state scalable forecasting engine
 
 ---
 
 ## Implementation Notes
 
-- All three tools should share a consistent structural pattern (inputs → assumptions → rate tables → staffing/caseload matrices → P&L → dashboards → scenario toggles). This supports reuse and future integration.[page:1]
-- Prioritize transparency of assumptions and drivers, so operators can quickly trace how changes in caseloads, rates, and staffing propagate to EBITDA and margins.[page:1]
-- Build with an eye toward later converting these into production web modules (Affectiv), including multi-entity and multi-state support.[page:1]
+All three tools share a consistent structural pattern — inputs → assumptions → rate tables → staffing/caseload matrices → P&L → dashboards → scenario toggles — to support reuse and future integration.
+
+Prioritize full transparency of assumptions and drivers so operators can trace how changes in caseloads, rates, and staffing propagate to EBITDA and margins.
+
+Build with an eye toward later conversion to production web modules (Affectiv), including multi-entity and multi-state support.
