@@ -1016,7 +1016,7 @@ function HomeMixEditor({ homes, onUpdate, onAdd, onRemove, wage, setWage, rates 
                   readOnly={!canEdit}
                   style={{ background:"none", border:"none", color:"#5a3800", fontWeight:800, fontSize:15, fontFamily:"'Sora',sans-serif", padding:0, width:200, outline:"none", cursor: canEdit ? undefined : "default" }}/>
                 <div style={{ fontSize:10, color:"#9a8050", ...M, marginTop:2 }}>
-                  {m.laborHrs}hr labor{showDollars ? ` · ${$d(m.rev)} rev` : ""}{showWageCost ? ` · ${$d(m.labor)} labor cost/day` : ""}
+                  {m.laborHrs}hr labor{showDollars ? ` · ${$d(m.rev)} rev` : ""}{showDollars ? ` · ${$d(m.labor)} labor cost/day` : ""}
                 </div>
               </div>
             </div>
@@ -2383,7 +2383,7 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
   useEffect(() => {
     const slType = activeKey === "WHOLE_COMPANY" ? "WHOLE_COMPANY" : activeSLType;
     const defaults = getSubTabsFor(slType);
-    const GATED = new Set(['company', 'reshab_pl', 'hourly_pl', 'tsc_pl', 'portfolio']);
+    const GATED = new Set(['company', 'reshab_pl', 'hourly_pl', 'portfolio']);
     const first = defaults.find(t => !GATED.has(t.id) || canSeeCompanyDollars(userRole));
     setSubTab(first?.id ?? 'placeholder');
   }, [activeKey, activeSLType, userRole]);
@@ -2764,7 +2764,7 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
 
   // ── Service line strip data ──
   const visibleSLs = company.serviceLines.filter(sl => !sl.archived);
-  const GATED_TABS = new Set(['company', 'reshab_pl', 'hourly_pl', 'tsc_pl', 'portfolio']);
+  const GATED_TABS = new Set(['company', 'reshab_pl', 'hourly_pl', 'portfolio']);
   const subTabs = (isWholeCompany
     ? applyTabOrder(getSubTabsFor("WHOLE_COMPANY"), company.shared.wholeCompanySubTabOrder)
     : applyTabOrder(getSubTabsFor(activeSLType), activeSL?.subTabOrder)
@@ -3041,8 +3041,8 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
               )}
               {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_productivity" &&
                 <TSCProductivityTab config={activeSL.config}/>}
-              {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_pl" &&
-                <TSCPLTab config={activeSL.config}/>}
+              {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_pl" && !canSeeCompanyDollars(userRole) &&
+                <TSCPLTab config={activeSL.config} userRole={userRole}/>}
               {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_staffing" && (
                 <TSCStaffingTab config={activeSL.config}
                   onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}/>
@@ -3055,12 +3055,13 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
               {/* CHILDRENS_DDA tabs */}
               {activeSLType === SERVICE_LINE_TYPES.CHILDRENS_DDA && activeSL && subTab === "chdda_roster" && (
                 <ChildrensDDARosterTab config={activeSL.config}
-                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}/>
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}
+                  userRole={userRole}/>
               )}
               {activeSLType === SERVICE_LINE_TYPES.CHILDRENS_DDA && activeSL && subTab === "chdda_productivity" &&
-                <ChildrensDDAProductivityTab config={activeSL.config}/>}
+                <ChildrensDDAProductivityTab config={activeSL.config} userRole={userRole}/>}
               {activeSLType === SERVICE_LINE_TYPES.CHILDRENS_DDA && activeSL && subTab === "chdda_pl" &&
-                <ChildrensDDAPLTab config={activeSL.config}/>}
+                <ChildrensDDAPLTab config={activeSL.config} userRole={userRole}/>}
               {activeSLType === SERVICE_LINE_TYPES.CHILDRENS_DDA && activeSL && subTab === "chdda_rates" && (
                 <ChildrensDDARateScheduleTab config={activeSL.config}
                   onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}/>
@@ -3069,12 +3070,13 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
               {/* VOC_SERVICES / CSE tabs */}
               {activeSLType === SERVICE_LINE_TYPES.VOC_SERVICES && activeSL && subTab === "cse_roster" && (
                 <CSERosterTab config={activeSL.config}
-                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}/>
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}
+                  userRole={userRole}/>
               )}
               {activeSLType === SERVICE_LINE_TYPES.VOC_SERVICES && activeSL && subTab === "cse_productivity" &&
-                <CSEProductivityTab config={activeSL.config}/>}
+                <CSEProductivityTab config={activeSL.config} userRole={userRole}/>}
               {activeSLType === SERVICE_LINE_TYPES.VOC_SERVICES && activeSL && subTab === "cse_pl" &&
-                <CSEPLTab config={activeSL.config}/>}
+                <CSEPLTab config={activeSL.config} userRole={userRole}/>}
               {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_pl" && canSeeCompanyDollars(userRole) && (() => {
                 const revShare = co.annualRevGross > 0 ? tscSummary.totalAnnualRev / co.annualRevGross : 1;
                 const slCo = calcSLCo({ annualRevGrossRaw:tscSummary.totalAnnualRev,

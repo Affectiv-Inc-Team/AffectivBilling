@@ -22,8 +22,8 @@
  *         {
  *           id, name,
  *           unitsCoord: number,     // G9002 monthly units
- *           unitsPlanDev: number,   // G9007 monthly units (typical: 0-4)
- *           unitsCrisis: number,    // H2011 monthly units (typical: 0)
+ *           unitsPlanDev: number,   // G9007 annual units (typical: 0–48); divided by 12 in calc
+ *           unitsCrisis: number,    // H2011 monthly units — kept for backward compat, hidden from main roster UI
  *           isParapro: boolean,     // bill at HM (paraprofessional) rate
  *         }
  *       ],
@@ -440,12 +440,6 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
           </select>
         </div>
 
-        <div>
-          <div style={labelStyle}>Wage / hr</div>
-          <input type="number" min={10} max={60} step={0.5} value={coord.hourlyWage}
-            onChange={e => onUpdate(coord.id, "hourlyWage", +e.target.value)}
-            style={numInput}/>
-        </div>
         {wageDisplayMode(userRole) !== 'hidden' && (
           <div>
             <div style={labelStyle}>Wage / hr</div>
