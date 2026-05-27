@@ -133,12 +133,13 @@ export function calcTSCParticipant(p) {
   const rateCrisis = p.isParapro ? TSC_RATES.CRISIS_PARAPRO : TSC_RATES.CRISIS;
   const ratePlan   = TSC_RATES.PLAN_DEV;
 
+  // G9007 is authorized annually (max 48 units/yr); divide by 12 for monthly contribution
   const monthlyRev = (p.unitsCoord    ?? 0) * rateCoord
-                   + (p.unitsPlanDev  ?? 0) * ratePlan
+                   + (p.unitsPlanDev  ?? 0) / 12 * ratePlan
                    + (p.unitsCrisis   ?? 0) * rateCrisis;
 
-  // 1 unit = 15 min, so 4 units = 1 hour
-  const monthlyHours = ((p.unitsCoord ?? 0) + (p.unitsPlanDev ?? 0) + (p.unitsCrisis ?? 0)) / 4;
+  // 1 unit = 15 min, so 4 units = 1 hour; G9007 prorated monthly
+  const monthlyHours = ((p.unitsCoord ?? 0) + (p.unitsPlanDev ?? 0) / 12 + (p.unitsCrisis ?? 0)) / 4;
 
   return {
     monthlyRev,
@@ -360,7 +361,7 @@ function ParticipantRow({ p, onUpdate, onRemove }) {
   const m = calcTSCParticipant(p);
   return (
     <div style={{
-      display:"grid", gridTemplateColumns:"1.4fr 0.8fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
+      display:"grid", gridTemplateColumns:"1.4fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
       gap:8, alignItems:"center", padding:"6px 8px",
       borderRadius:6, background:"#f7f9fc", border:"1px solid #e2e8f0",
     }}>
@@ -376,15 +377,9 @@ function ParticipantRow({ p, onUpdate, onRemove }) {
           style={numInput}/>
       </div>
       <div>
-        <div style={labelStyle}>G9007</div>
-        <input type="number" min={0} max={50} value={p.unitsPlanDev ?? 0}
+        <div style={labelStyle}>G9007 u/yr</div>
+        <input type="number" min={0} max={48} value={p.unitsPlanDev ?? 0}
           onChange={e => onUpdate(p.id, "unitsPlanDev", +e.target.value)}
-          style={numInput}/>
-      </div>
-      <div>
-        <div style={labelStyle}>H2011</div>
-        <input type="number" min={0} max={50} value={p.unitsCrisis ?? 0}
-          onChange={e => onUpdate(p.id, "unitsCrisis", +e.target.value)}
           style={numInput}/>
       </div>
       <label style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, color:"#64748b", ...M }}>
@@ -496,14 +491,13 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
       {!hideParticipants && expanded && (
         <div>
           <div style={{ display:"grid",
-            gridTemplateColumns:"1.4fr 0.8fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
+            gridTemplateColumns:"1.4fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
             gap:8, padding:"4px 8px",
             ...labelStyle, marginBottom:4,
           }}>
             <span>Participant</span>
             <span style={{ textAlign:"left" }}>G9002 u/mo</span>
-            <span style={{ textAlign:"left" }}>G9007 u/mo</span>
-            <span style={{ textAlign:"left" }}>H2011 u/mo</span>
+            <span style={{ textAlign:"left" }}>G9007 u/yr</span>
             <span>Para</span>
             <span style={{ textAlign:"right" }}>Revenue</span>
             <span></span>
@@ -630,7 +624,7 @@ function ParticipantFlatRow({ p, coordId, coordinators, onUpdate, onReassign, on
   return (
     <div style={{
       display:"grid",
-      gridTemplateColumns:"1.4fr 1.2fr 0.8fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
+      gridTemplateColumns:"1.4fr 1.2fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
       gap:8, alignItems:"center", padding:"6px 8px",
       borderRadius:6, background:"#f7f9fc", border:"1px solid #e2e8f0",
     }}>
@@ -653,15 +647,9 @@ function ParticipantFlatRow({ p, coordId, coordinators, onUpdate, onReassign, on
           style={numInput}/>
       </div>
       <div>
-        <div style={labelStyle}>G9007</div>
-        <input type="number" min={0} max={50} value={p.unitsPlanDev ?? 0}
+        <div style={labelStyle}>G9007 u/yr</div>
+        <input type="number" min={0} max={48} value={p.unitsPlanDev ?? 0}
           onChange={e => onUpdate(coordId, p.id, "unitsPlanDev", +e.target.value)}
-          style={numInput}/>
-      </div>
-      <div>
-        <div style={labelStyle}>H2011</div>
-        <input type="number" min={0} max={50} value={p.unitsCrisis ?? 0}
-          onChange={e => onUpdate(coordId, p.id, "unitsCrisis", +e.target.value)}
           style={numInput}/>
       </div>
       <label style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, color:"#64748b", ...M }}>
@@ -783,7 +771,6 @@ export function TSCParticipantsTab({ config, onUpdate }) {
   );
   const totalUnitsCoord   = allParticipants.reduce((a, p) => a + (p.unitsCoord   ?? 0), 0);
   const totalUnitsPlanDev = allParticipants.reduce((a, p) => a + (p.unitsPlanDev ?? 0), 0);
-  const totalUnitsCrisis  = allParticipants.reduce((a, p) => a + (p.unitsCrisis  ?? 0), 0);
 
   const noCoords = (config.coordinators ?? []).length === 0;
 
@@ -837,8 +824,7 @@ export function TSCParticipantsTab({ config, onUpdate }) {
       <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:16 }}>
         <Stat label="Total participants" value={allParticipants.length} />
         <Stat label="G9002 units/mo"     value={totalUnitsCoord} />
-        <Stat label="G9007 units/mo"     value={totalUnitsPlanDev} />
-        <Stat label="H2011 units/mo"     value={totalUnitsCrisis} />
+        <Stat label="G9007 units/yr"     value={totalUnitsPlanDev} />
       </div>
 
       {noCoords && (
@@ -859,7 +845,7 @@ export function TSCParticipantsTab({ config, onUpdate }) {
         <div style={{ ...card, padding:0, overflow:"hidden", marginBottom:12 }}>
           <div style={{
             display:"grid",
-            gridTemplateColumns:"1.4fr 1.2fr 0.8fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
+            gridTemplateColumns:"1.4fr 1.2fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
             gap:8, padding:"8px 12px",
             background:"#eef1f6", borderBottom:"1px solid #d0dae8",
             ...labelStyle,
@@ -867,8 +853,7 @@ export function TSCParticipantsTab({ config, onUpdate }) {
             <span>Participant</span>
             <span>Coordinator</span>
             <span>G9002 u/mo</span>
-            <span>G9007 u/mo</span>
-            <span>H2011 u/mo</span>
+            <span>G9007 u/yr</span>
             <span>Para</span>
             <span style={{ textAlign:"right" }}>Revenue</span>
             <span></span>
