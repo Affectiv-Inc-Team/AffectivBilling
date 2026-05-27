@@ -682,7 +682,7 @@ function ParticipantFlatRow({ p, coordId, coordinators, onUpdate, onReassign, on
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// Coordinators tab — manage coordinators; participant counts shown read-only
+// Coordinators tab — manage coordinators and their participants
 // ──────────────────────────────────────────────────────────────────────
 export function TSCCoordinatorsTab({ config, onUpdate, userRole }) {
   const summary = calcTSCService(config);
@@ -703,6 +703,30 @@ export function TSCCoordinatorsTab({ config, onUpdate, userRole }) {
       ...config.coordinators,
       mkCoordinator(`Coordinator ${config.coordinators.length + 1}`, config.defaultHourlyWage),
     ],
+  });
+  const addParticipant = (coordId) => onUpdate({
+    ...config,
+    coordinators: config.coordinators.map(c =>
+      c.id === coordId
+        ? { ...c, participants: [...c.participants, mkParticipant(`Participant ${c.participants.length + 1}`, config.defaultUnitsPerParticipant)] }
+        : c
+    ),
+  });
+  const updateParticipant = (coordId, pId, field, value) => onUpdate({
+    ...config,
+    coordinators: config.coordinators.map(c =>
+      c.id === coordId
+        ? { ...c, participants: c.participants.map(p => p.id === pId ? { ...p, [field]: value } : p) }
+        : c
+    ),
+  });
+  const removeParticipant = (coordId, pId) => onUpdate({
+    ...config,
+    coordinators: config.coordinators.map(c =>
+      c.id === coordId
+        ? { ...c, participants: c.participants.filter(p => p.id !== pId) }
+        : c
+    ),
   });
 
   return (
@@ -734,7 +758,9 @@ export function TSCCoordinatorsTab({ config, onUpdate, userRole }) {
             payrollBurdenPct={config.payrollBurdenPct}
             onUpdate={updateCoord}
             onRemove={removeCoord}
-            hideParticipants
+            onAddParticipant={addParticipant}
+            onUpdateParticipant={updateParticipant}
+            onRemoveParticipant={removeParticipant}
             userRole={userRole}/>
         )}
       </div>
