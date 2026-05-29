@@ -451,13 +451,14 @@ function getApprovalStatus(margin, total) {
 
 // Labor Efficiency tab uses labor ratio thresholds (not gross margin).
 // Intrinsic approved threshold: labor ratio < 47% of revenue.
-const LABOR_APPROVAL_THRESHOLDS = { approved: 0.47, marginal: 0.70 };
+const LABOR_APPROVAL_THRESHOLDS = { approved: 0.47, marginal: 0.58, concerning: 0.68 };
 
 function getLaborApprovalStatus(laborRatio, total) {
-  if (!total || total === 0) return { status:"incomplete", label:"Configure Home", color:"#64748b", bg:"#eef1f6", border:"#c8d8ec", icon:"○" };
-  if (laborRatio < LABOR_APPROVAL_THRESHOLDS.approved) return { status:"approved", label:"Approved",     color:"#00e5aa", bg:"#00e5aa12", border:"#00e5aa35", icon:"✓" };
-  if (laborRatio < LABOR_APPROVAL_THRESHOLDS.marginal) return { status:"marginal", label:"Needs Review", color:"#f59e0b", bg:"#f59e0b12", border:"#f59e0b35", icon:"⚠" };
-  return                                                      { status:"rejected", label:"Not Viable",   color:"#f87171", bg:"#f8717112", border:"#f8717135", icon:"✗" };
+  if (!total || total === 0)                             return { status:"incomplete",  label:"Configure Home", color:"#64748b", bg:"#eef1f6",   border:"#c8d8ec",   icon:"○" };
+  if (laborRatio < LABOR_APPROVAL_THRESHOLDS.approved)  return { status:"approved",    label:"Approved",       color:"#00e5aa", bg:"#00e5aa12", border:"#00e5aa35", icon:"✓" };
+  if (laborRatio < LABOR_APPROVAL_THRESHOLDS.marginal)  return { status:"needs_review", label:"Needs Review",  color:"#f59e0b", bg:"#f59e0b12", border:"#f59e0b35", icon:"⚠" };
+  if (laborRatio < LABOR_APPROVAL_THRESHOLDS.concerning) return { status:"concerning", label:"Concerning",     color:"#fb923c", bg:"#fb923c12", border:"#fb923c35", icon:"⚠" };
+  return                                                        { status:"rejected",   label:"Not Viable",     color:"#f87171", bg:"#f8717112", border:"#f8717135", icon:"✗" };
 }
 
 function CompanyTab({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate, mgmtFeePct, billingFeePct, hourlyCount, tscCaseload, slBreakdown, userRole }) {
@@ -549,7 +550,7 @@ function LaborEfficiencyTab({ wage: globalWage, rates = RATES_DEF, graveyardWage
   });
 
   // Color for labor ratio: < 47% = approved green, 47–70% = amber/orange, > 70% = red
-  const lrc = r => r < 0.47 ? "#00e5aa" : r < 0.58 ? "#f59e0b" : r < 0.70 ? "#fb923c" : "#f87171";
+  const lrc = r => r < 0.47 ? "#00e5aa" : r < 0.58 ? "#f59e0b" : r < 0.68 ? "#fb923c" : "#f87171";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -869,10 +870,13 @@ function LaborEfficiencyTab({ wage: globalWage, rates = RATES_DEF, graveyardWage
               {approval.status === "approved" && canGroup && `${groupHrs}-hour night group is effective. Labor is a sustainable portion of this home's authorized hours.`}
               {approval.status === "approved" && allHigh && `All-high configuration with ${total} clients is efficient. One staff covers all ${total} clients during all hours.`}
               {approval.status === "approved" && !canGroup && !allHigh && "Configuration meets Intrinsic's efficiency standards."}
-              {approval.status === "marginal" && nIntense > 0 && total < 2 && "A single intense client requires 1:1 staffing all 24 hours. Adding a second client and enabling group hours would reduce the labor ratio significantly."}
-              {approval.status === "marginal" && canGroup && groupHrs < 8 && "Increasing night group hours (try 10–14 hrs) would lower the labor ratio and likely reach Approved."}
-              {approval.status === "marginal" && allHigh && total < 3 && "Adding another high-support client would spread the fixed staffing hours across more clients, improving the ratio."}
-              {approval.status === "marginal" && canGroup && groupHrs >= 8 && "Configuration is close to threshold. Consider increasing group hours or adjusting client mix."}
+              {approval.status === "needs_review" && nIntense > 0 && total < 2 && "A single intense client requires 1:1 staffing all 24 hours. Adding a second client and enabling group hours would reduce the labor ratio significantly."}
+              {approval.status === "needs_review" && canGroup && groupHrs < 8 && "Increasing night group hours (try 10–14 hrs) would lower the labor ratio and likely reach Approved."}
+              {approval.status === "needs_review" && allHigh && total < 3 && "Adding another high-support client would spread the fixed staffing hours across more clients, improving the ratio."}
+              {approval.status === "needs_review" && canGroup && groupHrs >= 8 && "Configuration is close to threshold. Consider increasing group hours or adjusting client mix."}
+              {approval.status === "concerning" && nIntense > 0 && "Intense clients drive a high labor ratio. Adding a second intense client with extended group hours may bring this below Concerning."}
+              {approval.status === "concerning" && canGroup && groupHrs < 10 && "Labor ratio is elevated. Increasing group hours to 10–14 may move this home into Needs Review."}
+              {approval.status === "concerning" && (!canGroup || groupHrs >= 10) && "This configuration's labor ratio is high. Review client mix and staffing hours before committing to this home."}
               {approval.status === "rejected" && total === 1 && nIntense > 0 && "One intense client requires full 24-hour 1:1 staffing. This ratio is not sustainable. A minimum of 2 clients is needed to enable grouping."}
               {approval.status === "rejected" && total > 1 && groupHrs === 0 && canGroup && "Group hours are set to 0. Enabling 10–14 hours of group staffing would substantially reduce the labor ratio."}
               {approval.status === "rejected" && total > 1 && groupHrs > 0 && "Even with grouping this configuration's labor ratio is too high. Consider increasing group hours or adding a client to improve the ratio."}
