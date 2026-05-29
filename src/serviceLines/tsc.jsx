@@ -325,7 +325,7 @@ const card = {
   borderRadius:10,
   padding:14,
   border:"1px solid #d0dae8",
-  boxShadow:"0 2px 8px rgba(0,0,0,0.04)",
+  boxShadow:"0 2px 10px rgba(13,26,42,0.06)",
 };
 
 const labelStyle = {
@@ -347,9 +347,13 @@ const textInput = {
 // ──────────────────────────────────────────────────────────────────────
 function Stat({ label, value, color = "#5a3800" }) {
   return (
-    <div style={{ background:"#eef1f6", borderRadius:7, padding:"6px 12px", border:"1px solid #d0dae8" }}>
+    <div style={{
+      background:"#fff", borderRadius:8, padding:"6px 13px 6px 11px",
+      border:"1px solid #d0dae8", borderLeft:`3px solid ${color}`,
+      boxShadow:"0 1px 3px rgba(13,26,42,0.06)",
+    }}>
       <div style={labelStyle}>{label}</div>
-      <div style={{ fontSize:15, fontWeight:800, color, ...M, marginTop:2 }}>{value}</div>
+      <div style={{ fontSize:15, fontWeight:800, color, ...M, marginTop:3, letterSpacing:-0.3 }}>{value}</div>
     </div>
   );
 }
