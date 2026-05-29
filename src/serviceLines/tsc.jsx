@@ -119,7 +119,7 @@ export function defaultTSCConfig() {
     },
     scenario: {
       rateAdjPct:        0,
-      caseloadAdjPct:    0,
+      caseloadCount:     null,
       productivityAdjPct: 0,
     },
   };
@@ -272,7 +272,10 @@ export function calcTSCScenario(config) {
   const base = calcTSCService(config);
 
   const rateAdj        = 1 + (config.scenario?.rateAdjPct        ?? 0) / 100;
-  const caseloadAdj    = 1 + (config.scenario?.caseloadAdjPct    ?? 0) / 100;
+  const caseloadCount  = config.scenario?.caseloadCount;
+  const caseloadAdj    = (caseloadCount != null && base.totalCaseload > 0)
+    ? caseloadCount / base.totalCaseload
+    : 1;
   const productivityAdj = 1 + (config.scenario?.productivityAdjPct ?? 0) / 100;
 
   // Build a modified config for scenario calculation
@@ -299,7 +302,7 @@ export function calcTSCScenario(config) {
     totalGross:       scenarioGross,
     totalMargin:      scenarioMargin,
     coordinatorCount: scenarioSummary.coordinatorCount,
-    totalCaseload:    scenarioSummary.totalCaseload,
+    totalCaseload:    caseloadCount ?? scenarioSummary.totalCaseload,
   };
 
   const delta = {
@@ -1327,13 +1330,14 @@ export function TSCStaffingTab({ config, onUpdate }) {
 // Scenario tab — rate / caseload / productivity adjustments
 // ──────────────────────────────────────────────────────────────────────
 export function TSCScenarioTab({ config, onUpdate }) {
-  const sc = config.scenario ?? { rateAdjPct: 0, caseloadAdjPct: 0, productivityAdjPct: 0 };
+  const { base, scenario, delta } = calcTSCScenario(config);
+  const bev = calcTSCBreakEven(config);
+
+  const sc = config.scenario ?? {};
+  const caseloadCountVal = sc.caseloadCount ?? base.totalCaseload;
 
   const updateScenario = (field, val) =>
     onUpdate({ ...config, scenario: { ...sc, [field]: val } });
-
-  const { base, scenario, delta } = calcTSCScenario(config);
-  const bev = calcTSCBreakEven(config);
 
   const $d = n => (n >= 0 ? "+" : "") + n.toLocaleString("en-US", { style:"currency", currency:"USD", maximumFractionDigits:0 });
   const pctD = n => (n >= 0 ? "+" : "") + (n * 100).toFixed(1) + "%";
@@ -1348,25 +1352,25 @@ export function TSCScenarioTab({ config, onUpdate }) {
       {/* Adjustment inputs */}
       <div style={{ ...card, marginBottom:20, display:"flex", gap:32, flexWrap:"wrap" }}>
         {[
-          { label:"Rate adjustment %", field:"rateAdjPct", hint:"Change to reimbursement rates", val: sc.rateAdjPct ?? 0 },
-          { label:"Caseload adjustment %", field:"caseloadAdjPct", hint:"Scale participant unit volume", val: sc.caseloadAdjPct ?? 0 },
-          { label:"Productivity adjustment %", field:"productivityAdjPct", hint:"Scale billable units per participant", val: sc.productivityAdjPct ?? 0 },
-        ].map(({ label, field, hint, val }) => (
+          { label:"Rate adjustment",       field:"rateAdjPct",        hint:"Adjusts billed rates ±50%",                              val: sc.rateAdjPct ?? 0,        min:-50,  max:50,  unit:"%",   step:1 },
+          { label:"Caseload (participants)",field:"caseloadCount",     hint:"Target participant count for scenario (1–60)",            val: caseloadCountVal,          min:1,    max:60,  unit:"pts", step:1 },
+          { label:"Productivity adjustment",field:"productivityAdjPct",hint:"Adjusts billable units per participant (−100% to +100%)", val: sc.productivityAdjPct ?? 0,min:-100, max:100, unit:"%",   step:1 },
+        ].map(({ label, field, hint, val, min, max, unit, step }) => (
           <div key={field}>
             <div style={labelStyle}>{label}</div>
             <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>{hint}</div>
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <input type="range" min={-50} max={50} value={val}
+              <input type="range" min={min} max={max} step={step} value={val}
                 onChange={e => updateScenario(field, +e.target.value)}
                 style={{ width:120 }}/>
-              <input type="number" min={-50} max={50} value={val}
+              <input type="number" min={min} max={max} step={step} value={val}
                 onChange={e => updateScenario(field, +e.target.value)}
                 style={{ ...numInput, width:56 }}/>
-              <span style={{ fontSize:11, ...M }}>%</span>
+              <span style={{ fontSize:11, color:"#64748b", ...M }}>{unit}</span>
             </div>
           </div>
         ))}
-        <button onClick={() => onUpdate({ ...config, scenario: { rateAdjPct:0, caseloadAdjPct:0, productivityAdjPct:0 } })}
+        <button onClick={() => onUpdate({ ...config, scenario: { rateAdjPct:0, caseloadCount:null, productivityAdjPct:0 } })}
           style={{ alignSelf:"flex-end", padding:"6px 12px", background:"#fff", border:"1px solid #c8d4e4", borderRadius:5, fontSize:10, cursor:"pointer", ...M }}>
           Reset
         </button>
