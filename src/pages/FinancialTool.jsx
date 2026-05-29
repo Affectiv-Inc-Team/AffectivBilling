@@ -373,11 +373,32 @@ function CompanyPL({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate, 
     { l:isCorp?"Net Profit Margin":      "Net Margin (Est.)",      v:pct(netMargin), t:"npct" },
   ];
 
-  const rc = t => t==="net"||t==="npct"?netColor:t==="ebitda"||t==="epct"?(ebitda<0?"#f87171":"#00e5aa"):t==="rev"?"#5a3800":t==="tax"||t==="taxsub"?"#fb923c":t==="fee"?"#E8C44A":t==="cost"||t==="ded"?"#f87171":t==="sub"?"#6a4c10":t==="hdr"?"#9a8050":t==="sl-rev"?"#8a6820":t==="sl-labor"?"#c07070":"#6a4818";
-  const rb = t => t==="net"||t==="npct"?(netIncome>=0?"#0c1606":"#1a0606"):t==="taxsub"?"#0f0800":t==="ebitda"||t==="epct"?(ebitda>=0?"#021a0f":"#1a0606"):t==="sub"?"#ebebeb":t==="hdr"?"#06050300":"transparent";
+  // Light-theme P&L palette — readable on parchment, semantic but not alarming
+  const POS = "#0f7a4f", NEG = "#c0453a";
+  // row background — subtle tints for highlight rows, no dark bands
+  const rb = t =>
+    t==="net"||t==="npct"   ? (netIncome>=0 ? "#e7f4ec" : "#fcece9") :
+    t==="ebitda"||t==="epct"? (ebitda>=0    ? "#e9f5ee" : "#fdedeb") :
+    t==="taxsub"            ? "#f6f0e4" :
+    t==="sub"               ? "#f0ece2" : "transparent";
+  // label (left cell) color — neutral and readable
+  const lc = t =>
+    t==="hdr"               ? "#9a8050" :
+    t==="ebitda"||t==="net" ? "#33291a" :
+    t==="epct"||t==="npct"  ? "#6a5a40" :
+    t==="sub"||t==="rev"    ? "#33291a" :
+    t==="sl-rev"||t==="sl-labor" ? "#8a7a5a" : "#5a4838";
+  // value (right cell) color — semantic
+  const vc = t =>
+    t==="net"||t==="npct"   ? (netIncome>=0 ? POS : NEG) :
+    t==="ebitda"||t==="epct"? (ebitda>=0    ? POS : NEG) :
+    t==="rev"||t==="sub"    ? "#33291a" :
+    t==="cost"||t==="ded"||t==="fee"||t==="tax"||t==="taxsub"||t==="sl-labor" ? NEG :
+    t==="sl-rev"            ? "#6a5a30" : "#5a4838";
   const bd = t => ["sub","ebitda","net","taxsub","rev"].includes(t);
-  const fs = t => t==="ebitda"||t==="net" ? 14 : t==="epct"||t==="npct" ? 12 : t==="hdr" ? 9 : t==="sl-rev"||t==="sl-labor" ? 10 : 11;
-  const fw = t => t==="ebitda"||t==="net" ? 800 : bd(t) ? 700 : t==="hdr" ? 500 : 400;
+  const emph = t => t==="ebitda" || t==="net";
+  const fs = t => t==="ebitda"||t==="net" ? 15 : t==="epct"||t==="npct" ? 12 : t==="hdr" ? 9 : t==="sl-rev"||t==="sl-labor" ? 10 : 11.5;
+  const fw = t => t==="ebitda"||t==="net" ? 800 : bd(t) ? 700 : t==="hdr" ? 600 : 400;
 
   return (
     <div style={{ background:"#f8f6f0", borderRadius:13, border:"1px solid #d0dae8", overflow:"hidden" }}>
@@ -393,10 +414,10 @@ function CompanyPL({ co, mgmt, overhead, onMgmt, onOvhd, entityType, ownerRate, 
         <table style={{ width:"100%", borderCollapse:"collapse" }}>
           <tbody>
             {rows.map((row,i)=> !row
-              ? <tr key={i}><td colSpan={2} style={{ height:6 }}/></tr>
-              : <tr key={i} style={{ borderBottom: row.t==="hdr" ? "none" : "1px solid #e8edf3", background:rb(row.t) }}>
-                  <td style={{ padding: row.t==="hdr" ? "8px 10px 3px" : row.t==="ebitda"||row.t==="net" ? "10px 10px" : "6px 10px", color:rc(row.t), fontWeight:fw(row.t), ...M, fontSize:fs(row.t), letterSpacing: row.t==="hdr" ? 1.5 : 0, textTransform: row.t==="hdr" ? "uppercase" : "none" }}>{row.l}</td>
-                  <td style={{ padding: row.t==="hdr" ? "8px 10px 3px" : row.t==="ebitda"||row.t==="net" ? "10px 10px" : "6px 10px", textAlign:"right", color:rc(row.t), fontWeight:fw(row.t), ...M, fontSize:fs(row.t), whiteSpace:"nowrap" }}>
+              ? <tr key={i}><td colSpan={2} style={{ height:8 }}/></tr>
+              : <tr key={i} style={{ borderBottom: row.t==="hdr" ? "none" : "1px solid #ece7dd", background:rb(row.t) }}>
+                  <td style={{ padding: row.t==="hdr" ? "10px 12px 4px" : emph(row.t) ? "11px 12px" : "7px 12px", color:lc(row.t), fontWeight:fw(row.t), fontFamily: row.t==="hdr" ? "'DM Mono',monospace" : "'Sora',sans-serif", fontSize:fs(row.t), letterSpacing: row.t==="hdr" ? 1.5 : 0, textTransform: row.t==="hdr" ? "uppercase" : "none", borderLeft: emph(row.t) ? `3px solid ${vc(row.t)}` : "3px solid transparent" }}>{row.l}</td>
+                  <td style={{ padding: row.t==="hdr" ? "10px 12px 4px" : emph(row.t) ? "11px 12px" : "7px 12px", textAlign:"right", color:vc(row.t), fontWeight:fw(row.t), ...M, fontSize:fs(row.t), whiteSpace:"nowrap" }}>
                     {row.t==="hdr" ? "" : row.t==="epct"||row.t==="npct" ? row.v : typeof row.v==="number" ? (showDollars ? $k(row.v) : (annualRevNet > 0 ? pct(row.v / annualRevNet) : "—")) : ""}
                   </td>
                 </tr>
