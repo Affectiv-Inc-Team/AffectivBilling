@@ -119,7 +119,7 @@ export function defaultTSCConfig() {
     },
     scenario: {
       rateAdjPct:        0,
-      caseloadAdjPct:    0,
+      caseloadCount:     null,
       productivityAdjPct: 0,
     },
   };
@@ -272,7 +272,10 @@ export function calcTSCScenario(config) {
   const base = calcTSCService(config);
 
   const rateAdj        = 1 + (config.scenario?.rateAdjPct        ?? 0) / 100;
-  const caseloadAdj    = 1 + (config.scenario?.caseloadAdjPct    ?? 0) / 100;
+  const caseloadCount  = config.scenario?.caseloadCount;
+  const caseloadAdj    = (caseloadCount != null && base.totalCaseload > 0)
+    ? caseloadCount / base.totalCaseload
+    : 1;
   const productivityAdj = 1 + (config.scenario?.productivityAdjPct ?? 0) / 100;
 
   // Build a modified config for scenario calculation
@@ -299,7 +302,7 @@ export function calcTSCScenario(config) {
     totalGross:       scenarioGross,
     totalMargin:      scenarioMargin,
     coordinatorCount: scenarioSummary.coordinatorCount,
-    totalCaseload:    scenarioSummary.totalCaseload,
+    totalCaseload:    caseloadCount ?? scenarioSummary.totalCaseload,
   };
 
   const delta = {
@@ -325,7 +328,7 @@ const card = {
   borderRadius:10,
   padding:14,
   border:"1px solid #d0dae8",
-  boxShadow:"0 2px 8px rgba(0,0,0,0.04)",
+  boxShadow:"0 2px 10px rgba(13,26,42,0.06)",
 };
 
 const labelStyle = {
@@ -347,9 +350,13 @@ const textInput = {
 // ──────────────────────────────────────────────────────────────────────
 function Stat({ label, value, color = "#5a3800" }) {
   return (
-    <div style={{ background:"#eef1f6", borderRadius:7, padding:"6px 12px", border:"1px solid #d0dae8" }}>
+    <div style={{
+      background:"#fff", borderRadius:8, padding:"6px 13px 6px 11px",
+      border:"1px solid #d0dae8", borderLeft:`3px solid ${color}`,
+      boxShadow:"0 1px 3px rgba(13,26,42,0.06)",
+    }}>
       <div style={labelStyle}>{label}</div>
-      <div style={{ fontSize:15, fontWeight:800, color, ...M, marginTop:2 }}>{value}</div>
+      <div style={{ fontSize:15, fontWeight:800, color, ...M, marginTop:3, letterSpacing:-0.3 }}>{value}</div>
     </div>
   );
 }
@@ -909,7 +916,7 @@ export function TSCProductivityTab({ config }) {
         <div style={{
           display:"grid", gridTemplateColumns:"1.4fr 0.8fr 1fr 1fr 1fr 0.8fr 0.8fr 0.8fr",
           gap:0, padding:"10px 14px", background:"#eef1f6", borderBottom:"1px solid #d0dae8",
-          ...labelStyle,
+          ...labelStyle, color:"#475569",
         }}>
           <span>Coordinator</span>
           <span style={{ textAlign:"right" }}>Caseload</span>
@@ -932,7 +939,7 @@ export function TSCProductivityTab({ config }) {
             <div key={c.id} style={{
               display:"grid", gridTemplateColumns:"1.4fr 0.8fr 1fr 1fr 1fr 0.8fr 0.8fr 0.8fr",
               padding:"10px 14px", borderBottom:"1px solid #f1f5f9", alignItems:"center",
-              fontSize:12, ...M,
+              fontSize:12, ...M, color:"#334155",
             }}>
               <span style={{ color:"#5a3800", fontWeight:600 }}>{c.name}</span>
               <span style={{ textAlign:"right" }}>{c.metrics.caseloadSize}</span>
@@ -982,6 +989,7 @@ export function TSCPLTab({ config, userRole }) {
   const rowStyle = {
     display:"grid", gridTemplateColumns:cols,
     padding:"10px 14px", borderBottom:"1px solid #f1f5f9", fontSize:12, ...M,
+    color:"#334155",
   };
 
   const renderCoordRow = (c) => (
@@ -1310,7 +1318,7 @@ export function TSCStaffingTab({ config, onUpdate }) {
             onChange={e => updateRev("denialWriteOffRate", +e.target.value)}
             style={{ ...numInput, width:64 }}/>
         </div>
-        <div style={{ padding:"10px 14px", background:"#fffbe8", border:"1px solid #f4e4a8", borderRadius:8, fontSize:10, ...M, lineHeight:1.6, maxWidth:260 }}>
+        <div style={{ padding:"10px 14px", background:"#fffbe8", border:"1px solid #f4e4a8", borderRadius:8, fontSize:10, color:"#5a3800", ...M, lineHeight:1.6, maxWidth:260 }}>
           <strong>Note:</strong> These fields are operational planning inputs. Face-to-face and plan dev rates inform compliance risk; churn rate informs recruitment/onboarding cost modeling; denial write-off reduces net collected revenue.
         </div>
       </div>
@@ -1322,13 +1330,14 @@ export function TSCStaffingTab({ config, onUpdate }) {
 // Scenario tab — rate / caseload / productivity adjustments
 // ──────────────────────────────────────────────────────────────────────
 export function TSCScenarioTab({ config, onUpdate }) {
-  const sc = config.scenario ?? { rateAdjPct: 0, caseloadAdjPct: 0, productivityAdjPct: 0 };
+  const { base, scenario, delta } = calcTSCScenario(config);
+  const bev = calcTSCBreakEven(config);
+
+  const sc = config.scenario ?? {};
+  const caseloadCountVal = sc.caseloadCount ?? base.totalCaseload;
 
   const updateScenario = (field, val) =>
     onUpdate({ ...config, scenario: { ...sc, [field]: val } });
-
-  const { base, scenario, delta } = calcTSCScenario(config);
-  const bev = calcTSCBreakEven(config);
 
   const $d = n => (n >= 0 ? "+" : "") + n.toLocaleString("en-US", { style:"currency", currency:"USD", maximumFractionDigits:0 });
   const pctD = n => (n >= 0 ? "+" : "") + (n * 100).toFixed(1) + "%";
@@ -1343,25 +1352,25 @@ export function TSCScenarioTab({ config, onUpdate }) {
       {/* Adjustment inputs */}
       <div style={{ ...card, marginBottom:20, display:"flex", gap:32, flexWrap:"wrap" }}>
         {[
-          { label:"Rate adjustment %", field:"rateAdjPct", hint:"Change to reimbursement rates", val: sc.rateAdjPct ?? 0 },
-          { label:"Caseload adjustment %", field:"caseloadAdjPct", hint:"Scale participant unit volume", val: sc.caseloadAdjPct ?? 0 },
-          { label:"Productivity adjustment %", field:"productivityAdjPct", hint:"Scale billable units per participant", val: sc.productivityAdjPct ?? 0 },
-        ].map(({ label, field, hint, val }) => (
+          { label:"Rate adjustment",       field:"rateAdjPct",        hint:"Adjusts billed rates ±50%",                              val: sc.rateAdjPct ?? 0,        min:-50,  max:50,  unit:"%",   step:1 },
+          { label:"Caseload (participants)",field:"caseloadCount",     hint:"Target participant count for scenario (1–60)",            val: caseloadCountVal,          min:1,    max:60,  unit:"pts", step:1 },
+          { label:"Productivity adjustment",field:"productivityAdjPct",hint:"Adjusts billable units per participant (−100% to +100%)", val: sc.productivityAdjPct ?? 0,min:-100, max:100, unit:"%",   step:1 },
+        ].map(({ label, field, hint, val, min, max, unit, step }) => (
           <div key={field}>
             <div style={labelStyle}>{label}</div>
             <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>{hint}</div>
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <input type="range" min={-50} max={50} value={val}
+              <input type="range" min={min} max={max} step={step} value={val}
                 onChange={e => updateScenario(field, +e.target.value)}
                 style={{ width:120 }}/>
-              <input type="number" min={-50} max={50} value={val}
+              <input type="number" min={min} max={max} step={step} value={val}
                 onChange={e => updateScenario(field, +e.target.value)}
                 style={{ ...numInput, width:56 }}/>
-              <span style={{ fontSize:11, ...M }}>%</span>
+              <span style={{ fontSize:11, color:"#64748b", ...M }}>{unit}</span>
             </div>
           </div>
         ))}
-        <button onClick={() => onUpdate({ ...config, scenario: { rateAdjPct:0, caseloadAdjPct:0, productivityAdjPct:0 } })}
+        <button onClick={() => onUpdate({ ...config, scenario: { rateAdjPct:0, caseloadCount:null, productivityAdjPct:0 } })}
           style={{ alignSelf:"flex-end", padding:"6px 12px", background:"#fff", border:"1px solid #c8d4e4", borderRadius:5, fontSize:10, cursor:"pointer", ...M }}>
           Reset
         </button>
