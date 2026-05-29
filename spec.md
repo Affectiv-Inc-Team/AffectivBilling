@@ -48,27 +48,26 @@ table's status column all branch on `approval.status`.
 
 ## 2. Proposed Change
 
-Insert a new `"concerning"` category (58–67%), recalibrate all thresholds, and surface this
-new status through every display site in the tab.
+Insert a new `"concerning"` category (58–67%) inside the existing "Needs Review" band.
+All other thresholds and labels stay exactly as-is; only the top of "Needs Review" and the
+bottom of "Not Viable" shift to accommodate the new tier.
 
 ### New threshold table
 
 | Status | Threshold | Label | Color | Icon |
 |---|---|---|---|---|
 | `incomplete` | `total === 0` | Configure Home | `#64748b` (slate) | ○ |
-| `approved` | ratio < 44% | Approved | `#00e5aa` (green) | ✓ |
-| `marginal` | 44% ≤ ratio < 58% | Needs Review | `#f59e0b` (amber) | ⚠ |
+| `approved` | ratio < 47% | Approved | `#00e5aa` (green) | ✓ |
+| `marginal` | 47% ≤ ratio < 58% | Needs Review | `#f59e0b` (amber) | ⚠ |
 | `concerning` | 58% ≤ ratio < 68% | Concerning | `#fb923c` (orange) | ⚠ |
 | `rejected` | ratio ≥ 68% | Not Viable | `#f87171` (red) | ✗ |
 
-**Why these numbers:**
-- `approved < 0.44`: tightens the green band by 3 pp, making "approved" a more meaningful
-  signal (from < 47% to < 44%).
-- `marginal 0.44–0.57`: "Needs Review" now unambiguously means "watch this, but fixable."
-- `concerning 0.58–0.67`: the orange band that `lrc()` already painted but never labeled.
-  Surfacing it as a named category gives advisors a distinct action prompt.
-- `rejected ≥ 0.68`: tightens "Not Viable" by 2 pp; homes at 68–69% are genuinely
-  unworkable under current rates.
+**What changes vs. current:**
+- `approved < 0.47`: **unchanged**.
+- `marginal 0.47–0.57`: "Needs Review" top boundary shifts from 70% → 58%.
+- `concerning 0.58–0.67`: **new tier**. Promotes the orange band that `lrc()` already
+  painted (58–70%) into a named, labeled category.
+- `rejected ≥ 0.68`: "Not Viable" bottom shifts from 70% → 68%.
 
 **Color rationale:** The orange `#fb923c` is already emitted by `lrc()` for 58–70%;
 promoting it to a first-class category label requires zero new color tokens.
@@ -88,11 +87,11 @@ const LABOR_APPROVAL_THRESHOLDS = { approved: 0.47, marginal: 0.70 };
 
 **After:**
 ```js
-const LABOR_APPROVAL_THRESHOLDS = { approved: 0.44, marginal: 0.58, concerning: 0.68 };
+const LABOR_APPROVAL_THRESHOLDS = { approved: 0.47, marginal: 0.58, concerning: 0.68 };
 ```
 
-Rename note: `marginal` now marks the top of "Needs Review" (0.58), and a new key
-`concerning` marks the top of "Concerning" (0.68).
+`approved` is unchanged at 0.47. `marginal` now marks the top of "Needs Review" (0.58),
+and a new key `concerning` marks the top of "Concerning" (0.68).
 
 ---
 
@@ -130,11 +129,11 @@ const lrc = r => r < 0.47 ? "#00e5aa" : r < 0.58 ? "#f59e0b" : r < 0.70 ? "#fb92
 
 **After:**
 ```js
-const lrc = r => r < 0.44 ? "#00e5aa" : r < 0.58 ? "#f59e0b" : r < 0.68 ? "#fb923c" : "#f87171";
+const lrc = r => r < 0.47 ? "#00e5aa" : r < 0.58 ? "#f59e0b" : r < 0.68 ? "#fb923c" : "#f87171";
 ```
 
-The 58% breakpoint was already present; only the 47% and 70% endpoints change to match the
-new thresholds.
+The 47% and 58% breakpoints are unchanged. Only the 70% endpoint shifts to 68% to align
+with the new "Not Viable" threshold.
 
 ---
 
@@ -173,13 +172,13 @@ specific, and context-aware. Exactly one will render per home (JSX short-circuit
 
 | Boundary | Behavior |
 |---|---|
-| `laborRatio === 0.44` | First `<` check (`< 0.44`) fails → `"marginal"`. Correct — 44% is the bottom of Needs Review. |
+| `laborRatio === 0.47` | `< 0.47` fails → `"marginal"`. Correct — 47% is the bottom of Needs Review (unchanged). |
 | `laborRatio === 0.58` | `< 0.58` fails → `"concerning"`. Correct — 58% is the bottom of Concerning. |
 | `laborRatio === 0.68` | `< 0.68` fails → `"rejected"`. Correct — 68% is the bottom of Not Viable. |
 | `laborRatio === 0.0` | Falls through to `"approved"`. Correct. |
 | `total === 0` | Returns `"incomplete"` before any ratio check. Unchanged. |
 
-The `lrc()` function uses identical breakpoints (`< 0.44`, `< 0.58`, `< 0.68`), so the color
+The `lrc()` function uses identical breakpoints (`< 0.47`, `< 0.58`, `< 0.68`), so the color
 shown in bar charts and the wage sensitivity table will always match the label shown in the
 badge and footer.
 
@@ -209,10 +208,10 @@ badge and footer.
 
 ## 7. Acceptance Criteria
 
-1. A home with a 45% labor ratio shows **"Approved"** (green).
-2. A home with a 50% labor ratio shows **"Needs Review"** (amber).
+1. A home with a 45% labor ratio shows **"Approved"** (green) — unchanged from current behavior.
+2. A home with a 50% labor ratio shows **"Needs Review"** (amber) — unchanged from current behavior.
 3. A home with a 60% labor ratio shows **"Concerning"** (orange) — badge, footer, and table column.
-4. A home with a 70% labor ratio shows **"Not Viable"** (red).
+4. A home with a 69% labor ratio shows **"Not Viable"** (red) — previously would have shown "Needs Review".
 5. The guidance footer renders a contextually appropriate message (not blank) for every
    `"concerning"` home.
 6. Bar chart and wage-sensitivity table bar colors align with the badge color for the same
