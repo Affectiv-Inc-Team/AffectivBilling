@@ -14,7 +14,7 @@ labor-to-revenue ratio into three tiers, plus an unconfigured state:
 |---|---|---|---|---|
 | `incomplete` | `total === 0` | Configure Home | `#64748b` | ○ |
 | `approved` | ratio < 47% | Approved | `#00e5aa` (green) | ✓ |
-| `marginal` | 47% ≤ ratio < 70% | Needs Review | `#f59e0b` (amber) | ⚠ |
+| `needs_review` | 47% ≤ ratio < 70% | Needs Review | `#f59e0b` (amber) | ⚠ |
 | `rejected` | ratio ≥ 70% | Not Viable | `#f87171` (red) | ✗ |
 
 These thresholds are defined in two places:
@@ -29,7 +29,7 @@ const LABOR_APPROVAL_THRESHOLDS = { approved: 0.47, marginal: 0.70 };
 function getLaborApprovalStatus(laborRatio, total) {
   if (!total || total === 0) return { status:"incomplete", ... };
   if (laborRatio < LABOR_APPROVAL_THRESHOLDS.approved) return { status:"approved", ... };
-  if (laborRatio < LABOR_APPROVAL_THRESHOLDS.marginal) return { status:"marginal", label:"Needs Review", ... };
+  if (laborRatio < LABOR_APPROVAL_THRESHOLDS.marginal) return { status:"needs_review", label:"Needs Review", ... };
   return { status:"rejected", label:"Not Viable", ... };
 }
 ```
@@ -58,13 +58,14 @@ bottom of "Not Viable" shift to accommodate the new tier.
 |---|---|---|---|---|
 | `incomplete` | `total === 0` | Configure Home | `#64748b` (slate) | ○ |
 | `approved` | ratio < 47% | Approved | `#00e5aa` (green) | ✓ |
-| `marginal` | 47% ≤ ratio < 58% | Needs Review | `#f59e0b` (amber) | ⚠ |
+| `needs_review` | 47% ≤ ratio < 58% | Needs Review | `#f59e0b` (amber) | ⚠ |
 | `concerning` | 58% ≤ ratio < 68% | Concerning | `#fb923c` (orange) | ⚠ |
 | `rejected` | ratio ≥ 68% | Not Viable | `#f87171` (red) | ✗ |
 
 **What changes vs. current:**
 - `approved < 0.47`: **unchanged**.
-- `marginal 0.47–0.57`: "Needs Review" top boundary shifts from 70% → 58%.
+- `needs_review 0.47–0.57`: status key renames from `"marginal"` → `"needs_review"`;
+  top boundary shifts from 70% → 58%.
 - `concerning 0.58–0.67`: **new tier**. Promotes the orange band that `lrc()` already
   painted (58–70%) into a named, labeled category.
 - `rejected ≥ 0.68`: "Not Viable" bottom shifts from 70% → 68%.
@@ -111,9 +112,9 @@ function getLaborApprovalStatus(laborRatio, total) {
 ```js
 function getLaborApprovalStatus(laborRatio, total) {
   if (!total || total === 0)                             return { status:"incomplete",  label:"Configure Home", color:"#64748b", bg:"#eef1f6",   border:"#c8d8ec",   icon:"○" };
-  if (laborRatio < LABOR_APPROVAL_THRESHOLDS.approved)  return { status:"approved",    label:"Approved",       color:"#00e5aa", bg:"#00e5aa12", border:"#00e5aa35", icon:"✓" };
-  if (laborRatio < LABOR_APPROVAL_THRESHOLDS.marginal)  return { status:"marginal",    label:"Needs Review",   color:"#f59e0b", bg:"#f59e0b12", border:"#f59e0b35", icon:"⚠" };
-  if (laborRatio < LABOR_APPROVAL_THRESHOLDS.concerning) return { status:"concerning", label:"Concerning",     color:"#fb923c", bg:"#fb923c12", border:"#fb923c35", icon:"⚠" };
+  if (laborRatio < LABOR_APPROVAL_THRESHOLDS.approved)   return { status:"approved",    label:"Approved",     color:"#00e5aa", bg:"#00e5aa12", border:"#00e5aa35", icon:"✓" };
+  if (laborRatio < LABOR_APPROVAL_THRESHOLDS.marginal)   return { status:"needs_review", label:"Needs Review", color:"#f59e0b", bg:"#f59e0b12", border:"#f59e0b35", icon:"⚠" };
+  if (laborRatio < LABOR_APPROVAL_THRESHOLDS.concerning) return { status:"concerning",  label:"Concerning",   color:"#fb923c", bg:"#fb923c12", border:"#fb923c35", icon:"⚠" };
   return                                                        { status:"rejected",   label:"Not Viable",     color:"#f87171", bg:"#f8717112", border:"#f8717135", icon:"✗" };
 }
 ```
@@ -143,20 +144,23 @@ Add a `"concerning"` message block alongside the existing `"marginal"` and `"rej
 
 **Current message structure (lines 869–879):**
 ```jsx
-{approval.status === "approved"  && canGroup  && `...`}
-{approval.status === "approved"  && allHigh   && `...`}
-{approval.status === "approved"  && ...       && "..."}
-{approval.status === "marginal"  && ...       && "..."}
-{approval.status === "marginal"  && ...       && "..."}
-{approval.status === "marginal"  && ...       && "..."}
-{approval.status === "marginal"  && ...       && "..."}
-{approval.status === "rejected"  && ...       && "..."}
-{approval.status === "rejected"  && ...       && "..."}
-{approval.status === "rejected"  && ...       && "..."}
-{approval.status === "incomplete" && "..."}
+{approval.status === "approved"    && canGroup  && `...`}
+{approval.status === "approved"    && allHigh   && `...`}
+{approval.status === "approved"    && ...       && "..."}
+{approval.status === "needs_review" && ...      && "..."}
+{approval.status === "needs_review" && ...      && "..."}
+{approval.status === "needs_review" && ...      && "..."}
+{approval.status === "needs_review" && ...      && "..."}
+{approval.status === "rejected"    && ...       && "..."}
+{approval.status === "rejected"    && ...       && "..."}
+{approval.status === "rejected"    && ...       && "..."}
+{approval.status === "incomplete"  && "..."}
 ```
 
-**After — insert these three lines after the last `"marginal"` block (before `"rejected"`):**
+Note: the existing `"marginal"` checks in the source also rename to `"needs_review"` as part
+of this change.
+
+**After — insert these three lines after the last `"needs_review"` block (before `"rejected"`):**
 ```jsx
 {approval.status === "concerning" && nIntense > 0 && "Intense clients drive a high labor ratio. Adding a second intense client with extended group hours may bring this below Concerning."}
 {approval.status === "concerning" && canGroup && groupHrs < 10 && "Labor ratio is elevated. Increasing group hours to 10–14 may move this home into Needs Review."}
@@ -172,7 +176,7 @@ specific, and context-aware. Exactly one will render per home (JSX short-circuit
 
 | Boundary | Behavior |
 |---|---|
-| `laborRatio === 0.47` | `< 0.47` fails → `"marginal"`. Correct — 47% is the bottom of Needs Review (unchanged). |
+| `laborRatio === 0.47` | `< 0.47` fails → `"needs_review"`. Correct — 47% is the bottom of Needs Review (unchanged). |
 | `laborRatio === 0.58` | `< 0.58` fails → `"concerning"`. Correct — 58% is the bottom of Concerning. |
 | `laborRatio === 0.68` | `< 0.68` fails → `"rejected"`. Correct — 68% is the bottom of Not Viable. |
 | `laborRatio === 0.0` | Falls through to `"approved"`. Correct. |
