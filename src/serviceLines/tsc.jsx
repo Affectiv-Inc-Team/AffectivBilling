@@ -986,6 +986,7 @@ export function TSCPLTab({ config, userRole }) {
   const rowStyle = {
     display:"grid", gridTemplateColumns:cols,
     padding:"10px 14px", borderBottom:"1px solid #f1f5f9", fontSize:12, ...M,
+    color:"#334155",
   };
 
   const renderCoordRow = (c) => (
