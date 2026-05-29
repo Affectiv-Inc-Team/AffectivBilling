@@ -913,7 +913,7 @@ export function TSCProductivityTab({ config }) {
         <div style={{
           display:"grid", gridTemplateColumns:"1.4fr 0.8fr 1fr 1fr 1fr 0.8fr 0.8fr 0.8fr",
           gap:0, padding:"10px 14px", background:"#eef1f6", borderBottom:"1px solid #d0dae8",
-          ...labelStyle,
+          ...labelStyle, color:"#475569",
         }}>
           <span>Coordinator</span>
           <span style={{ textAlign:"right" }}>Caseload</span>
@@ -936,7 +936,7 @@ export function TSCProductivityTab({ config }) {
             <div key={c.id} style={{
               display:"grid", gridTemplateColumns:"1.4fr 0.8fr 1fr 1fr 1fr 0.8fr 0.8fr 0.8fr",
               padding:"10px 14px", borderBottom:"1px solid #f1f5f9", alignItems:"center",
-              fontSize:12, ...M,
+              fontSize:12, ...M, color:"#334155",
             }}>
               <span style={{ color:"#5a3800", fontWeight:600 }}>{c.name}</span>
               <span style={{ textAlign:"right" }}>{c.metrics.caseloadSize}</span>
