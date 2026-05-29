@@ -1315,7 +1315,7 @@ export function TSCStaffingTab({ config, onUpdate }) {
             onChange={e => updateRev("denialWriteOffRate", +e.target.value)}
             style={{ ...numInput, width:64 }}/>
         </div>
-        <div style={{ padding:"10px 14px", background:"#fffbe8", border:"1px solid #f4e4a8", borderRadius:8, fontSize:10, ...M, lineHeight:1.6, maxWidth:260 }}>
+        <div style={{ padding:"10px 14px", background:"#fffbe8", border:"1px solid #f4e4a8", borderRadius:8, fontSize:10, color:"#5a3800", ...M, lineHeight:1.6, maxWidth:260 }}>
           <strong>Note:</strong> These fields are operational planning inputs. Face-to-face and plan dev rates inform compliance risk; churn rate informs recruitment/onboarding cost modeling; denial write-off reduces net collected revenue.
         </div>
       </div>
