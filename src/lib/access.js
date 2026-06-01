@@ -70,6 +70,7 @@ const CONTROL_MAX_TIER = {
   entityType:    3,
   ownerRate:     3,
   resHabRates:   5,
+  tscRates:      5,
   mgmtFee:       3,
   billingFee:    3,
 };
