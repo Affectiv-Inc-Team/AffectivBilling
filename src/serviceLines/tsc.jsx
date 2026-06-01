@@ -37,20 +37,30 @@
  */
 
 import { useState } from "react";
-import { wageDisplayMode, canSeeCompanyDollars } from "../lib/access.js";
+import { wageDisplayMode, canSeeCompanyDollars, canSeeControl, editMode } from "../lib/access.js";
 
 // ──────────────────────────────────────────────────────────────────────
 // Rate constants (mirror the post-9/1/2025 Idaho catalog)
 // Could be pulled from idahoRates.js; inlined here so the module
 // is self-contained for review.
 // ──────────────────────────────────────────────────────────────────────
-const TSC_RATES = {
-  COORD:           20.97,  // G9002
-  COORD_PARAPRO:   13.46,  // G9002 HM
-  PLAN_DEV:        20.97,  // G9007
-  CRISIS:          20.97,  // H2011
-  CRISIS_PARAPRO:  13.46,  // H2011 HM
+// Default Idaho post-9/1/2025 TSC rates. Stored per-service-line in config.rates
+// so they can be overridden; calc falls back to these for legacy configs.
+export const DEFAULT_TSC_RATES = {
+  coord:          20.97,  // G9002
+  coordParapro:   13.46,  // G9002 HM
+  planDev:        20.97,  // G9007
+  crisis:         20.97,  // H2011 (hidden from primary views per spec)
+  crisisParapro:  13.46,  // H2011 HM
 };
+
+// Editable fields surfaced in the Reimbursement Rates panel.
+// G9002 + G9007 only — H2011 (crisis) stays out of primary views per service-rate-spec.
+const TSC_RATE_FIELDS = [
+  { key:"coord",        code:"G9002",    label:"Service Coordination",           color:"#D4A520", baseline:20.97 },
+  { key:"coordParapro", code:"G9002 HM", label:"Service Coordination — Parapro",  color:"#C9921A", baseline:13.46 },
+  { key:"planDev",      code:"G9007",    label:"Plan Development",                color:"#00e5aa", baseline:20.97 },
+];
 
 // ──────────────────────────────────────────────────────────────────────
 // Factories
@@ -122,16 +132,18 @@ export function defaultTSCConfig() {
       caseloadCount:     null,
       productivityAdjPct: 0,
     },
+    rates: { ...DEFAULT_TSC_RATES },
   };
 }
 
 // ──────────────────────────────────────────────────────────────────────
 // Calculators
 // ──────────────────────────────────────────────────────────────────────
-export function calcTSCParticipant(p) {
-  const rateCoord  = p.isParapro ? TSC_RATES.COORD_PARAPRO  : TSC_RATES.COORD;
-  const rateCrisis = p.isParapro ? TSC_RATES.CRISIS_PARAPRO : TSC_RATES.CRISIS;
-  const ratePlan   = TSC_RATES.PLAN_DEV;
+export function calcTSCParticipant(p, rates = DEFAULT_TSC_RATES) {
+  const R = { ...DEFAULT_TSC_RATES, ...(rates ?? {}) };
+  const rateCoord  = p.isParapro ? R.coordParapro  : R.coord;
+  const rateCrisis = p.isParapro ? R.crisisParapro : R.crisis;
+  const ratePlan   = R.planDev;
 
   // G9007 is authorized annually (max 48 units/yr); divide by 12 for monthly contribution
   const monthlyRev = (p.unitsCoord    ?? 0) * rateCoord
@@ -149,8 +161,8 @@ export function calcTSCParticipant(p) {
   };
 }
 
-export function calcTSCCoordinator(c, payrollBurdenPct = 22) {
-  const px = (c.participants ?? []).map(calcTSCParticipant);
+export function calcTSCCoordinator(c, payrollBurdenPct = 22, rates = DEFAULT_TSC_RATES) {
+  const px = (c.participants ?? []).map(p => calcTSCParticipant(p, rates));
 
   const monthlyRev      = px.reduce((a, p) => a + p.monthlyRev, 0);
   const monthlyBillable = px.reduce((a, p) => a + p.monthlyHours, 0);
@@ -186,9 +198,10 @@ export function calcTSCCoordinator(c, payrollBurdenPct = 22) {
 }
 
 export function calcTSCService(config) {
+  const rates = { ...DEFAULT_TSC_RATES, ...(config.rates ?? {}) };
   const coordinators = (config.coordinators ?? []).map(c => ({
     ...c,
-    metrics: calcTSCCoordinator(c, config.payrollBurdenPct ?? 22),
+    metrics: calcTSCCoordinator(c, config.payrollBurdenPct ?? 22, rates),
   }));
 
   const totalCaseload  = coordinators.reduce((a, c) => a + c.metrics.caseloadSize, 0);
@@ -364,8 +377,8 @@ function Stat({ label, value, color = "#5a3800" }) {
 // ──────────────────────────────────────────────────────────────────────
 // Participant row (inside a coordinator's card)
 // ──────────────────────────────────────────────────────────────────────
-function ParticipantRow({ p, onUpdate, onRemove }) {
-  const m = calcTSCParticipant(p);
+function ParticipantRow({ p, onUpdate, onRemove, rates = DEFAULT_TSC_RATES }) {
+  const m = calcTSCParticipant(p, rates);
   return (
     <div style={{
       display:"grid", gridTemplateColumns:"1.4fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
@@ -409,9 +422,9 @@ function ParticipantRow({ p, onUpdate, onRemove }) {
 // ──────────────────────────────────────────────────────────────────────
 // Coordinator card (shows roster, expandable participant list)
 // ──────────────────────────────────────────────────────────────────────
-function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant, payrollBurdenPct, userRole, hideParticipants = false }) {
+function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant, payrollBurdenPct, userRole, hideParticipants = false, rates = DEFAULT_TSC_RATES }) {
   const [expanded, setExpanded] = useState(true);
-  const m = calcTSCCoordinator(coord, payrollBurdenPct);
+  const m = calcTSCCoordinator(coord, payrollBurdenPct, rates);
 
   const utilColor =
     m.utilization > 1.05 ? "#cf6e6e" :
@@ -505,7 +518,7 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
             {(coord.participants ?? []).map(p =>
-              <ParticipantRow key={p.id} p={p}
+              <ParticipantRow key={p.id} p={p} rates={rates}
                 onUpdate={(id, f, v) => onUpdateParticipant(coord.id, id, f, v)}
                 onRemove={(id) => onRemoveParticipant(coord.id, id)}/>
             )}
@@ -526,6 +539,7 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
 // ──────────────────────────────────────────────────────────────────────
 export function TSCRosterTab({ config, onUpdate, userRole }) {
   const summary = calcTSCService(config);
+  const rates = { ...DEFAULT_TSC_RATES, ...(config.rates ?? {}) };
 
   const updateField    = (field, value) => onUpdate({ ...config, [field]: value });
   const updateCoord    = (coordId, field, value) =>
@@ -599,6 +613,7 @@ export function TSCRosterTab({ config, onUpdate, userRole }) {
         {config.coordinators.map(coord =>
           <CoordinatorCard key={coord.id} coord={coord}
             payrollBurdenPct={config.payrollBurdenPct}
+            rates={rates}
             onUpdate={updateCoord}
             onRemove={removeCoord}
             onAddParticipant={addParticipant}
@@ -620,8 +635,8 @@ export function TSCRosterTab({ config, onUpdate, userRole }) {
 // ──────────────────────────────────────────────────────────────────────
 // Participant row for flat (cross-coordinator) view
 // ──────────────────────────────────────────────────────────────────────
-function ParticipantFlatRow({ p, coordId, coordinators, onUpdate, onReassign, onRemove }) {
-  const m = calcTSCParticipant(p);
+function ParticipantFlatRow({ p, coordId, coordinators, onUpdate, onReassign, onRemove, rates = DEFAULT_TSC_RATES }) {
+  const m = calcTSCParticipant(p, rates);
   return (
     <div style={{
       display:"grid",
@@ -675,6 +690,7 @@ function ParticipantFlatRow({ p, coordId, coordinators, onUpdate, onReassign, on
 // ──────────────────────────────────────────────────────────────────────
 export function TSCCoordinatorsTab({ config, onUpdate, userRole }) {
   const summary = calcTSCService(config);
+  const rates = { ...DEFAULT_TSC_RATES, ...(config.rates ?? {}) };
 
   const updateCoord = (coordId, field, value) =>
     onUpdate({
@@ -745,6 +761,7 @@ export function TSCCoordinatorsTab({ config, onUpdate, userRole }) {
         {config.coordinators.map(coord =>
           <CoordinatorCard key={coord.id} coord={coord}
             payrollBurdenPct={config.payrollBurdenPct}
+            rates={rates}
             onUpdate={updateCoord}
             onRemove={removeCoord}
             onAddParticipant={addParticipant}
@@ -767,6 +784,7 @@ export function TSCCoordinatorsTab({ config, onUpdate, userRole }) {
 // Participants tab — flat cross-coordinator participant list
 // ──────────────────────────────────────────────────────────────────────
 export function TSCParticipantsTab({ config, onUpdate }) {
+  const rates = { ...DEFAULT_TSC_RATES, ...(config.rates ?? {}) };
   const allParticipants = (config.coordinators ?? []).flatMap(c =>
     (c.participants ?? []).map(p => ({ ...p, coordId: c.id, coordName: c.name }))
   );
@@ -864,6 +882,7 @@ export function TSCParticipantsTab({ config, onUpdate }) {
               <ParticipantFlatRow
                 key={p.id}
                 p={p}
+                rates={rates}
                 coordId={p.coordId}
                 coordinators={config.coordinators}
                 onUpdate={updateParticipant}
@@ -1329,7 +1348,7 @@ export function TSCStaffingTab({ config, onUpdate }) {
 // ──────────────────────────────────────────────────────────────────────
 // Scenario tab — rate / caseload / productivity adjustments
 // ──────────────────────────────────────────────────────────────────────
-export function TSCScenarioTab({ config, onUpdate }) {
+export function TSCScenarioTab({ config, onUpdate, userRole }) {
   const { base, scenario, delta } = calcTSCScenario(config);
   const bev = calcTSCBreakEven(config);
 
@@ -1343,8 +1362,103 @@ export function TSCScenarioTab({ config, onUpdate }) {
   const pctD = n => (n >= 0 ? "+" : "") + (n * 100).toFixed(1) + "%";
   const deltaColor = n => n >= 0 ? "#22c55e" : "#cf6e6e";
 
+  // Reimbursement rate overrides — compact left-column panel (mirrors Home Mix Editor)
+  const rates = { ...DEFAULT_TSC_RATES, ...(config.rates ?? {}) };
+  const [ratesOpen, setRatesOpen] = useState(true);
+  const canEditRates = editMode(userRole) !== 'readonly';
+  const setRate = (key, val) =>
+    onUpdate({ ...config, rates: { ...rates, [key]: val } });
+  const G9007_CAP = 48;
+  const allPlanDev = (config.coordinators ?? []).flatMap(c =>
+    (c.participants ?? []).map(p => p.unitsPlanDev ?? 0));
+  const maxPlanDev = allPlanDev.length ? Math.max(...allPlanDev) : 0;
+  const nApproaching = allPlanDev.filter(u => u >= 40).length;
+  const $rate = n => `$${(n ?? 0).toFixed(2)}`;
+
   return (
-    <div>
+    <div style={{ display:"grid", gridTemplateColumns:"260px 1fr", gap:16, alignItems:"start" }}>
+      {/* Left: reimbursement rates (compact — matches Home Mix Editor) */}
+      {canSeeControl(userRole, 'tscRates') ? (
+        <div style={{ padding:"10px 12px", background:"#f8f6f0", borderRadius:9, border:"1px solid #e0e8f0", pointerEvents: canEditRates ? "auto" : "none", opacity: canEditRates ? 1 : 0.65 }}>
+          <button onClick={() => setRatesOpen(o => !o)} style={{
+            background:"none", border:"none", cursor:"pointer", padding:0,
+            display:"flex", alignItems:"center", gap:6, width:"100%",
+            fontSize:9, color:"#9a8050", letterSpacing:2, textTransform:"uppercase", fontWeight:700,
+          }}>
+            <span style={{ fontSize:11, transition:"transform 200ms", transform: ratesOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+            Reimbursement Rates
+          </button>
+          {ratesOpen && (
+            <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:8 }}>
+              {TSC_RATE_FIELDS.map(f => {
+                const val = rates[f.key] ?? f.baseline;
+                return (
+                  <div key={f.key}>
+                    <div style={{ fontSize:9, color:"#5a7498", marginBottom:3 }}>
+                      {f.label} <span style={{ color:"#9aabb8" }}>/15-min · {f.code}</span>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:4, flexWrap:"wrap" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:3, flex:1 }}>
+                        <span style={{ fontSize:10, color:"#9aabb8" }}>$</span>
+                        <input type="number" step="0.01" value={val}
+                          onChange={e => setRate(f.key, parseFloat(e.target.value) || 0)}
+                          style={{ width:60, fontSize:12, fontWeight:600, color:f.color,
+                            background:"#f8f8f8", border:"1px solid #d0dae8", borderRadius:5,
+                            padding:"3px 6px", textAlign:"right" }}/>
+                      </div>
+                      <div style={{ display:"flex", gap:3 }}>
+                        {[2,4,6].map(p => (
+                          <button key={p} onClick={() =>
+                            setRate(f.key, parseFloat((f.baseline * (1 - p/100)).toFixed(4)))}
+                            style={{ fontSize:9, padding:"2px 4px", borderRadius:4, border:"1px solid #d0dae8",
+                              background:"#fff", color:"#64748b", cursor:"pointer" }}>
+                            −{p}%
+                          </button>
+                        ))}
+                        <button onClick={() => setRate(f.key, f.baseline)}
+                          style={{ fontSize:9, padding:"2px 4px", borderRadius:4, border:"1px solid #d0dae8",
+                            background:"#fff", color:"#64748b", cursor:"pointer" }}>
+                          Reset
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Unit caps + 15-min basis */}
+              <div style={{ borderTop:"1px solid #e0e8f0", marginTop:2, paddingTop:8, display:"flex", flexDirection:"column", gap:8 }}>
+                <div>
+                  <div style={{ fontSize:9, color:"#5a7498", marginBottom:3 }}>Plan Dev cap (G9007)</div>
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"#5a3800", ...M, marginBottom:3 }}>
+                    <span>{G9007_CAP} u / participant / yr</span>
+                    <span style={{ color: maxPlanDev >= 40 ? "#cf6e6e" : "#64748b" }}>{maxPlanDev}/{G9007_CAP}</span>
+                  </div>
+                  <div style={{ position:"relative", height:5, background:"#e2e8f0", borderRadius:3, overflow:"hidden" }}>
+                    <div style={{ position:"absolute", inset:0, width:`${Math.min(100, (maxPlanDev / G9007_CAP) * 100)}%`, background: maxPlanDev >= 40 ? "#cf6e6e" : "#22c55e" }}/>
+                  </div>
+                  {nApproaching > 0 && (
+                    <div style={{ fontSize:8.5, color:"#cf6e6e", ...M, marginTop:3 }}>{nApproaching} participant(s) ≥ 40 — near cap</div>
+                  )}
+                </div>
+                <div style={{ fontSize:9, color:"#5a7498" }}>
+                  Service Coord (G9002): <span style={{ color:"#9aabb8" }}>no monthly cap</span>
+                </div>
+                <div>
+                  <div style={{ fontSize:9, color:"#5a7498", marginBottom:2 }}>Unit basis</div>
+                  <div style={{ fontSize:9, color:"#64748b", ...M, lineHeight:1.6 }}>
+                    1 unit = 15 min · 4 = 1 hr<br/>
+                    e.g. 3 × {$rate(rates.coord)} = {$rate(rates.coord * 3)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : <div/>}
+
+      {/* Right: scenario modeling */}
+      <div>
       <h3 style={{ ...M, fontSize:14, color:"#5a3800", margin:"0 0 14px 0", letterSpacing:1, textTransform:"uppercase" }}>
         Scenario modeling
       </h3>
@@ -1445,6 +1559,7 @@ export function TSCScenarioTab({ config, onUpdate }) {
             {$k(bev.fixedCosts)}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

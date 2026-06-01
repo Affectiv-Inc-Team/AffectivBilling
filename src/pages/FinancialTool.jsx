@@ -3074,7 +3074,8 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
               )}
               {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_scenario" && (
                 <TSCScenarioTab config={activeSL.config}
-                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}/>
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}
+                  userRole={userRole}/>
               )}
 
               {/* CHILDRENS_DDA tabs */}
