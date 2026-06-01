@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { canSeeCompanyDollars, wageDisplayMode } from '../lib/access';
+import { canSeeCompanyDollars, wageDisplayMode, canEditServiceLines } from '../lib/access';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Idaho CHIS (Children's Habilitation Intervention Services) rate table
@@ -313,7 +313,7 @@ function Stat({ label, value, color = "#5a3800" }) {
   );
 }
 
-function SvcInput({ label, value, onChange, step = 0.5, max = 40, sublabel }) {
+function SvcInput({ label, value, onChange, step = 0.5, max = 40, sublabel, ro = false }) {
   return (
     <div style={{ minWidth: 70 }}>
       <div style={labelStyle}>{label}</div>
@@ -321,7 +321,8 @@ function SvcInput({ label, value, onChange, step = 0.5, max = 40, sublabel }) {
       <input type="number" min={0} max={max} step={step}
         value={value}
         onChange={e => onChange(+e.target.value)}
-        style={numInput}/>
+        readOnly={ro}
+        style={{ ...numInput, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
     </div>
   );
 }
@@ -329,10 +330,11 @@ function SvcInput({ label, value, onChange, step = 0.5, max = 40, sublabel }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Expandable participant row
 // ─────────────────────────────────────────────────────────────────────────────
-function DDAParticipantRow({ p, tier, rates, onUpdate, onRemove, userRole }) {
+function DDAParticipantRow({ p, tier, rates, onUpdate, onRemove, userRole, canEdit }) {
   const [expanded, setExpanded] = useState(false);
   const m   = calcDDAParticipant(p, tier, rates);
   const svc = p.services ?? {};
+  const ro  = !canEdit;
 
   const upd = (field, partial) => onUpdate(p.id, "services", { ...svc, [field]: { ...(svc[field] ?? {}), ...partial } });
 
@@ -346,17 +348,19 @@ function DDAParticipantRow({ p, tier, rates, onUpdate, onRemove, userRole }) {
         }}>{expanded ? "▼" : "▶"}</button>
         <input type="text" value={p.name}
           onChange={e => onUpdate(p.id, "name", e.target.value)}
-          style={{ ...textInput, flex: 1, fontSize: 12, minWidth: 100 }}/>
+          readOnly={ro}
+          style={{ ...textInput, flex: 1, fontSize: 12, minWidth: 100, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           {canSeeCompanyDollars(userRole) && <div style={{ fontSize: 13, fontWeight: 700, color: "#5a3800", ...M }}>{$k(m.monthlyRev)}/mo</div>}
           <div style={{ fontSize: 9, color: "#64748b", ...M }}>
             {m.billedHrsPerMonth.toFixed(1)} billed · {m.providerHrsPerMonth.toFixed(1)} prov hr/mo
           </div>
         </div>
-        <button onClick={() => onRemove(p.id)} style={{
+        {canEdit && <button onClick={() => onRemove(p.id)} style={{
           border: "none", background: "transparent", cursor: "pointer",
           color: "#cf6e6e", fontSize: 14, padding: 4, flexShrink: 0,
-        }}>✕</button>
+        }}>✕</button>}
+        {!canEdit && <span style={{ width: 22, flexShrink: 0 }}/>}
       </div>
 
       {/* Expanded service editor */}
@@ -368,13 +372,13 @@ function DDAParticipantRow({ p, tier, rates, onUpdate, onRemove, userRole }) {
             <div>
               <div style={{ ...labelStyle, color: "#3b5fc0", marginBottom: 6 }}>Behavior Intervention (H2014)</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <SvcInput label="BI Ind hr/wk"
+                <SvcInput label="BI Ind hr/wk" ro={ro}
                   value={svc.biInd?.hrPerWk ?? svc.biIndividual?.hrPerWk ?? 0}
                   onChange={v => upd("biInd", { hrPerWk: v })}/>
-                <SvcInput label="BI Grp hr/wk"
+                <SvcInput label="BI Grp hr/wk" ro={ro}
                   value={svc.biGrp?.hrPerWk ?? svc.biGroup?.hrPerWk ?? 0}
                   onChange={v => upd("biGrp", { hrPerWk: v })}/>
-                <SvcInput label="Group size" sublabel="participants"
+                <SvcInput label="Group size" sublabel="participants" ro={ro}
                   value={svc.biGrp?.groupSize ?? 4} max={12} step={1}
                   onChange={v => upd("biGrp", { groupSize: Math.max(1, v) })}/>
               </div>
@@ -384,13 +388,13 @@ function DDAParticipantRow({ p, tier, rates, onUpdate, onRemove, userRole }) {
             <div>
               <div style={{ ...labelStyle, color: "#3b5fc0", marginBottom: 6 }}>Skill Building (H2014)</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <SvcInput label="Skill Ind hr/wk"
+                <SvcInput label="Skill Ind hr/wk" ro={ro}
                   value={svc.skillInd?.hrPerWk ?? svc.skillBuilding?.hrPerWk ?? 0}
                   onChange={v => upd("skillInd", { hrPerWk: v })}/>
-                <SvcInput label="Skill Grp hr/wk"
+                <SvcInput label="Skill Grp hr/wk" ro={ro}
                   value={svc.skillGrp?.hrPerWk ?? 0}
                   onChange={v => upd("skillGrp", { hrPerWk: v })}/>
-                <SvcInput label="Group size" sublabel="participants"
+                <SvcInput label="Group size" sublabel="participants" ro={ro}
                   value={svc.skillGrp?.groupSize ?? 4} max={12} step={1}
                   onChange={v => upd("skillGrp", { groupSize: Math.max(1, v) })}/>
               </div>
@@ -400,13 +404,13 @@ function DDAParticipantRow({ p, tier, rates, onUpdate, onRemove, userRole }) {
             <div>
               <div style={{ ...labelStyle, color: "#3b5fc0", marginBottom: 6 }}>Family Education (H0024)</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <SvcInput label="Family Ind hr/mo" max={80}
+                <SvcInput label="Family Ind hr/mo" max={80} ro={ro}
                   value={svc.familyInd?.hrPerMonth ?? svc.familyEd?.hrPerMonth ?? 0}
                   onChange={v => upd("familyInd", { hrPerMonth: v })}/>
-                <SvcInput label="Family Grp hr/mo" max={80}
+                <SvcInput label="Family Grp hr/mo" max={80} ro={ro}
                   value={svc.familyGrp?.hrPerMonth ?? 0}
                   onChange={v => upd("familyGrp", { hrPerMonth: v })}/>
-                <SvcInput label="Group size" sublabel="participants"
+                <SvcInput label="Group size" sublabel="participants" ro={ro}
                   value={svc.familyGrp?.groupSize ?? 4} max={12} step={1}
                   onChange={v => upd("familyGrp", { groupSize: Math.max(1, v) })}/>
               </div>
@@ -416,13 +420,13 @@ function DDAParticipantRow({ p, tier, rates, onUpdate, onRemove, userRole }) {
             <div>
               <div style={{ ...labelStyle, color: "#3b5fc0", marginBottom: 6 }}>Community Supports (H2015)</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <SvcInput label="Comm Ind hr/wk"
+                <SvcInput label="Comm Ind hr/wk" ro={ro}
                   value={svc.commInd?.hrPerWk ?? 0}
                   onChange={v => upd("commInd", { hrPerWk: v })}/>
-                <SvcInput label="Comm Grp hr/wk"
+                <SvcInput label="Comm Grp hr/wk" ro={ro}
                   value={svc.commGrp?.hrPerWk ?? 0}
                   onChange={v => upd("commGrp", { hrPerWk: v })}/>
-                <SvcInput label="Group size" sublabel="participants"
+                <SvcInput label="Group size" sublabel="participants" ro={ro}
                   value={svc.commGrp?.groupSize ?? 4} max={12} step={1}
                   onChange={v => upd("commGrp", { groupSize: Math.max(1, v) })}/>
               </div>
@@ -432,13 +436,13 @@ function DDAParticipantRow({ p, tier, rates, onUpdate, onRemove, userRole }) {
             <div>
               <div style={{ ...labelStyle, color: "#3b5fc0", marginBottom: 6 }}>Respite Care (T1005)</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <SvcInput label="Respite Ind hr/wk"
+                <SvcInput label="Respite Ind hr/wk" ro={ro}
                   value={svc.respiteInd?.hrPerWk ?? 0}
                   onChange={v => upd("respiteInd", { hrPerWk: v })}/>
-                <SvcInput label="Respite Grp hr/wk"
+                <SvcInput label="Respite Grp hr/wk" ro={ro}
                   value={svc.respiteGrp?.hrPerWk ?? 0}
                   onChange={v => upd("respiteGrp", { hrPerWk: v })}/>
-                <SvcInput label="Group size" sublabel="participants"
+                <SvcInput label="Group size" sublabel="participants" ro={ro}
                   value={svc.respiteGrp?.groupSize ?? 4} max={12} step={1}
                   onChange={v => upd("respiteGrp", { groupSize: Math.max(1, v) })}/>
               </div>
@@ -448,10 +452,10 @@ function DDAParticipantRow({ p, tier, rates, onUpdate, onRemove, userRole }) {
             <div>
               <div style={{ ...labelStyle, color: "#3b5fc0", marginBottom: 6 }}>Assessment & Crisis</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <SvcInput label="Assess sessions/yr" sublabel="≈1hr each"
+                <SvcInput label="Assess sessions/yr" sublabel="≈1hr each" ro={ro}
                   value={svc.assessment?.sessionsPerYear ?? 0} max={12} step={1}
                   onChange={v => upd("assessment", { sessionsPerYear: v })}/>
-                <SvcInput label="Crisis hr/mo" sublabel="H2011"
+                <SvcInput label="Crisis hr/mo" sublabel="H2011" ro={ro}
                   value={svc.crisis?.hrPerMonth ?? 0} max={40}
                   onChange={v => upd("crisis", { hrPerMonth: v })}/>
               </div>
@@ -467,9 +471,10 @@ function DDAParticipantRow({ p, tier, rates, onUpdate, onRemove, userRole }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Provider card
 // ─────────────────────────────────────────────────────────────────────────────
-function DDAProviderCard({ pv, payrollBurdenPct, rates, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant, userRole }) {
+function DDAProviderCard({ pv, payrollBurdenPct, rates, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant, userRole, canEdit }) {
   const [expanded, setExpanded] = useState(true);
   const m = calcDDAProvider(pv, payrollBurdenPct, rates);
+  const ro = !canEdit;
 
   const utilColor   = m.utilization > 1.05 ? "#cf6e6e" : m.utilization > 0.85 ? "#22c55e" : m.utilization > 0.65 ? "#f59e0b" : "#cf6e6e";
   const marginColor = m.grossMargin > 0.35 ? "#22c55e" : m.grossMargin > 0.15 ? "#f59e0b" : "#cf6e6e";
@@ -484,13 +489,15 @@ function DDAProviderCard({ pv, payrollBurdenPct, rates, onUpdate, onRemove, onAd
 
         <input type="text" value={pv.name}
           onChange={e => onUpdate(pv.id, "name", e.target.value)}
-          style={{ ...textInput, fontWeight: 700, flex: 1, minWidth: 120, fontSize: 14 }}/>
+          readOnly={ro}
+          style={{ ...textInput, fontWeight: 700, flex: 1, minWidth: 120, fontSize: 14, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
 
         <div>
           <div style={labelStyle}>Tier</div>
           <select value={pv.tier}
             onChange={e => onUpdate(pv.id, "tier", e.target.value)}
-            style={{ ...textInput, fontSize: 11, padding: "3px 6px" }}>
+            disabled={ro}
+            style={{ ...textInput, fontSize: 11, padding: "3px 6px", pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}>
             {TIERS.map(t => <option key={t} value={t}>{TIER_LABELS[t]}</option>)}
           </select>
         </div>
@@ -500,8 +507,8 @@ function DDAProviderCard({ pv, payrollBurdenPct, rates, onUpdate, onRemove, onAd
             <div style={labelStyle}>Wage / hr</div>
             <input type="number" min={10} max={80} step={0.5} value={pv.hourlyWage}
               onChange={e => onUpdate(pv.id, "hourlyWage", +e.target.value)}
-              readOnly={wageDisplayMode(userRole) !== 'dollars'}
-              style={numInput}/>
+              readOnly={wageDisplayMode(userRole) !== 'dollars' || ro}
+              style={{ ...numInput, pointerEvents: (wageDisplayMode(userRole) !== 'dollars' || ro) ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
           </div>
         )}
 
@@ -509,15 +516,16 @@ function DDAProviderCard({ pv, payrollBurdenPct, rates, onUpdate, onRemove, onAd
           <div style={labelStyle}>Office</div>
           <input type="text" value={pv.officeName ?? ''}
             onChange={e => onUpdate(pv.id, "officeName", e.target.value)}
+            readOnly={ro}
             placeholder="optional"
-            style={{ ...textInput, width: 90, fontSize: 11 }}/>
+            style={{ ...textInput, width: 90, fontSize: 11, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
 
-        <button onClick={() => onRemove(pv.id)} style={{
+        {canEdit && <button onClick={() => onRemove(pv.id)} style={{
           border: "1px solid #e8d4d4", background: "#fff5f5",
           color: "#a14848", padding: "4px 10px", borderRadius: 5,
           fontSize: 10, cursor: "pointer", ...M,
-        }}>Remove</button>
+        }}>Remove</button>}
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: expanded ? 12 : 0 }}>
@@ -540,14 +548,15 @@ function DDAProviderCard({ pv, payrollBurdenPct, rates, onUpdate, onRemove, onAd
               <DDAParticipantRow key={p.id} p={p} tier={pv.tier} rates={rates}
                 onUpdate={(id, f, v) => onUpdateParticipant(pv.id, id, f, v)}
                 onRemove={(id) => onRemoveParticipant(pv.id, id)}
-                userRole={userRole}/>
+                userRole={userRole}
+                canEdit={canEdit}/>
             )}
           </div>
-          <button onClick={() => onAddParticipant(pv.id)} style={{
+          {canEdit && <button onClick={() => onAddParticipant(pv.id)} style={{
             marginTop: 10, padding: "6px 14px",
             background: "#fff", border: "1px dashed #c8d4e4", borderRadius: 6,
             color: "#5a3800", cursor: "pointer", fontSize: 12, fontWeight: 600, ...M,
-          }}>+ Add participant</button>
+          }}>+ Add participant</button>}
         </div>
       )}
     </div>
@@ -558,8 +567,10 @@ function DDAProviderCard({ pv, payrollBurdenPct, rates, onUpdate, onRemove, onAd
 // Roster tab
 // ─────────────────────────────────────────────────────────────────────────────
 export function ChildrensDDARosterTab({ config, onUpdate, userRole }) {
-  const summary = calcChildrensDDAService(config);
-  const rates   = effectiveRates(config.rateOverrides ?? {});
+  const summary  = calcChildrensDDAService(config);
+  const rates    = effectiveRates(config.rateOverrides ?? {});
+  const canEdit  = canEditServiceLines(userRole);
+  const ro       = !canEdit;
 
   const updateField = (field, value) => onUpdate({ ...config, [field]: value });
 
@@ -626,7 +637,8 @@ export function ChildrensDDARosterTab({ config, onUpdate, userRole }) {
           <span style={labelStyle}>Burden %</span>
           <input type="number" min={0} max={50} step={0.5} value={config.payrollBurdenPct ?? 22}
             onChange={e => updateField("payrollBurdenPct", +e.target.value)}
-            style={numInput}/>
+            readOnly={ro}
+            style={{ ...numInput, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
       </div>
 
@@ -636,17 +648,23 @@ export function ChildrensDDARosterTab({ config, onUpdate, userRole }) {
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <span style={labelStyle}>Supervisors</span>
           <input type="number" min={0} max={20} value={sup.count ?? 1}
-            onChange={e => updateSup("count", +e.target.value)} style={{ ...numInput, width: 48 }}/>
+            onChange={e => updateSup("count", +e.target.value)}
+            readOnly={ro}
+            style={{ ...numInput, width: 48, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <span style={labelStyle}>Supervisor salary</span>
           <input type="number" min={30000} max={200000} step={1000} value={sup.salary ?? 65000}
-            onChange={e => updateSup("salary", +e.target.value)} style={{ ...numInput, width: 80 }}/>
+            onChange={e => updateSup("salary", +e.target.value)}
+            readOnly={ro}
+            style={{ ...numInput, width: 80, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <span style={labelStyle}>Providers / supervisor</span>
           <input type="number" min={1} max={20} value={sup.providersPerSupervisor ?? 8}
-            onChange={e => updateSup("providersPerSupervisor", +e.target.value)} style={{ ...numInput, width: 48 }}/>
+            onChange={e => updateSup("providersPerSupervisor", +e.target.value)}
+            readOnly={ro}
+            style={{ ...numInput, width: 48, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         {canSeeCompanyDollars(userRole) && (
           <div style={{ fontSize: 10, color: "#64748b", ...M }}>
@@ -672,15 +690,16 @@ export function ChildrensDDARosterTab({ config, onUpdate, userRole }) {
             onAddParticipant={addParticipant}
             onUpdateParticipant={updateParticipant}
             onRemoveParticipant={removeParticipant}
-            userRole={userRole}/>
+            userRole={userRole}
+            canEdit={canEdit}/>
         )}
       </div>
 
-      <button onClick={addProvider} style={{
+      {canEdit && <button onClick={addProvider} style={{
         marginTop: 16, padding: "8px 18px",
         background: "#D4A520", border: "none", borderRadius: 6,
         color: "#5a3800", cursor: "pointer", fontSize: 12, fontWeight: 700, ...M,
-      }}>+ Add provider</button>
+      }}>+ Add provider</button>}
     </div>
   );
 }
@@ -760,11 +779,11 @@ export function ChildrensDDAProductivityTab({ config, userRole }) {
               padding: "10px 14px", borderBottom: "1px solid #f1f5f9", alignItems: "center", fontSize: 12, ...M,
             }}>
               <span style={{ color: "#5a3800", fontWeight: 600 }}>{pv.name}</span>
-              <span style={{ textAlign: "right", fontSize: 10, color: "#64748b" }}>{TIER_LABELS[pv.tier] ?? pv.tier}</span>
-              <span style={{ textAlign: "right" }}>{pv.metrics.caseloadSize}</span>
-              <span style={{ textAlign: "right" }}>{pv.metrics.monthlyBillable.toFixed(1)}</span>
-              <span style={{ textAlign: "right" }}>{pv.metrics.monthlyProvHrs.toFixed(1)}</span>
-              <span style={{ textAlign: "right" }}>{pv.metrics.totalMonthlyHrs.toFixed(1)}</span>
+              <span style={{ textAlign: "right", fontSize: 10, color: "#475569" }}>{TIER_LABELS[pv.tier] ?? pv.tier}</span>
+              <span style={{ textAlign: "right", color: "#334155" }}>{pv.metrics.caseloadSize}</span>
+              <span style={{ textAlign: "right", color: "#334155" }}>{pv.metrics.monthlyBillable.toFixed(1)}</span>
+              <span style={{ textAlign: "right", color: "#334155" }}>{pv.metrics.monthlyProvHrs.toFixed(1)}</span>
+              <span style={{ textAlign: "right", color: "#334155" }}>{pv.metrics.totalMonthlyHrs.toFixed(1)}</span>
               <span style={{ textAlign: "right", color: utilColor, fontWeight: 700 }}>{pct(pv.metrics.utilization)}</span>
               <span style={{ textAlign: "right", color: marginColor, fontWeight: 700 }}>{pct(pv.metrics.grossMargin)}</span>
             </div>
@@ -913,9 +932,11 @@ export function ChildrensDDAPLTab({ config, userRole }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Rate Schedule tab — editable Idaho CHIS fee schedule
 // ─────────────────────────────────────────────────────────────────────────────
-export function ChildrensDDARateScheduleTab({ config, onUpdate }) {
+export function ChildrensDDARateScheduleTab({ config, onUpdate, userRole }) {
   const overrides    = config.rateOverrides ?? {};
   const hasOverrides = Object.keys(overrides).length > 0;
+  const canEdit      = canEditServiceLines(userRole);
+  const ro           = !canEdit;
 
   const setRate = (key, val) => onUpdate({ ...config, rateOverrides: { ...overrides, [key]: val } });
   const resetRate = (key) => {
@@ -941,7 +962,7 @@ export function ChildrensDDARateScheduleTab({ config, onUpdate }) {
           <div style={{ fontSize: 10, color: "#64748b", ...M }}>
             {hasOverrides ? `${Object.keys(overrides).length} rate${Object.keys(overrides).length !== 1 ? 's' : ''} overridden` : 'All rates at Idaho defaults'}
           </div>
-          {hasOverrides && (
+          {hasOverrides && canEdit && (
             <button onClick={resetAll} style={{
               padding: "4px 10px", fontSize: 10, cursor: "pointer",
               border: "1px solid #d0dae8", borderRadius: 5, background: "#fff", ...M,
@@ -996,8 +1017,9 @@ export function ChildrensDDARateScheduleTab({ config, onUpdate }) {
                     type="number" min={0} max={200} step={0.01}
                     value={activeRate}
                     onChange={e => setRate(r.key, +e.target.value)}
-                    style={{ ...numInput, width: 68, border: isOverridden ? "1px solid #f59e0b" : undefined }}/>
-                  {isOverridden && (
+                    readOnly={ro}
+                    style={{ ...numInput, width: 68, border: isOverridden ? "1px solid #f59e0b" : undefined, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
+                  {isOverridden && canEdit && (
                     <button onClick={() => resetRate(r.key)} title={`Reset to $${r.defaultRate}`} style={{
                       border: "none", background: "transparent", cursor: "pointer",
                       color: "#f59e0b", fontSize: 13, padding: 0, lineHeight: 1,

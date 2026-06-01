@@ -37,7 +37,7 @@
  */
 
 import { useState } from "react";
-import { wageDisplayMode, canSeeCompanyDollars } from "../lib/access.js";
+import { wageDisplayMode, canSeeCompanyDollars, canEditServiceLines } from "../lib/access.js";
 
 // ──────────────────────────────────────────────────────────────────────
 // Rate constants (mirror the post-9/1/2025 Idaho catalog)
@@ -357,8 +357,9 @@ function Stat({ label, value, color = "#5a3800" }) {
 // ──────────────────────────────────────────────────────────────────────
 // Participant row (inside a coordinator's card)
 // ──────────────────────────────────────────────────────────────────────
-function ParticipantRow({ p, onUpdate, onRemove }) {
+function ParticipantRow({ p, onUpdate, onRemove, canEdit, userRole }) {
   const m = calcTSCParticipant(p);
+  const ro = !canEdit;
   return (
     <div style={{
       display:"grid", gridTemplateColumns:"1.4fr 0.8fr 0.8fr 0.6fr 1fr 0.4fr",
@@ -368,33 +369,38 @@ function ParticipantRow({ p, onUpdate, onRemove }) {
       <input
         type="text" value={p.name}
         onChange={e => onUpdate(p.id, "name", e.target.value)}
-        style={textInput}
+        readOnly={ro}
+        style={{ ...textInput, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}
       />
       <div>
         <div style={labelStyle}>G9002</div>
         <input type="number" min={0} max={200} value={p.unitsCoord ?? 0}
           onChange={e => onUpdate(p.id, "unitsCoord", +e.target.value)}
-          style={numInput}/>
+          readOnly={ro}
+          style={{ ...numInput, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
       </div>
       <div>
         <div style={labelStyle}>G9007 u/yr</div>
         <input type="number" min={0} max={48} value={p.unitsPlanDev ?? 0}
           onChange={e => onUpdate(p.id, "unitsPlanDev", +e.target.value)}
-          style={numInput}/>
+          readOnly={ro}
+          style={{ ...numInput, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
       </div>
-      <label style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, color:"#64748b", ...M }}>
+      <label style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, color:"#64748b", ...M, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}>
         <input type="checkbox" checked={!!p.isParapro}
-          onChange={e => onUpdate(p.id, "isParapro", e.target.checked)}/>
+          onChange={e => onUpdate(p.id, "isParapro", e.target.checked)}
+          disabled={ro}/>
         HM
       </label>
       <div style={{ textAlign:"right" }}>
-        <div style={{ fontSize:13, fontWeight:700, color:"#5a3800", ...M }}>{$k(m.monthlyRev)}/mo</div>
+        {canSeeCompanyDollars(userRole) && <div style={{ fontSize:13, fontWeight:700, color:"#5a3800", ...M }}>{$k(m.monthlyRev)}/mo</div>}
         <div style={{ fontSize:9, color:"#64748b", ...M }}>{m.monthlyHours.toFixed(1)} hr/mo</div>
       </div>
-      <button onClick={() => onRemove(p.id)} style={{
+      {canEdit && <button onClick={() => onRemove(p.id)} style={{
         border:"none", background:"transparent", cursor:"pointer",
         color:"#cf6e6e", fontSize:14, padding:4,
-      }}>✕</button>
+      }}>✕</button>}
+      {!canEdit && <span/>}
     </div>
   );
 }
@@ -405,6 +411,8 @@ function ParticipantRow({ p, onUpdate, onRemove }) {
 function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant, payrollBurdenPct, userRole, hideParticipants = false }) {
   const [expanded, setExpanded] = useState(true);
   const m = calcTSCCoordinator(coord, payrollBurdenPct);
+  const canEdit = canEditServiceLines(userRole);
+  const ro = !canEdit;
 
   const utilColor =
     m.utilization > 1.05 ? "#cf6e6e" :
@@ -427,13 +435,15 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
 
         <input type="text" value={coord.name}
           onChange={e => onUpdate(coord.id, "name", e.target.value)}
-          style={{ ...textInput, fontWeight:700, flex:1, fontSize:14 }}/>
+          readOnly={ro}
+          style={{ ...textInput, fontWeight:700, flex:1, fontSize:14, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
 
         <div>
           <div style={labelStyle}>TSC type</div>
           <select value={coord.tscType ?? 'mixed'}
             onChange={e => onUpdate(coord.id, "tscType", e.target.value)}
-            style={{ ...textInput, fontSize:11, padding:"3px 6px" }}>
+            disabled={ro}
+            style={{ ...textInput, fontSize:11, padding:"3px 6px", pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}>
             <option value="adult">Adult</option>
             <option value="children">Children's</option>
             <option value="mixed">Mixed</option>
@@ -445,8 +455,8 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
             <div style={labelStyle}>Wage / hr</div>
             <input type="number" min={10} max={60} step={0.5} value={coord.hourlyWage}
               onChange={e => onUpdate(coord.id, "hourlyWage", +e.target.value)}
-              readOnly={wageDisplayMode(userRole) !== 'dollars'}
-              style={numInput}/>
+              readOnly={wageDisplayMode(userRole) !== 'dollars' || ro}
+              style={{ ...numInput, pointerEvents: (wageDisplayMode(userRole) !== 'dollars' || ro) ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
           </div>
         )}
 
@@ -454,22 +464,24 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
           <div style={labelStyle}>Admin hr/wk</div>
           <input type="number" min={0} max={40} step={0.5} value={coord.adminHrsPerWeek}
             onChange={e => onUpdate(coord.id, "adminHrsPerWeek", +e.target.value)}
-            style={numInput}/>
+            readOnly={ro}
+            style={{ ...numInput, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
 
         <div>
           <div style={labelStyle}>Office</div>
           <input type="text" value={coord.officeName ?? ''}
             onChange={e => onUpdate(coord.id, "officeName", e.target.value)}
+            readOnly={ro}
             placeholder="optional"
-            style={{ ...textInput, width: 90, fontSize: 11 }}/>
+            style={{ ...textInput, width: 90, fontSize: 11, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
 
-        <button onClick={() => onRemove(coord.id)} style={{
+        {canEdit && <button onClick={() => onRemove(coord.id)} style={{
           border:"1px solid #e8d4d4", background:"#fff5f5",
           color:"#a14848", padding:"4px 10px", borderRadius:5,
           fontSize:10, cursor:"pointer", ...M,
-        }}>Remove coordinator</button>
+        }}>Remove coordinator</button>}
       </div>
 
       <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom: (!hideParticipants && expanded) ? 12 : 0 }}>
@@ -500,14 +512,16 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
             {(coord.participants ?? []).map(p =>
               <ParticipantRow key={p.id} p={p}
                 onUpdate={(id, f, v) => onUpdateParticipant(coord.id, id, f, v)}
-                onRemove={(id) => onRemoveParticipant(coord.id, id)}/>
+                onRemove={(id) => onRemoveParticipant(coord.id, id)}
+                canEdit={canEdit}
+                userRole={userRole}/>
             )}
           </div>
-          <button onClick={() => onAddParticipant(coord.id)} style={{
+          {canEdit && <button onClick={() => onAddParticipant(coord.id)} style={{
             marginTop:10, padding:"6px 14px",
             background:"#fff", border:"1px dashed #c8d4e4", borderRadius:6,
             color:"#5a3800", cursor:"pointer", fontSize:12, fontWeight:600, ...M,
-          }}>+ Add participant</button>
+          }}>+ Add participant</button>}
         </div>
       )}
     </div>
@@ -519,6 +533,7 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
 // ──────────────────────────────────────────────────────────────────────
 export function TSCRosterTab({ config, onUpdate, userRole }) {
   const summary = calcTSCService(config);
+  const canEdit = canEditServiceLines(userRole);
 
   const updateField    = (field, value) => onUpdate({ ...config, [field]: value });
   const updateCoord    = (coordId, field, value) =>
@@ -577,7 +592,8 @@ export function TSCRosterTab({ config, onUpdate, userRole }) {
           <span style={labelStyle}>Burden %</span>
           <input type="number" min={0} max={50} step={0.5} value={config.payrollBurdenPct ?? 22}
             onChange={e => updateField("payrollBurdenPct", +e.target.value)}
-            style={numInput}/>
+            readOnly={!canEdit}
+            style={{ ...numInput, pointerEvents: canEdit ? "auto" : "none", opacity: canEdit ? 1 : 0.65 }}/>
         </div>
       </div>
 
@@ -601,11 +617,11 @@ export function TSCRosterTab({ config, onUpdate, userRole }) {
         )}
       </div>
 
-      <button onClick={addCoord} style={{
+      {canEdit && <button onClick={addCoord} style={{
         marginTop:16, padding:"8px 18px",
         background:"#D4A520", border:"none", borderRadius:6,
         color:"#5a3800", cursor:"pointer", fontSize:12, fontWeight:700, ...M,
-      }}>+ Add coordinator</button>
+      }}>+ Add coordinator</button>}
     </div>
   );
 }
@@ -613,8 +629,9 @@ export function TSCRosterTab({ config, onUpdate, userRole }) {
 // ──────────────────────────────────────────────────────────────────────
 // Participant row for flat (cross-coordinator) view
 // ──────────────────────────────────────────────────────────────────────
-function ParticipantFlatRow({ p, coordId, coordinators, onUpdate, onReassign, onRemove }) {
+function ParticipantFlatRow({ p, coordId, coordinators, onUpdate, onReassign, onRemove, canEdit, userRole }) {
   const m = calcTSCParticipant(p);
+  const ro = !canEdit;
   return (
     <div style={{
       display:"grid",
@@ -625,11 +642,13 @@ function ParticipantFlatRow({ p, coordId, coordinators, onUpdate, onReassign, on
       <input
         type="text" value={p.name}
         onChange={e => onUpdate(coordId, p.id, "name", e.target.value)}
-        style={textInput}
+        readOnly={ro}
+        style={{ ...textInput, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}
       />
       <select value={coordId}
         onChange={e => onReassign(coordId, p.id, e.target.value)}
-        style={{ ...textInput, fontSize:11, padding:"3px 6px" }}>
+        disabled={ro}
+        style={{ ...textInput, fontSize:11, padding:"3px 6px", pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}>
         {coordinators.map(c => (
           <option key={c.id} value={c.id}>{c.name}</option>
         ))}
@@ -638,27 +657,31 @@ function ParticipantFlatRow({ p, coordId, coordinators, onUpdate, onReassign, on
         <div style={labelStyle}>G9002</div>
         <input type="number" min={0} max={200} value={p.unitsCoord ?? 0}
           onChange={e => onUpdate(coordId, p.id, "unitsCoord", +e.target.value)}
-          style={numInput}/>
+          readOnly={ro}
+          style={{ ...numInput, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
       </div>
       <div>
         <div style={labelStyle}>G9007 u/yr</div>
         <input type="number" min={0} max={48} value={p.unitsPlanDev ?? 0}
           onChange={e => onUpdate(coordId, p.id, "unitsPlanDev", +e.target.value)}
-          style={numInput}/>
+          readOnly={ro}
+          style={{ ...numInput, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
       </div>
-      <label style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, color:"#64748b", ...M }}>
+      <label style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, color:"#64748b", ...M, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}>
         <input type="checkbox" checked={!!p.isParapro}
-          onChange={e => onUpdate(coordId, p.id, "isParapro", e.target.checked)}/>
+          onChange={e => onUpdate(coordId, p.id, "isParapro", e.target.checked)}
+          disabled={ro}/>
         HM
       </label>
       <div style={{ textAlign:"right" }}>
-        <div style={{ fontSize:13, fontWeight:700, color:"#5a3800", ...M }}>{$k(m.monthlyRev)}/mo</div>
+        {canSeeCompanyDollars(userRole) && <div style={{ fontSize:13, fontWeight:700, color:"#5a3800", ...M }}>{$k(m.monthlyRev)}/mo</div>}
         <div style={{ fontSize:9, color:"#64748b", ...M }}>{m.monthlyHours.toFixed(1)} hr/mo</div>
       </div>
-      <button onClick={() => onRemove(coordId, p.id)} style={{
+      {canEdit && <button onClick={() => onRemove(coordId, p.id)} style={{
         border:"none", background:"transparent", cursor:"pointer",
         color:"#cf6e6e", fontSize:14, padding:4,
-      }}>✕</button>
+      }}>✕</button>}
+      {!canEdit && <span/>}
     </div>
   );
 }
@@ -668,6 +691,7 @@ function ParticipantFlatRow({ p, coordId, coordinators, onUpdate, onReassign, on
 // ──────────────────────────────────────────────────────────────────────
 export function TSCCoordinatorsTab({ config, onUpdate, userRole }) {
   const summary = calcTSCService(config);
+  const canEdit = canEditServiceLines(userRole);
 
   const updateCoord = (coordId, field, value) =>
     onUpdate({
@@ -724,7 +748,8 @@ export function TSCCoordinatorsTab({ config, onUpdate, userRole }) {
           <span style={labelStyle}>Burden %</span>
           <input type="number" min={0} max={50} step={0.5} value={config.payrollBurdenPct ?? 22}
             onChange={e => onUpdate({ ...config, payrollBurdenPct: +e.target.value })}
-            style={numInput}/>
+            readOnly={!canEdit}
+            style={{ ...numInput, pointerEvents: canEdit ? "auto" : "none", opacity: canEdit ? 1 : 0.65 }}/>
         </div>
       </div>
 
@@ -747,11 +772,11 @@ export function TSCCoordinatorsTab({ config, onUpdate, userRole }) {
         )}
       </div>
 
-      <button onClick={addCoord} style={{
+      {canEdit && <button onClick={addCoord} style={{
         marginTop:16, padding:"8px 18px",
         background:"#D4A520", border:"none", borderRadius:6,
         color:"#5a3800", cursor:"pointer", fontSize:12, fontWeight:700, ...M,
-      }}>+ Add coordinator</button>
+      }}>+ Add coordinator</button>}
     </div>
   );
 }
@@ -759,13 +784,13 @@ export function TSCCoordinatorsTab({ config, onUpdate, userRole }) {
 // ──────────────────────────────────────────────────────────────────────
 // Participants tab — flat cross-coordinator participant list
 // ──────────────────────────────────────────────────────────────────────
-export function TSCParticipantsTab({ config, onUpdate }) {
+export function TSCParticipantsTab({ config, onUpdate, userRole }) {
   const allParticipants = (config.coordinators ?? []).flatMap(c =>
     (c.participants ?? []).map(p => ({ ...p, coordId: c.id, coordName: c.name }))
   );
   const totalUnitsCoord   = allParticipants.reduce((a, p) => a + (p.unitsCoord   ?? 0), 0);
   const totalUnitsPlanDev = allParticipants.reduce((a, p) => a + (p.unitsPlanDev ?? 0), 0);
-
+  const canEdit = canEditServiceLines(userRole);
   const noCoords = (config.coordinators ?? []).length === 0;
 
   const updateParticipant = (coordId, pId, field, value) => onUpdate({
@@ -862,13 +887,15 @@ export function TSCParticipantsTab({ config, onUpdate }) {
                 onUpdate={updateParticipant}
                 onReassign={reassignParticipant}
                 onRemove={removeParticipant}
+                canEdit={canEdit}
+                userRole={userRole}
               />
             )}
           </div>
         </div>
       )}
 
-      <button
+      {canEdit && <button
         onClick={addParticipant}
         disabled={noCoords}
         title={noCoords ? "Add a coordinator first" : ""}
@@ -880,7 +907,7 @@ export function TSCParticipantsTab({ config, onUpdate }) {
           cursor: noCoords ? "not-allowed" : "pointer",
           fontSize:12, fontWeight:700, ...M,
         }}
-      >+ Add participant</button>
+      >+ Add participant</button>}
     </div>
   );
 }
@@ -1060,10 +1087,13 @@ export function TSCPLTab({ config, userRole }) {
 // ──────────────────────────────────────────────────────────────────────
 // Staffing tab — admin & management staff matrix
 // ──────────────────────────────────────────────────────────────────────
-export function TSCStaffingTab({ config, onUpdate }) {
+export function TSCStaffingTab({ config, onUpdate, userRole }) {
   const adminResult = calcTSCAdminStaff(config.adminStaff ?? []);
   const prod = config.productivity ?? {};
   const rev  = config.revenue      ?? {};
+  const canEdit   = canEditServiceLines(userRole);
+  const showCosts = canSeeCompanyDollars(userRole);
+  const ro = !canEdit;
 
   const updateProd = (field, val) =>
     onUpdate({ ...config, productivity: { ...prod, [field]: val } });
@@ -1100,15 +1130,17 @@ export function TSCStaffingTab({ config, onUpdate }) {
               <div style={labelStyle}>Admin staff count</div>
               <div style={{ fontSize:18, fontWeight:800, color:"#5a3800", ...M }}>{(config.adminStaff ?? []).length}</div>
             </div>
-            <div>
-              <div style={labelStyle}>Total annual cost</div>
-              <div style={{ fontSize:18, fontWeight:800, color:"#cf6e6e", ...M }}>{$k(adminResult.totalAnnualCost)}</div>
-            </div>
+            {showCosts && (
+              <div>
+                <div style={labelStyle}>Total annual cost</div>
+                <div style={{ fontSize:18, fontWeight:800, color:"#cf6e6e", ...M }}>{$k(adminResult.totalAnnualCost)}</div>
+              </div>
+            )}
           </div>
-          <button onClick={addStaff} style={{
+          {canEdit && <button onClick={addStaff} style={{
             padding:"6px 14px", background:"#fff", border:"1px dashed #c8d4e4",
             borderRadius:6, color:"#5a3800", cursor:"pointer", fontSize:12, fontWeight:600, ...M,
-          }}>+ Add staff</button>
+          }}>+ Add staff</button>}
         </div>
 
         {(config.adminStaff ?? []).length === 0 && (
@@ -1120,7 +1152,7 @@ export function TSCStaffingTab({ config, onUpdate }) {
         {adminResult.staff.length > 0 && (
           <>
             <div style={{
-              display:"grid", gridTemplateColumns:"2fr 0.8fr 1fr 0.7fr 0.7fr 1fr 0.4fr",
+              display:"grid", gridTemplateColumns:`2fr 0.8fr 1fr 0.7fr 0.7fr${showCosts ? " 1fr" : ""} 0.4fr`,
               padding:"8px 10px", background:"#eef1f6", borderRadius:6,
               ...labelStyle, marginBottom:6,
             }}>
@@ -1129,38 +1161,44 @@ export function TSCStaffingTab({ config, onUpdate }) {
               <span style={{ textAlign:"right" }}>Value</span>
               <span style={{ textAlign:"right" }}>FTE %</span>
               <span style={{ textAlign:"right" }}>Benefits %</span>
-              <span style={{ textAlign:"right" }}>Annual cost</span>
+              {showCosts && <span style={{ textAlign:"right" }}>Annual cost</span>}
               <span></span>
             </div>
             {adminResult.staff.map(m => (
               <div key={m.id} style={{
-                display:"grid", gridTemplateColumns:"2fr 0.8fr 1fr 0.7fr 0.7fr 1fr 0.4fr",
+                display:"grid", gridTemplateColumns:`2fr 0.8fr 1fr 0.7fr 0.7fr${showCosts ? " 1fr" : ""} 0.4fr`,
                 gap:6, alignItems:"center", padding:"6px 10px",
                 borderBottom:"1px solid #f1f5f9", fontSize:12, ...M,
               }}>
                 <input type="text" value={m.role}
                   onChange={e => updateStaff(m.id, "role", e.target.value)}
-                  style={{ ...textInput, fontSize:12 }}/>
+                  readOnly={ro}
+                  style={{ ...textInput, fontSize:12, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
                 <select value={m.mode}
                   onChange={e => updateStaff(m.id, "mode", e.target.value)}
-                  style={{ ...textInput, fontSize:11, padding:"3px 6px", textAlign:"right" }}>
+                  disabled={ro}
+                  style={{ ...textInput, fontSize:11, padding:"3px 6px", textAlign:"right", pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}>
                   <option value="salary">Salary</option>
                   <option value="hourly">Hourly</option>
                 </select>
                 <input type="number" min={0} value={m.value}
                   onChange={e => updateStaff(m.id, "value", +e.target.value)}
-                  style={{ ...numInput, width:"100%" }}/>
+                  readOnly={ro}
+                  style={{ ...numInput, width:"100%", pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
                 <input type="number" min={0} max={100} value={m.ftePct}
                   onChange={e => updateStaff(m.id, "ftePct", +e.target.value)}
-                  style={{ ...numInput, width:"100%" }}/>
+                  readOnly={ro}
+                  style={{ ...numInput, width:"100%", pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
                 <input type="number" min={0} max={50} value={m.benefitsPct}
                   onChange={e => updateStaff(m.id, "benefitsPct", +e.target.value)}
-                  style={{ ...numInput, width:"100%" }}/>
-                <span style={{ textAlign:"right", color:"#cf6e6e", fontWeight:700 }}>{$k(m.annualCost)}</span>
-                <button onClick={() => removeStaff(m.id)} style={{
+                  readOnly={ro}
+                  style={{ ...numInput, width:"100%", pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
+                {showCosts && <span style={{ textAlign:"right", color:"#cf6e6e", fontWeight:700 }}>{$k(m.annualCost)}</span>}
+                {canEdit && <button onClick={() => removeStaff(m.id)} style={{
                   border:"none", background:"transparent", cursor:"pointer",
                   color:"#cf6e6e", fontSize:14, padding:4,
-                }}>✕</button>
+                }}>✕</button>}
+                {!canEdit && <span/>}
               </div>
             ))}
           </>
@@ -1177,31 +1215,36 @@ export function TSCStaffingTab({ config, onUpdate }) {
           <div style={labelStyle}>Billable hours / day</div>
           <input type="number" min={1} max={10} step={0.5} value={prod.billableHoursPerDay ?? 6}
             onChange={e => updateProd("billableHoursPerDay", +e.target.value)}
-            style={{ ...numInput, width:64, marginTop:4 }}/>
+            readOnly={ro}
+            style={{ ...numInput, width:64, marginTop:4, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div>
           <div style={labelStyle}>Documentation time %</div>
           <input type="number" min={0} max={50} value={prod.documentationTimePct ?? 15}
             onChange={e => updateProd("documentationTimePct", +e.target.value)}
-            style={{ ...numInput, width:64, marginTop:4 }}/>
+            readOnly={ro}
+            style={{ ...numInput, width:64, marginTop:4, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div>
           <div style={labelStyle}>Travel time %</div>
           <input type="number" min={0} max={50} value={prod.travelTimePct ?? 10}
             onChange={e => updateProd("travelTimePct", +e.target.value)}
-            style={{ ...numInput, width:64, marginTop:4 }}/>
+            readOnly={ro}
+            style={{ ...numInput, width:64, marginTop:4, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div>
           <div style={labelStyle}>No-show %</div>
           <input type="number" min={0} max={50} value={prod.noShowPct ?? 8}
             onChange={e => updateProd("noShowPct", +e.target.value)}
-            style={{ ...numInput, width:64, marginTop:4 }}/>
+            readOnly={ro}
+            style={{ ...numInput, width:64, marginTop:4, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div>
           <div style={labelStyle}>QA rework %</div>
           <input type="number" min={0} max={20} value={prod.qaReworkPct ?? 3}
             onChange={e => updateProd("qaReworkPct", +e.target.value)}
-            style={{ ...numInput, width:64, marginTop:4 }}/>
+            readOnly={ro}
+            style={{ ...numInput, width:64, marginTop:4, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
 
         {/* Visual breakdown bar */}
@@ -1244,28 +1287,32 @@ export function TSCStaffingTab({ config, onUpdate }) {
           <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Authorized units actually completed</div>
           <input type="number" min={0} max={100} value={rev.completionRate ?? 92}
             onChange={e => updateRev("completionRate", +e.target.value)}
-            style={{ ...numInput, width:64 }}/>
+            readOnly={ro}
+            style={{ ...numInput, width:64, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div>
           <div style={labelStyle}>Billing success %</div>
           <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Completed units successfully billed</div>
           <input type="number" min={0} max={100} value={rev.billingSuccessRate ?? 97}
             onChange={e => updateRev("billingSuccessRate", +e.target.value)}
-            style={{ ...numInput, width:64 }}/>
+            readOnly={ro}
+            style={{ ...numInput, width:64, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div>
           <div style={labelStyle}>Collection rate %</div>
           <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Billed claims paid</div>
           <input type="number" min={0} max={100} value={rev.collectionRate ?? 99}
             onChange={e => updateRev("collectionRate", +e.target.value)}
-            style={{ ...numInput, width:64 }}/>
+            readOnly={ro}
+            style={{ ...numInput, width:64, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div>
           <div style={labelStyle}>Billing lag (days)</div>
           <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Days from service to payment</div>
           <input type="number" min={0} max={180} value={rev.billingLagDays ?? 30}
             onChange={e => updateRev("billingLagDays", +e.target.value)}
-            style={{ ...numInput, width:64 }}/>
+            readOnly={ro}
+            style={{ ...numInput, width:64, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div style={{ padding:"10px 14px", background:"#eef1f6", borderRadius:8, fontSize:11, ...M }}>
           <div style={labelStyle}>Effective collection rate</div>
@@ -1287,28 +1334,32 @@ export function TSCStaffingTab({ config, onUpdate }) {
           <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Contacts meeting F2F requirement</div>
           <input type="number" min={0} max={100} value={rev.faceToFaceComplianceRate ?? 90}
             onChange={e => updateRev("faceToFaceComplianceRate", +e.target.value)}
-            style={{ ...numInput, width:64 }}/>
+            readOnly={ro}
+            style={{ ...numInput, width:64, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div>
           <div style={labelStyle}>Plan dev completion %</div>
           <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>ISP plans completed on time</div>
           <input type="number" min={0} max={100} value={rev.planDevCompletionRate ?? 95}
             onChange={e => updateRev("planDevCompletionRate", +e.target.value)}
-            style={{ ...numInput, width:64 }}/>
+            readOnly={ro}
+            style={{ ...numInput, width:64, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div>
           <div style={labelStyle}>Annual caseload churn %</div>
           <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Annual participant turnover rate</div>
           <input type="number" min={0} max={100} value={rev.caseloadChurnRate ?? 15}
             onChange={e => updateRev("caseloadChurnRate", +e.target.value)}
-            style={{ ...numInput, width:64 }}/>
+            readOnly={ro}
+            style={{ ...numInput, width:64, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div>
           <div style={labelStyle}>Denial write-off %</div>
           <div style={{ fontSize:10, color:"#64748b", ...M, marginBottom:4 }}>Billed claims written off after denial</div>
           <input type="number" min={0} max={20} step={0.5} value={rev.denialWriteOffRate ?? 3}
             onChange={e => updateRev("denialWriteOffRate", +e.target.value)}
-            style={{ ...numInput, width:64 }}/>
+            readOnly={ro}
+            style={{ ...numInput, width:64, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div style={{ padding:"10px 14px", background:"#fffbe8", border:"1px solid #f4e4a8", borderRadius:8, fontSize:10, ...M, lineHeight:1.6, maxWidth:260 }}>
           <strong>Note:</strong> These fields are operational planning inputs. Face-to-face and plan dev rates inform compliance risk; churn rate informs recruitment/onboarding cost modeling; denial write-off reduces net collected revenue.
@@ -1321,8 +1372,11 @@ export function TSCStaffingTab({ config, onUpdate }) {
 // ──────────────────────────────────────────────────────────────────────
 // Scenario tab — rate / caseload / productivity adjustments
 // ──────────────────────────────────────────────────────────────────────
-export function TSCScenarioTab({ config, onUpdate }) {
+export function TSCScenarioTab({ config, onUpdate, userRole }) {
   const sc = config.scenario ?? { rateAdjPct: 0, caseloadAdjPct: 0, productivityAdjPct: 0 };
+  const canEdit   = canEditServiceLines(userRole);
+  const showDollars = canSeeCompanyDollars(userRole);
+  const ro = !canEdit;
 
   const updateScenario = (field, val) =>
     onUpdate({ ...config, scenario: { ...sc, [field]: val } });
@@ -1333,6 +1387,18 @@ export function TSCScenarioTab({ config, onUpdate }) {
   const $d = n => (n >= 0 ? "+" : "") + n.toLocaleString("en-US", { style:"currency", currency:"USD", maximumFractionDigits:0 });
   const pctD = n => (n >= 0 ? "+" : "") + (n * 100).toFixed(1) + "%";
   const deltaColor = n => n >= 0 ? "#22c55e" : "#cf6e6e";
+
+  const dollarRows = [
+    { label:"Annual Revenue", base: base.totalAnnualRev,   scen: scenario.totalAnnualRev,   d: delta.totalAnnualRev,   fmt: $k, fmtD: $d },
+    { label:"Annual Labor",   base: base.totalAnnualLabor, scen: scenario.totalAnnualLabor, d: delta.totalAnnualLabor, fmt: $k, fmtD: $d },
+    { label:"Gross",          base: base.totalGross,       scen: scenario.totalGross,       d: delta.totalGross,       fmt: $k, fmtD: $d },
+  ];
+  const pctRows = [
+    { label:"Margin",         base: base.totalMargin,      scen: scenario.totalMargin,      d: delta.totalMargin,      fmt: pct, fmtD: pctD },
+    { label:"Coordinators",   base: base.coordinatorCount, scen: scenario.coordinatorCount, d: scenario.coordinatorCount - base.coordinatorCount, fmt: n => n, fmtD: n => (n >= 0 ? "+" : "") + n },
+    { label:"Total Caseload", base: base.totalCaseload,    scen: scenario.totalCaseload,    d: scenario.totalCaseload - base.totalCaseload,    fmt: n => n, fmtD: n => (n >= 0 ? "+" : "") + n },
+  ];
+  const tableRows = showDollars ? [...dollarRows, ...pctRows] : pctRows;
 
   return (
     <div>
@@ -1353,18 +1419,20 @@ export function TSCScenarioTab({ config, onUpdate }) {
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
               <input type="range" min={-50} max={50} value={val}
                 onChange={e => updateScenario(field, +e.target.value)}
-                style={{ width:120 }}/>
+                disabled={ro}
+                style={{ width:120, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
               <input type="number" min={-50} max={50} value={val}
                 onChange={e => updateScenario(field, +e.target.value)}
-                style={{ ...numInput, width:56 }}/>
+                readOnly={ro}
+                style={{ ...numInput, width:56, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
               <span style={{ fontSize:11, ...M }}>%</span>
             </div>
           </div>
         ))}
-        <button onClick={() => onUpdate({ ...config, scenario: { rateAdjPct:0, caseloadAdjPct:0, productivityAdjPct:0 } })}
+        {canEdit && <button onClick={() => onUpdate({ ...config, scenario: { rateAdjPct:0, caseloadAdjPct:0, productivityAdjPct:0 } })}
           style={{ alignSelf:"flex-end", padding:"6px 12px", background:"#fff", border:"1px solid #c8d4e4", borderRadius:5, fontSize:10, cursor:"pointer", ...M }}>
           Reset
-        </button>
+        </button>}
       </div>
 
       {/* Base vs scenario comparison */}
@@ -1378,14 +1446,7 @@ export function TSCScenarioTab({ config, onUpdate }) {
           <span style={{ textAlign:"right" }}>Scenario</span>
           <span style={{ textAlign:"right" }}>Delta</span>
         </div>
-        {[
-          { label:"Annual Revenue",    base: base.totalAnnualRev,   scen: scenario.totalAnnualRev,   d: delta.totalAnnualRev,   fmt: $k, fmtD: $d },
-          { label:"Annual Labor",      base: base.totalAnnualLabor, scen: scenario.totalAnnualLabor, d: delta.totalAnnualLabor, fmt: $k, fmtD: $d },
-          { label:"Gross",             base: base.totalGross,       scen: scenario.totalGross,       d: delta.totalGross,       fmt: $k, fmtD: $d },
-          { label:"Margin",            base: base.totalMargin,      scen: scenario.totalMargin,      d: delta.totalMargin,      fmt: pct, fmtD: pctD },
-          { label:"Coordinators",      base: base.coordinatorCount, scen: scenario.coordinatorCount, d: scenario.coordinatorCount - base.coordinatorCount, fmt: n => n, fmtD: n => (n >= 0 ? "+" : "") + n },
-          { label:"Total Caseload",    base: base.totalCaseload,    scen: scenario.totalCaseload,    d: scenario.totalCaseload - base.totalCaseload,    fmt: n => n, fmtD: n => (n >= 0 ? "+" : "") + n },
-        ].map(({ label, base: b, scen, d, fmt, fmtD }) => (
+        {tableRows.map(({ label, base: b, scen, d, fmt, fmtD }) => (
           <div key={label} style={{
             display:"grid", gridTemplateColumns:"1.5fr 1fr 1fr 1fr",
             padding:"10px 14px", borderBottom:"1px solid #f1f5f9", fontSize:12, ...M,
@@ -1424,18 +1485,22 @@ export function TSCScenarioTab({ config, onUpdate }) {
           </div>
           <div style={{ fontSize:9, color:"#64748b", ...M }}>above break-even</div>
         </div>
-        <div>
-          <div style={labelStyle}>Rev per participant/yr</div>
-          <div style={{ fontSize:24, fontWeight:800, color:"#D4A520", ...M }}>
-            {bev.revenuePerParticipant > 0 ? $k(bev.revenuePerParticipant) : "—"}
+        {showDollars && (
+          <div>
+            <div style={labelStyle}>Rev per participant/yr</div>
+            <div style={{ fontSize:24, fontWeight:800, color:"#D4A520", ...M }}>
+              {bev.revenuePerParticipant > 0 ? $k(bev.revenuePerParticipant) : "—"}
+            </div>
           </div>
-        </div>
-        <div>
-          <div style={labelStyle}>Fixed costs (admin)</div>
-          <div style={{ fontSize:24, fontWeight:800, color:"#cf6e6e", ...M }}>
-            {$k(bev.fixedCosts)}
+        )}
+        {showDollars && (
+          <div>
+            <div style={labelStyle}>Fixed costs (admin)</div>
+            <div style={{ fontSize:24, fontWeight:800, color:"#cf6e6e", ...M }}>
+              {$k(bev.fixedCosts)}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

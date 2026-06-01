@@ -2383,8 +2383,12 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
   useEffect(() => {
     const slType = activeKey === "WHOLE_COMPANY" ? "WHOLE_COMPANY" : activeSLType;
     const defaults = getSubTabsFor(slType);
-    const GATED = new Set(['company', 'reshab_pl', 'hourly_pl', 'portfolio']);
-    const first = defaults.find(t => !GATED.has(t.id) || canSeeCompanyDollars(userRole));
+    const GATED = new Set(['company', 'reshab_pl', 'hourly_pl', 'portfolio', 'tsc_pl', 'cse_pl', 'chdda_pl']);
+    const SENIOR_GATED = new Set(['tsc_scenario']);
+    const first = defaults.find(t =>
+      (!GATED.has(t.id) || canSeeCompanyDollars(userRole)) &&
+      (!SENIOR_GATED.has(t.id) || canEditServiceLines(userRole))
+    );
     setSubTab(first?.id ?? 'placeholder');
   }, [activeKey, activeSLType, userRole]);
 
@@ -2764,11 +2768,15 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
 
   // ── Service line strip data ──
   const visibleSLs = company.serviceLines.filter(sl => !sl.archived);
-  const GATED_TABS = new Set(['company', 'reshab_pl', 'hourly_pl', 'portfolio']);
+  const GATED_TABS = new Set(['company', 'reshab_pl', 'hourly_pl', 'portfolio', 'tsc_pl', 'cse_pl', 'chdda_pl']);
+  const SENIOR_GATED_TABS = new Set(['tsc_scenario']);
   const subTabs = (isWholeCompany
     ? applyTabOrder(getSubTabsFor("WHOLE_COMPANY"), company.shared.wholeCompanySubTabOrder)
     : applyTabOrder(getSubTabsFor(activeSLType), activeSL?.subTabOrder)
-  ).filter(t => !GATED_TABS.has(t.id) || canSeeCompanyDollars(userRole));
+  ).filter(t =>
+    (!GATED_TABS.has(t.id) || canSeeCompanyDollars(userRole)) &&
+    (!SENIOR_GATED_TABS.has(t.id) || canEditServiceLines(userRole))
+  );
 
   return (
     <>
@@ -3037,19 +3045,20 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
               )}
               {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_participants" && (
                 <TSCParticipantsTab config={activeSL.config}
-                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}/>
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}
+                  userRole={userRole}/>
               )}
               {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_productivity" &&
                 <TSCProductivityTab config={activeSL.config}/>}
-              {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_pl" && !canSeeCompanyDollars(userRole) &&
-                <TSCPLTab config={activeSL.config} userRole={userRole}/>}
               {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_staffing" && (
                 <TSCStaffingTab config={activeSL.config}
-                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}/>
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}
+                  userRole={userRole}/>
               )}
-              {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_scenario" && (
+              {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_scenario" && canEditServiceLines(userRole) && (
                 <TSCScenarioTab config={activeSL.config}
-                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}/>
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}
+                  userRole={userRole}/>
               )}
 
               {/* CHILDRENS_DDA tabs */}
@@ -3060,11 +3069,12 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
               )}
               {activeSLType === SERVICE_LINE_TYPES.CHILDRENS_DDA && activeSL && subTab === "chdda_productivity" &&
                 <ChildrensDDAProductivityTab config={activeSL.config} userRole={userRole}/>}
-              {activeSLType === SERVICE_LINE_TYPES.CHILDRENS_DDA && activeSL && subTab === "chdda_pl" &&
+              {activeSLType === SERVICE_LINE_TYPES.CHILDRENS_DDA && activeSL && subTab === "chdda_pl" && canSeeCompanyDollars(userRole) &&
                 <ChildrensDDAPLTab config={activeSL.config} userRole={userRole}/>}
               {activeSLType === SERVICE_LINE_TYPES.CHILDRENS_DDA && activeSL && subTab === "chdda_rates" && (
                 <ChildrensDDARateScheduleTab config={activeSL.config}
-                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}/>
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}
+                  userRole={userRole}/>
               )}
 
               {/* VOC_SERVICES / CSE tabs */}
@@ -3075,7 +3085,7 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
               )}
               {activeSLType === SERVICE_LINE_TYPES.VOC_SERVICES && activeSL && subTab === "cse_productivity" &&
                 <CSEProductivityTab config={activeSL.config} userRole={userRole}/>}
-              {activeSLType === SERVICE_LINE_TYPES.VOC_SERVICES && activeSL && subTab === "cse_pl" &&
+              {activeSLType === SERVICE_LINE_TYPES.VOC_SERVICES && activeSL && subTab === "cse_pl" && canSeeCompanyDollars(userRole) &&
                 <CSEPLTab config={activeSL.config} userRole={userRole}/>}
               {activeSLType === SERVICE_LINE_TYPES.TSC && activeSL && subTab === "tsc_pl" && canSeeCompanyDollars(userRole) && (() => {
                 const revShare = co.annualRevGross > 0 ? tscSummary.totalAnnualRev / co.annualRevGross : 1;
