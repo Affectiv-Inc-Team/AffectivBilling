@@ -2416,7 +2416,10 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
     const slType = activeKey === "WHOLE_COMPANY" ? "WHOLE_COMPANY" : activeSLType;
     const defaults = getSubTabsFor(slType);
     const GATED = new Set(['company', 'reshab_pl', 'hourly_pl', 'portfolio']);
-    const first = defaults.find(t => !GATED.has(t.id) || canSeeCompanyDollars(userRole));
+    const first = defaults.find(t =>
+      (!GATED.has(t.id) || canSeeCompanyDollars(userRole)) &&
+      (t.id !== 'tsc_scenario' || canSeeTopNumbers(userRole))
+    );
     setSubTab(first?.id ?? 'placeholder');
   }, [activeKey, activeSLType, userRole]);
 
@@ -2800,7 +2803,10 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
   const subTabs = (isWholeCompany
     ? applyTabOrder(getSubTabsFor("WHOLE_COMPANY"), company.shared.wholeCompanySubTabOrder)
     : applyTabOrder(getSubTabsFor(activeSLType), activeSL?.subTabOrder)
-  ).filter(t => !GATED_TABS.has(t.id) || canSeeCompanyDollars(userRole));
+  ).filter(t =>
+    (!GATED_TABS.has(t.id) || canSeeCompanyDollars(userRole)) &&
+    (t.id !== 'tsc_scenario' || canSeeTopNumbers(userRole))
+  );
 
   return (
     <>
