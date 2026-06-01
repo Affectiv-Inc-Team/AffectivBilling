@@ -186,9 +186,19 @@ The Portfolio tab is now restricted entirely to tiers 1–3; it does not appear 
 ---
 
 ### Service line P&L tabs hidden for tiers 4–8 ✅
-All three service line P&L tabs (`reshab_pl`, `hourly_pl`, `tsc_pl`) now follow the same pattern as the Portfolio tab:
+All five service line P&L tabs (`reshab_pl`, `hourly_pl`, `tsc_pl`, `cse_pl`, `chdda_pl`) now follow the same pattern as the Portfolio tab:
 - Added to `GATED_TABS` set — filtered from `subTabs` for tiers 4–8.
 - Render guards (`canSeeCompanyDollars(userRole)`) added to each P&L render site.
+
+---
+
+### TSC Scenario tab hidden for tiers 5–8 ✅
+The TSC Scenario tab (`tsc_scenario`) is a financial planning tool restricted to tiers 1–4 (Owner, CEO, Finance, Regional Director).
+- A separate `SENIOR_GATED` / `SENIOR_GATED_TABS` set added alongside `GATED_TABS` in `FinancialTool.jsx`.
+- Filtered from `subTabs` using `canEditServiceLines(userRole)` — the same gate that controls the Save button and Add Service Line button (tiers 1–4 only).
+- Applied in both the `useEffect` tab-reset logic and the render-time `subTabs` filter so the tab never lands as the default and never appears in the nav strip for tiers 5–8.
+- Render site also guarded with `canEditServiceLines(userRole)` for defense-in-depth.
+- Spec updated in `docs/access-levels-and-rights.md`: TSC Scenario tab visibility called out explicitly in each tier's section.
 
 ---
 

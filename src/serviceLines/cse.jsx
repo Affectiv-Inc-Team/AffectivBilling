@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { canSeeCompanyDollars, wageDisplayMode } from '../lib/access';
+import { canSeeCompanyDollars, wageDisplayMode, canEditServiceLines } from '../lib/access';
 
 // Idaho Adult DDA / Employment rates, post-9/1/2025
 const CSE_RATES = {
@@ -201,10 +201,11 @@ function Stat({ label, value, color = "#5a3800" }) {
 // ──────────────────────────────────────────────────────────────────────
 // Participant row
 // ──────────────────────────────────────────────────────────────────────
-function CSEParticipantRow({ p, onUpdate, onRemove, userRole }) {
+function CSEParticipantRow({ p, onUpdate, onRemove, userRole, canEdit }) {
   const m             = calcCSEParticipant(p);
   const thresholds    = PHASE_THRESHOLDS[p.phase ?? 'initial'];
   const belowTypical  = (p.hoursPerWeek ?? 20) < thresholds.typical;
+  const ro            = !canEdit;
   return (
     <div style={{
       display: "grid",
@@ -214,18 +215,21 @@ function CSEParticipantRow({ p, onUpdate, onRemove, userRole }) {
     }}>
       <input type="text" value={p.name}
         onChange={e => onUpdate(p.id, "name", e.target.value)}
-        style={textInput}/>
+        readOnly={ro}
+        style={{ ...textInput, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
       <div>
         <div style={labelStyle}>Hr / wk</div>
         <input type="number" min={0} max={40} step={0.5} value={p.hoursPerWeek ?? 20}
           onChange={e => onUpdate(p.id, "hoursPerWeek", +e.target.value)}
-          style={{ ...numInput, border: belowTypical ? "1px solid #f59e0b" : undefined }}/>
+          readOnly={ro}
+          style={{ ...numInput, border: belowTypical ? "1px solid #f59e0b" : undefined, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
       </div>
       <div>
         <div style={labelStyle}>Phase</div>
         <select value={p.phase ?? 'initial'}
           onChange={e => onUpdate(p.id, "phase", e.target.value)}
-          style={{ ...textInput, fontSize: 11, padding: "3px 6px" }}>
+          disabled={ro}
+          style={{ ...textInput, fontSize: 11, padding: "3px 6px", pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}>
           {PHASES.map(ph => <option key={ph} value={ph}>{PHASE_LABELS[ph]}</option>)}
         </select>
       </div>
@@ -233,7 +237,8 @@ function CSEParticipantRow({ p, onUpdate, onRemove, userRole }) {
         <div style={labelStyle}>Billing code</div>
         <select value={p.billingCode ?? 'SUPPORTED_EMPLOYMENT'}
           onChange={e => onUpdate(p.id, "billingCode", e.target.value)}
-          style={{ ...textInput, fontSize: 10, padding: "3px 6px", width: "100%" }}>
+          disabled={ro}
+          style={{ ...textInput, fontSize: 10, padding: "3px 6px", width: "100%", pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}>
           {BILLING_CODES.map(c => <option key={c} value={c}>{CODE_LABELS[c]}</option>)}
         </select>
       </div>
@@ -241,10 +246,11 @@ function CSEParticipantRow({ p, onUpdate, onRemove, userRole }) {
         {canSeeCompanyDollars(userRole) && <div style={{ fontSize: 13, fontWeight: 700, color: "#5a3800", ...M }}>{$k(m.monthlyRev)}/mo</div>}
         <div style={{ fontSize: 9, color: "#64748b", ...M }}>{m.monthlyHours.toFixed(1)} hr/mo</div>
       </div>
-      <button onClick={() => onRemove(p.id)} style={{
+      {canEdit && <button onClick={() => onRemove(p.id)} style={{
         border: "none", background: "transparent", cursor: "pointer",
         color: "#cf6e6e", fontSize: 14, padding: 4,
-      }}>✕</button>
+      }}>✕</button>}
+      {!canEdit && <span/>}
     </div>
   );
 }
@@ -252,9 +258,10 @@ function CSEParticipantRow({ p, onUpdate, onRemove, userRole }) {
 // ──────────────────────────────────────────────────────────────────────
 // Specialist card
 // ──────────────────────────────────────────────────────────────────────
-function CSESpecialistCard({ s, payrollBurdenPct, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant, userRole }) {
+function CSESpecialistCard({ s, payrollBurdenPct, onUpdate, onRemove, onAddParticipant, onUpdateParticipant, onRemoveParticipant, userRole, canEdit }) {
   const [expanded, setExpanded] = useState(true);
-  const m = calcCSESpecialist(s, payrollBurdenPct);
+  const m  = calcCSESpecialist(s, payrollBurdenPct);
+  const ro = !canEdit;
 
   const utilColor   = m.utilization > 1.05 ? "#cf6e6e" : m.utilization > 0.85 ? "#22c55e" : m.utilization > 0.65 ? "#f59e0b" : "#cf6e6e";
   const marginColor = m.grossMargin > 0.35 ? "#22c55e" : m.grossMargin > 0.15 ? "#f59e0b" : "#cf6e6e";
@@ -269,13 +276,15 @@ function CSESpecialistCard({ s, payrollBurdenPct, onUpdate, onRemove, onAddParti
 
         <input type="text" value={s.name}
           onChange={e => onUpdate(s.id, "name", e.target.value)}
-          style={{ ...textInput, fontWeight: 700, flex: 1, minWidth: 120, fontSize: 14 }}/>
+          readOnly={ro}
+          style={{ ...textInput, fontWeight: 700, flex: 1, minWidth: 120, fontSize: 14, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
 
         <div>
           <div style={labelStyle}>Profile</div>
           <select value={s.profile ?? 'urban'}
             onChange={e => onUpdate(s.id, "profile", e.target.value)}
-            style={{ ...textInput, fontSize: 11, padding: "3px 6px" }}>
+            disabled={ro}
+            style={{ ...textInput, fontSize: 11, padding: "3px 6px", pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}>
             <option value="urban">Urban</option>
             <option value="rural">Rural</option>
           </select>
@@ -286,8 +295,8 @@ function CSESpecialistCard({ s, payrollBurdenPct, onUpdate, onRemove, onAddParti
             <div style={labelStyle}>Wage / hr</div>
             <input type="number" min={10} max={60} step={0.5} value={s.hourlyWage}
               onChange={e => onUpdate(s.id, "hourlyWage", +e.target.value)}
-              readOnly={wageDisplayMode(userRole) !== 'dollars'}
-              style={numInput}/>
+              readOnly={wageDisplayMode(userRole) !== 'dollars' || ro}
+              style={{ ...numInput, pointerEvents: (wageDisplayMode(userRole) !== 'dollars' || ro) ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
           </div>
         )}
 
@@ -295,15 +304,16 @@ function CSESpecialistCard({ s, payrollBurdenPct, onUpdate, onRemove, onAddParti
           <div style={labelStyle}>Office</div>
           <input type="text" value={s.officeName ?? ''}
             onChange={e => onUpdate(s.id, "officeName", e.target.value)}
+            readOnly={ro}
             placeholder="optional"
-            style={{ ...textInput, width: 90, fontSize: 11 }}/>
+            style={{ ...textInput, width: 90, fontSize: 11, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
 
-        <button onClick={() => onRemove(s.id)} style={{
+        {canEdit && <button onClick={() => onRemove(s.id)} style={{
           border: "1px solid #e8d4d4", background: "#fff5f5",
           color: "#a14848", padding: "4px 10px", borderRadius: 5,
           fontSize: 10, cursor: "pointer", ...M,
-        }}>Remove</button>
+        }}>Remove</button>}
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: expanded ? 12 : 0 }}>
@@ -335,14 +345,15 @@ function CSESpecialistCard({ s, payrollBurdenPct, onUpdate, onRemove, onAddParti
               <CSEParticipantRow key={p.id} p={p}
                 onUpdate={(id, f, v) => onUpdateParticipant(s.id, id, f, v)}
                 onRemove={(id) => onRemoveParticipant(s.id, id)}
-                userRole={userRole}/>
+                userRole={userRole}
+                canEdit={canEdit}/>
             )}
           </div>
-          <button onClick={() => onAddParticipant(s.id)} style={{
+          {canEdit && <button onClick={() => onAddParticipant(s.id)} style={{
             marginTop: 10, padding: "6px 14px",
             background: "#fff", border: "1px dashed #c8d4e4", borderRadius: 6,
             color: "#5a3800", cursor: "pointer", fontSize: 12, fontWeight: 600, ...M,
-          }}>+ Add participant</button>
+          }}>+ Add participant</button>}
         </div>
       )}
     </div>
@@ -353,7 +364,9 @@ function CSESpecialistCard({ s, payrollBurdenPct, onUpdate, onRemove, onAddParti
 // Roster tab
 // ──────────────────────────────────────────────────────────────────────
 export function CSERosterTab({ config, onUpdate, userRole }) {
-  const summary = calcCSEService(config);
+  const summary  = calcCSEService(config);
+  const canEdit  = canEditServiceLines(userRole);
+  const ro       = !canEdit;
 
   const updateField = (field, value) => onUpdate({ ...config, [field]: value });
 
@@ -420,7 +433,8 @@ export function CSERosterTab({ config, onUpdate, userRole }) {
           <span style={labelStyle}>Burden %</span>
           <input type="number" min={0} max={50} step={0.5} value={config.payrollBurdenPct ?? 22}
             onChange={e => updateField("payrollBurdenPct", +e.target.value)}
-            style={numInput}/>
+            readOnly={ro}
+            style={{ ...numInput, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
       </div>
 
@@ -430,22 +444,30 @@ export function CSERosterTab({ config, onUpdate, userRole }) {
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <span style={labelStyle}>FTE count</span>
           <input type="number" min={0} max={10} step={0.5} value={jd.fteCount ?? 1}
-            onChange={e => updateJD("fteCount", +e.target.value)} style={{ ...numInput, width: 48 }}/>
+            onChange={e => updateJD("fteCount", +e.target.value)}
+            readOnly={ro}
+            style={{ ...numInput, width: 48, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <span style={labelStyle}>Annual salary</span>
           <input type="number" min={25000} max={150000} step={1000} value={jd.salary ?? 52000}
-            onChange={e => updateJD("salary", +e.target.value)} style={{ ...numInput, width: 80 }}/>
+            onChange={e => updateJD("salary", +e.target.value)}
+            readOnly={ro}
+            style={{ ...numInput, width: 80, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <span style={labelStyle}>Outreach hr/wk</span>
           <input type="number" min={0} max={40} value={jd.outreachHoursPerWeek ?? 20}
-            onChange={e => updateJD("outreachHoursPerWeek", +e.target.value)} style={{ ...numInput, width: 48 }}/>
+            onChange={e => updateJD("outreachHoursPerWeek", +e.target.value)}
+            readOnly={ro}
+            style={{ ...numInput, width: 48, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <span style={labelStyle}>Conversion rate %</span>
           <input type="number" min={0} max={100} value={jd.conversionRate ?? 15}
-            onChange={e => updateJD("conversionRate", +e.target.value)} style={{ ...numInput, width: 48 }}/>
+            onChange={e => updateJD("conversionRate", +e.target.value)}
+            readOnly={ro}
+            style={{ ...numInput, width: 48, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
         {canSeeCompanyDollars(userRole) && (
           <div style={{ fontSize: 10, color: "#64748b", ...M }}>
@@ -470,15 +492,16 @@ export function CSERosterTab({ config, onUpdate, userRole }) {
             onAddParticipant={addParticipant}
             onUpdateParticipant={updateParticipant}
             onRemoveParticipant={removeParticipant}
-            userRole={userRole}/>
+            userRole={userRole}
+            canEdit={canEdit}/>
         )}
       </div>
 
-      <button onClick={addSpecialist} style={{
+      {canEdit && <button onClick={addSpecialist} style={{
         marginTop: 16, padding: "8px 18px",
         background: "#D4A520", border: "none", borderRadius: 6,
         color: "#5a3800", cursor: "pointer", fontSize: 12, fontWeight: 700, ...M,
-      }}>+ Add specialist</button>
+      }}>+ Add specialist</button>}
     </div>
   );
 }
@@ -628,12 +651,12 @@ export function CSEProductivityTab({ config, userRole }) {
               padding: "10px 14px", borderBottom: "1px solid #f1f5f9", alignItems: "center", fontSize: 12, ...M,
             }}>
               <span style={{ color: "#5a3800", fontWeight: 600 }}>{s.name}</span>
-              <span style={{ textAlign: "right", fontSize: 10, color: "#64748b" }}>{s.profile === 'rural' ? '🌾 Rural' : '🏙 Urban'}</span>
-              <span style={{ textAlign: "right" }}>{s.metrics.caseloadSize}</span>
-              <span style={{ textAlign: "right" }}>{s.metrics.monthlyBillable.toFixed(1)}</span>
-              <span style={{ textAlign: "right" }}>{s.metrics.totalMonthlyHrs.toFixed(1)}</span>
+              <span style={{ textAlign: "right", fontSize: 10, color: "#475569" }}>{s.profile === 'rural' ? '🌾 Rural' : '🏙 Urban'}</span>
+              <span style={{ textAlign: "right", color: "#334155" }}>{s.metrics.caseloadSize}</span>
+              <span style={{ textAlign: "right", color: "#334155" }}>{s.metrics.monthlyBillable.toFixed(1)}</span>
+              <span style={{ textAlign: "right", color: "#334155" }}>{s.metrics.totalMonthlyHrs.toFixed(1)}</span>
               <span style={{ textAlign: "right", color: utilColor, fontWeight: 700 }}>{pct(s.metrics.utilization)}</span>
-              <span style={{ textAlign: "right" }}>{pct(s.metrics.billableShare)}</span>
+              <span style={{ textAlign: "right", color: "#334155" }}>{pct(s.metrics.billableShare)}</span>
               <span style={{ textAlign: "right", color: marginColor, fontWeight: 700 }}>{pct(s.metrics.grossMargin)}</span>
             </div>
           );
