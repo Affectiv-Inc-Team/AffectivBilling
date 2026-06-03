@@ -554,6 +554,7 @@ function CoordinatorCard({ coord, onUpdate, onRemove, onAddParticipant, onUpdate
 export function TSCRosterTab({ config, onUpdate, userRole }) {
   const summary = calcTSCService(config);
   const canEdit = canEditServiceLines(userRole);
+  const rates = { ...DEFAULT_TSC_RATES, ...(config.rates ?? {}) };
 
   const updateField    = (field, value) => onUpdate({ ...config, [field]: value });
   const updateCoord    = (coordId, field, value) =>
