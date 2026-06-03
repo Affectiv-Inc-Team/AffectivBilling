@@ -10,8 +10,17 @@
 // imported by the test files. It deliberately defines NO global beforeAll/
 // afterAll hooks — each test file owns and tears down its own fixtures.
 
+import WS from 'ws';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
+
+// supabase-js initializes a Realtime client inside createClient(), which needs a
+// global WebSocket. Node 22+ has one natively; Node < 22 (e.g. CI's Node 20) does
+// not, so createClient() throws before any test runs. Polyfill it from `ws` when
+// absent (a no-op on Node 22+). As a setupFiles entry this runs before any test
+// module — including src/supabase.js's module-level createClient — is imported,
+// and before the adminClient createClient() call below.
+if (!globalThis.WebSocket) globalThis.WebSocket = WS;
 
 // ─── Env resolution + localhost guardrail ───────────────────────────────────
 // URL / anon key come from the `env:` block in vitest.integration.config.js so
