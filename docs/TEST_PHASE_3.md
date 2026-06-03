@@ -1,7 +1,16 @@
 # Phase 3 — Integration Tests
 
-**Status: 🔲 Not started**
-**Prerequisite:** Phase 2 complete
+**Status: ✅ Complete** — `tests/integration/{setup,supabase,rls}.test.js`, 21 tests passing
+against local Supabase. CI `integration` job added (push to main only).
+**Prerequisite:** Phase 2 complete ✅
+
+> **Implementation note — env safety.** The local URL + publishable key are injected via the
+> `env:` block in `vitest.integration.config.js`, **not** read from `.env.local` (which points
+> at production). The URL is hard-coded to `127.0.0.1` and `setup.js` throws if the resolved URL
+> is not localhost — a hard guardrail against the service-role key ever touching production.
+> The publishable (anon) key is public-safe and committed; the **service-role key is never
+> committed** — the `test:integration` npm script reads it from `supabase status` at runtime, so
+> both local runs and CI pick up the running instance's key with no secret in the repo.
 
 ---
 
@@ -198,24 +207,43 @@ only (not on every PR) to keep PR feedback fast.
 
 ## Known risks
 
+**🔴 FINDING — regular licensees can read/write nothing (policies are over-restrictive).**
+The `companies` SELECT/UPDATE policies use `EXISTS` subqueries over `licensee_companies` and
+`licensees`. Those tables are super-admin-only under RLS, so when a *regular* user's policy is
+evaluated the subqueries return no rows — the user can SELECT/UPDATE **no** companies, even ones
+correctly assigned to them. Verified empirically and pinned by the tests:
+- `loadConfig()` returns `null` for a correctly-assigned editor (`supabase.test.js`).
+- editor and read_only `UPDATE`s affect 0 rows with no error (`rls.test.js`).
+- `saveConfig()` returns `false` — its upsert hits an INSERT path with no matching policy.
+- Only **super-admins** can currently read/write companies.
+
+The crucial security property still **holds**: no user sees another licensee's data — the bug
+is the inverse. Fix belongs in Track B: a `security definer` membership-lookup function (so the
+policy subquery bypasses RLS on the join tables) and/or the planned `licensee_id` FK on
+`profiles` to replace the temporary `licensees.name = profiles.email` join. When that lands,
+flip the `GAP:`-annotated assertions to the intended behavior.
+
 **`licensee_id` on profiles — TODO in schema**
 The current RLS policy joins `licensees.name = profiles.email` as a temporary measure
-(see comment in `20260508174403_initial_schema.sql`). The integration tests should verify
-the policy as it exists today, and a separate test should be added when the `licensee_id`
-FK is added to `profiles`. Track this in schema migration work.
+(see comment in `20260508174403_initial_schema.sql`). The tests provision a licensee whose
+`name` equals the user's email to satisfy this join; replace when the FK is added.
+
+**Not a gap: profiles self-UPDATE.** The doc previously worried the missing `grant update on
+profiles` would block own-row updates. In practice the update succeeds — `rls.test.js` asserts it.
 
 **Test data isolation**
-Each test file must create and destroy its own test users and companies. The `beforeAll` /
-`afterAll` hooks in `setup.js` handle this. Do not rely on seed data — seed data is
-for the dev server, not for tests.
+Each test file creates and destroys its own users/companies/licensees via `beforeEach`/
+`afterEach` and the no-throw cleanup helpers in `setup.js`. Unique emails/ids per call prevent
+cross-test collisions (critical because the licensee name *is* the user email under the temp
+join). Do not rely on seed data.
 
 ---
 
 ## Acceptance criteria
 
-- [ ] `tests/integration/setup.js` written with admin client and helpers
-- [ ] `supabase.test.js` — all round-trip tests passing
-- [ ] `rls.test.js` — all 10 isolation tests passing
-- [ ] Tests clean up after themselves (no leftover users/companies in local DB)
-- [ ] `npm run test:integration` documented in README
-- [ ] CI integration job added to `.github/workflows/test.yml`
+- [x] `tests/integration/setup.js` written with admin client, localhost guardrail, and helpers
+- [x] `supabase.test.js` — all round-trip tests passing (10)
+- [x] `rls.test.js` — all isolation tests passing (11)
+- [x] Tests clean up after themselves (verified: no leftover users/companies in local DB)
+- [x] `npm run test:integration` documented in README
+- [x] CI integration job added to `.github/workflows/test.yml`

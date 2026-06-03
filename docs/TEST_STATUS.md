@@ -1,26 +1,31 @@
 # Intrinsic — Test Suite Status
 
-> Last updated: 2026-06-03 · Branch: `feat/test-phase-2`
+> Last updated: 2026-06-03 · Branch: `feat/test-phase-3`
 
 ---
 
-## Current Status: Phase 2 Complete ✅
+## Current Status: Phase 3 Complete ✅
 
 | | |
 |---|---|
-| **Framework** | Vitest 2.1 + @testing-library/react + Playwright (installed, not yet configured) |
-| **Test files** | 9 |
-| **Total tests** | 277 passing, 0 failing |
-| **Run time** | ~2.3s |
-| **CI** | ✅ GitHub Actions (`.github/workflows/test.yml`) |
+| **Framework** | Vitest 2.1 + @testing-library/react + Playwright (installed; E2E not yet configured) |
+| **Unit/component tests** | 9 files, 277 passing |
+| **Integration tests** | 2 files, 21 passing (local Supabase) |
+| **Run time** | ~2.7s unit · ~4.5s integration |
+| **CI** | ✅ GitHub Actions: `unit` (every push/PR) + `integration` (push to main) |
 
 ### Run the tests
 
 ```bash
-npm test                # run all unit tests once
+npm test                # all unit/component tests once
 npm run test:watch      # interactive watch mode
-npm run test:coverage   # run with coverage report
+npm run test:coverage   # with coverage report
 npm run test:ui         # open the Vitest browser UI
+
+# Integration (requires Docker + local Supabase):
+supabase start
+supabase db reset
+npm run test:integration
 ```
 
 ---
@@ -59,7 +64,7 @@ Configured thresholds: **80% statements / 75% branches** — both passing with m
 |-------|-------|--------|
 | [Phase 1 — Unit Tests](TEST_PHASE_1.md) | Pure function core | ✅ Complete |
 | [Phase 2 — Component Tests + CI](TEST_PHASE_2.md) | React components, GitHub Actions | ✅ Complete |
-| [Phase 3 — Integration Tests](TEST_PHASE_3.md) | Supabase I/O, RLS policies | 🔲 Not started |
+| [Phase 3 — Integration Tests](TEST_PHASE_3.md) | Supabase I/O, RLS policies | ✅ Complete |
 | [Phase 4 — E2E Tests](TEST_PHASE_4.md) | Full user flows (Playwright) | 🔲 Not started |
 
 ---
@@ -83,6 +88,30 @@ src/
     ToolPage.test.jsx       3 tests — loading/resolved/null config states
     FinancialTool.test.jsx  4 tests — smoke render, save button present/absent, onSave called
 tests/
-  integration/             (Phase 3 — not yet written)
+  integration/
+    setup.js               admin client, localhost guardrail, provisioning + teardown helpers
+    supabase.test.js       10 tests — loadConfig/saveConfig round-trips against local Supabase
+    rls.test.js            11 tests — companies/profiles/licensees RLS isolation (HIPAA-critical)
   e2e/                     (Phase 4 — not yet written)
 ```
+
+---
+
+## Phase 3 findings — RLS gaps surfaced by the tests
+
+Per the agreed approach, the integration tests assert the schema's **actual** behavior and flag
+where it diverges from the spec. Two findings (also recorded in [TEST_PHASE_3.md](TEST_PHASE_3.md)):
+
+- **Regular licensees can read/write *nothing*.** The `companies` SELECT/UPDATE policies use
+  `EXISTS` subqueries over `licensee_companies` and `licensees`, but those tables are
+  super-admin-only under RLS — so a regular user's policy check sees no assignment rows.
+  Net effect: `loadConfig()` returns `null` even for a correctly-assigned licensee, editor/
+  read_only `UPDATE`s affect 0 rows, and `saveConfig()` (an upsert with no INSERT policy for
+  regular users) is denied. **Only super-admins can currently read or write companies.**
+  Tests pin this so the fix (likely a `security definer` membership helper or a `licensee_id`
+  FK on `profiles`) registers as the intended change in Track B.
+- **The good news — isolation holds.** No user ever sees another licensee's data; the bug is
+  the inverse (assigned data is invisible too). That is a functionality gap, not a PHI leak.
+
+The doc's earlier worry about a missing `profiles` UPDATE grant turned out **not** to be real —
+own-row profile updates succeed; the test asserts that.
