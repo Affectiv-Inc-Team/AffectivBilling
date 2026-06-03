@@ -3,6 +3,12 @@ import {
   calcTSCParticipant,
   calcTSCCoordinator,
   calcTSCService,
+  calcTSCAdminStaff,
+  calcTSCRevenueWaterfall,
+  calcTSCProductivityFactors,
+  calcTSCBreakEven,
+  calcTSCScenario,
+  defaultTSCConfig,
 } from "../tsc.jsx";
 
 // Rate constants mirrored from tsc.jsx to keep assertions self-documenting
@@ -275,5 +281,239 @@ describe("calcTSCService", () => {
     const inputCoordRef = coord;
     calcTSCService({ coordinators: [coord], payrollBurdenPct: 22 });
     expect(inputCoordRef).not.toHaveProperty("metrics"); // original object unchanged
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// calcTSCAdminStaff
+// ──────────────────────────────────────────────────────────────────────
+
+describe("calcTSCAdminStaff", () => {
+  it("returns zero totalAnnualCost for empty array", () => {
+    const result = calcTSCAdminStaff([]);
+    expect(result.totalAnnualCost).toBe(0);
+    expect(result.staff).toHaveLength(0);
+  });
+
+  it("salary mode: annualBase = value × ftePct, annualCost includes benefitsPct", () => {
+    const member = { mode: "salary", value: 55000, ftePct: 100, benefitsPct: 22 };
+    const { staff } = calcTSCAdminStaff([member]);
+    expect(staff[0].annualBase).toBeCloseTo(55000, 6);
+    expect(staff[0].annualCost).toBeCloseTo(55000 * 1.22, 4);
+  });
+
+  it("hourly mode: annualBase = rate × 2080 × ftePct", () => {
+    const member = { mode: "hourly", value: 25, ftePct: 100, benefitsPct: 22 };
+    const { staff } = calcTSCAdminStaff([member]);
+    expect(staff[0].annualBase).toBeCloseTo(25 * 2080, 6);
+    expect(staff[0].annualCost).toBeCloseTo(25 * 2080 * 1.22, 4);
+  });
+
+  it("ftePct scales the base cost", () => {
+    const full = calcTSCAdminStaff([{ mode: "salary", value: 60000, ftePct: 100, benefitsPct: 0 }]);
+    const half = calcTSCAdminStaff([{ mode: "salary", value: 60000, ftePct: 50, benefitsPct: 0 }]);
+    expect(half.staff[0].annualBase).toBeCloseTo(full.staff[0].annualBase / 2, 4);
+  });
+
+  it("totalAnnualCost sums across multiple staff members", () => {
+    const m1 = { mode: "salary", value: 50000, ftePct: 100, benefitsPct: 0 };
+    const m2 = { mode: "salary", value: 60000, ftePct: 100, benefitsPct: 0 };
+    const { totalAnnualCost } = calcTSCAdminStaff([m1, m2]);
+    expect(totalAnnualCost).toBeCloseTo(110000, 4);
+  });
+
+  it("uses defaults when fields are omitted (55000 salary, 100% FTE, 22% benefits)", () => {
+    const { staff } = calcTSCAdminStaff([{ mode: "salary" }]);
+    expect(staff[0].annualBase).toBeCloseTo(55000, 6);
+    expect(staff[0].annualCost).toBeCloseTo(55000 * 1.22, 4);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// calcTSCRevenueWaterfall
+// ──────────────────────────────────────────────────────────────────────
+
+describe("calcTSCRevenueWaterfall", () => {
+  it("authorized equals grossAuthorized", () => {
+    expect(calcTSCRevenueWaterfall(100000).authorized).toBe(100000);
+  });
+
+  it("applies default rates: 92% completion, 97% billing, 99% collection", () => {
+    const result = calcTSCRevenueWaterfall(100000);
+    expect(result.earned).toBeCloseTo(100000 * 0.92, 4);
+    expect(result.billed).toBeCloseTo(100000 * 0.92 * 0.97, 4);
+    expect(result.collected).toBeCloseTo(100000 * 0.92 * 0.97 * 0.99, 4);
+  });
+
+  it("leakagePct = (authorized - collected) / authorized", () => {
+    const result = calcTSCRevenueWaterfall(100000);
+    expect(result.leakagePct).toBeCloseTo((100000 - result.collected) / 100000, 6);
+  });
+
+  it("leakagePct is 0 (not NaN) when grossAuthorized is 0", () => {
+    const result = calcTSCRevenueWaterfall(0);
+    expect(result.leakagePct).toBe(0);
+    expect(Number.isNaN(result.leakagePct)).toBe(false);
+  });
+
+  it("accepts custom revenue rates", () => {
+    const result = calcTSCRevenueWaterfall(100000, {
+      completionRate: 100,
+      billingSuccessRate: 100,
+      collectionRate: 100,
+    });
+    expect(result.earned).toBeCloseTo(100000, 4);
+    expect(result.collected).toBeCloseTo(100000, 4);
+    expect(result.leakagePct).toBeCloseTo(0, 6);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// calcTSCProductivityFactors
+// ──────────────────────────────────────────────────────────────────────
+
+describe("calcTSCProductivityFactors", () => {
+  it("default factors: effectiveBillablePct = 1 - 0.15 - 0.10 - 0.08 - 0.03 = 0.64", () => {
+    const result = calcTSCProductivityFactors();
+    expect(result.effectiveBillablePct).toBeCloseTo(0.64, 6);
+  });
+
+  it("netBillableHrsPerDay = billableHoursPerDay × effectiveBillablePct (default 6 × 0.64)", () => {
+    const result = calcTSCProductivityFactors();
+    expect(result.netBillableHrsPerDay).toBeCloseTo(6 * 0.64, 6);
+  });
+
+  it("accepts custom productivity values", () => {
+    const result = calcTSCProductivityFactors({
+      billableHoursPerDay:  8,
+      documentationTimePct: 10,
+      travelTimePct:        5,
+      noShowPct:            5,
+      qaReworkPct:          0,
+    });
+    expect(result.effectiveBillablePct).toBeCloseTo(0.80, 6);
+    expect(result.netBillableHrsPerDay).toBeCloseTo(8 * 0.80, 6);
+  });
+
+  it("effectiveBillablePct never goes below 0 even when losses exceed 100%", () => {
+    const result = calcTSCProductivityFactors({
+      documentationTimePct: 50,
+      travelTimePct:        50,
+      noShowPct:            50,
+      qaReworkPct:          50,
+    });
+    expect(result.effectiveBillablePct).toBe(0);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// calcTSCBreakEven
+// ──────────────────────────────────────────────────────────────────────
+
+describe("calcTSCBreakEven", () => {
+  const emptyConfig = {
+    coordinators: [],
+    adminStaff: [],
+    payrollBurdenPct: 22,
+    defaultHourlyWage: 22,
+    defaultAdminHrsPerWeek: 5,
+  };
+
+  it("returns null breakEvenCaseload when revenuePerParticipant is 0 (no participants)", () => {
+    const result = calcTSCBreakEven(emptyConfig);
+    expect(result.breakEvenCaseload).toBeNull();
+    expect(result.revenuePerParticipant).toBe(0);
+  });
+
+  it("safetyMarginPct is null when breakEvenCaseload is null", () => {
+    expect(calcTSCBreakEven(emptyConfig).safetyMarginPct).toBeNull();
+  });
+
+  it("currentCaseload equals total participants across all coordinators", () => {
+    const p = { unitsCoord: 16, unitsPlanDev: 0, unitsCrisis: 0, isParapro: false };
+    const config = {
+      ...emptyConfig,
+      coordinators: [{ id: "c1", hourlyWage: 22, adminHrsPerWeek: 5, participants: [p, p, p] }],
+    };
+    expect(calcTSCBreakEven(config).currentCaseload).toBe(3);
+  });
+
+  it("breakEvenCaseload = ceil(fixedCosts / revenuePerParticipant)", () => {
+    const p = { unitsCoord: 16, unitsPlanDev: 0, unitsCrisis: 0, isParapro: false };
+    const config = {
+      ...emptyConfig,
+      coordinators: [{ id: "c1", hourlyWage: 22, adminHrsPerWeek: 5, participants: [p, p, p] }],
+    };
+    const result = calcTSCBreakEven(config);
+    expect(result.breakEvenCaseload).toBe(
+      Math.ceil(result.fixedCosts / result.revenuePerParticipant)
+    );
+  });
+
+  it("fixedCosts increases when admin staff are added", () => {
+    const noStaff = calcTSCBreakEven(emptyConfig);
+    const withStaff = calcTSCBreakEven({
+      ...emptyConfig,
+      adminStaff: [{ mode: "salary", value: 55000, ftePct: 100, benefitsPct: 22 }],
+    });
+    expect(withStaff.fixedCosts).toBeGreaterThan(noStaff.fixedCosts);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// calcTSCScenario
+// ──────────────────────────────────────────────────────────────────────
+
+describe("calcTSCScenario", () => {
+  const p = { unitsCoord: 16, unitsPlanDev: 0, unitsCrisis: 0, isParapro: false };
+  const baseConfig = {
+    ...defaultTSCConfig(),
+    coordinators: [{ id: "c1", hourlyWage: 22, adminHrsPerWeek: 5, participants: [p, p] }],
+  };
+
+  it("returns base, scenario, and delta objects", () => {
+    const result = calcTSCScenario(baseConfig);
+    expect(result).toHaveProperty("base");
+    expect(result).toHaveProperty("scenario");
+    expect(result).toHaveProperty("delta");
+  });
+
+  it("with no adjustments, scenario revenue equals base revenue", () => {
+    const result = calcTSCScenario(baseConfig);
+    expect(result.scenario.totalAnnualRev).toBeCloseTo(result.base.totalAnnualRev, 4);
+  });
+
+  it("rateAdjPct = 10 increases scenario revenue by 10%", () => {
+    const config = { ...baseConfig, scenario: { ...baseConfig.scenario, rateAdjPct: 10 } };
+    const result = calcTSCScenario(config);
+    expect(result.scenario.totalAnnualRev).toBeCloseTo(result.base.totalAnnualRev * 1.1, 2);
+  });
+
+  it("rateAdjPct does not change labor cost (wages are unaffected by rate changes)", () => {
+    const config = { ...baseConfig, scenario: { ...baseConfig.scenario, rateAdjPct: 20 } };
+    const result = calcTSCScenario(config);
+    expect(result.scenario.totalAnnualLabor).toBeCloseTo(result.base.totalAnnualLabor, 2);
+  });
+
+  it("delta.totalAnnualRev = scenario revenue minus base revenue", () => {
+    const config = { ...baseConfig, scenario: { ...baseConfig.scenario, rateAdjPct: 15 } };
+    const result = calcTSCScenario(config);
+    expect(result.delta.totalAnnualRev).toBeCloseTo(
+      result.scenario.totalAnnualRev - result.base.totalAnnualRev,
+      4
+    );
+  });
+
+  it("caseloadCount override scales units proportionally", () => {
+    const config = { ...baseConfig, scenario: { ...baseConfig.scenario, caseloadCount: 4 } };
+    const result = calcTSCScenario(config);
+    // Caseload doubled from 2 to 4, so revenue should roughly double
+    expect(result.scenario.totalAnnualRev).toBeGreaterThan(result.base.totalAnnualRev);
+  });
+
+  it("scenario.totalCaseload reflects caseloadCount override when set", () => {
+    const config = { ...baseConfig, scenario: { ...baseConfig.scenario, caseloadCount: 5 } };
+    const result = calcTSCScenario(config);
+    expect(result.scenario.totalCaseload).toBe(5);
   });
 });
