@@ -1,18 +1,19 @@
 # Intrinsic — Test Suite Status
 
-> Last updated: 2026-06-03 · Branch: `feat/test-phase-3`
+> Last updated: 2026-06-05 · Branch: `feat/test-phase-4`
 
 ---
 
-## Current Status: Phase 3 Complete ✅
+## Current Status: Phase 4 Complete ✅ (all four phases done)
 
 | | |
 |---|---|
-| **Framework** | Vitest 2.1 + @testing-library/react + Playwright (installed; E2E not yet configured) |
-| **Unit/component tests** | 9 files, 277 passing |
+| **Framework** | Vitest 2.1 + @testing-library/react + Playwright (Chromium) |
+| **Unit/component tests** | 10 files, 279 passing |
 | **Integration tests** | 2 files, 21 passing (local Supabase) |
-| **Run time** | ~2.7s unit · ~4.5s integration |
-| **CI** | ✅ GitHub Actions: `unit` (every push/PR) + `integration` (push to main) |
+| **E2E tests** | 2 files, 7 passing (Chromium vs local Supabase) |
+| **Run time** | ~2.7s unit · ~4.5s integration · ~10s E2E |
+| **CI** | ✅ GitHub Actions: `unit` (every push/PR) + `integration` + `e2e` (push to main) |
 
 ### Run the tests
 
@@ -26,6 +27,11 @@ npm run test:ui         # open the Vitest browser UI
 supabase start
 supabase db reset
 npm run test:integration
+
+# E2E (requires Docker + local Supabase; Playwright starts the dev server itself):
+supabase start
+npx playwright install chromium   # one-time
+npm run test:e2e
 ```
 
 ---
@@ -65,7 +71,7 @@ Configured thresholds: **80% statements / 75% branches** — both passing with m
 | [Phase 1 — Unit Tests](TEST_PHASE_1.md) | Pure function core | ✅ Complete |
 | [Phase 2 — Component Tests + CI](TEST_PHASE_2.md) | React components, GitHub Actions | ✅ Complete |
 | [Phase 3 — Integration Tests](TEST_PHASE_3.md) | Supabase I/O, RLS policies | ✅ Complete |
-| [Phase 4 — E2E Tests](TEST_PHASE_4.md) | Full user flows (Playwright) | 🔲 Not started |
+| [Phase 4 — E2E Tests](TEST_PHASE_4.md) | Full user flows (Playwright) | ✅ Complete |
 
 ---
 
@@ -80,6 +86,7 @@ src/
     tsc.test.js            59 tests — all 8 calc exports (incl. AdminStaff, RevenueWaterfall, ProductivityFactors, BreakEven, Scenario)
     types.test.js          37 tests — type registry, active/pickable, picker groups
     TSCRosterTab.test.jsx   6 tests — empty state, add coordinator/participant, name edit, caseload count, edit-permission guard
+    TSCCoordinatorsTab.test.jsx 2 tests — regression: Coordinators/Participants tabs render cards without the `rates` ReferenceError (Phase 4 finding)
   data/__tests__/
     idahoRates.test.js     63 tests — ratesForLine, findRate, resolveRate, hospice matrix
   __tests__/
@@ -92,7 +99,13 @@ tests/
     setup.js               admin client, localhost guardrail, provisioning + teardown helpers
     supabase.test.js       10 tests — loadConfig/saveConfig round-trips against local Supabase
     rls.test.js            11 tests — companies/profiles/licensees RLS isolation (HIPAA-critical)
-  e2e/                     (Phase 4 — not yet written)
+  e2e/
+    playwright.config.js   Chromium, serial, webServer runs `vite --mode e2e` (local Supabase only)
+    global-setup.js        provisions a throwaway super-admin test user + resets the seed company
+    global-teardown.js     deletes the test user
+    fixtures/              credentials.js (shared identity) + auth.js (loginAs / addServiceLine)
+    auth.spec.js           4 tests — login page gate, invalid creds error, valid login, sign out
+    financial-tool.spec.js 3 flows — add TSC + model caseload ($336/mo), save/reload persists, wage propagation
 ```
 
 ---
@@ -115,3 +128,33 @@ where it diverges from the spec. Two findings (also recorded in [TEST_PHASE_3.md
 
 The doc's earlier worry about a missing `profiles` UPDATE grant turned out **not** to be real —
 own-row profile updates succeed; the test asserts that.
+
+---
+
+## Phase 4 findings — what the E2E suite surfaced
+
+- **🔴 App-crashing bug, now fixed.** Adding a coordinator (or viewing the Participants tab)
+  blanked the entire app. `TSCCoordinatorsTab` and `TSCParticipantsTab` rendered child rows with
+  `rates={rates}` but never declared `rates` — a `ReferenceError` that React surfaced as a blank
+  screen. The empty-state path never rendered those rows, and the unit tests exercised
+  `TSCRosterTab` (which *does* declare `rates`), so it slipped through every prior layer. Fixed by
+  mirroring `TSCRosterTab`'s `const rates = { ...DEFAULT_TSC_RATES, ...(config.rates ?? {}) }` in
+  both tabs ([src/serviceLines/tsc.jsx](../src/serviceLines/tsc.jsx)), plus a regression unit test
+  (`TSCCoordinatorsTab.test.jsx`). This is the kind of break Phase 4 was built to catch.
+
+- **New: a Sign Out button.** The app had no logout affordance at all. Added one (threaded
+  `onSignOut` from `App.jsx` → `ToolPage.jsx` → `FinancialTool.jsx`, next to Save) so the
+  sign-out flow could be tested as a real user action.
+
+### Deviations from the original Phase 4 plan
+
+- **Login does not change the URL** (App.jsx swaps LoginPage for the tool via `onAuthStateChange`),
+  so the auth fixture waits on the Sign Out button rather than `waitForURL`.
+- **E2E runs as a super-admin.** Because of the Phase 3 RLS gap, a regular licensee can't load the
+  seed company; `global-setup.js` provisions the test user as a super-admin so `loadConfig`/
+  `saveConfig` work. When Track B fixes RLS, this can switch to a regular assigned licensee.
+- **`vite --mode e2e` + `.env.e2e`** force the browser onto local Supabase — the app's `.env.local`
+  points at the remote project, so this (plus a localhost guard in `global-setup.js`) keeps E2E
+  from ever touching production.
+- **Flow 3 (wage propagation)** targets Res Hab Daily's company wage → Labor Efficiency display.
+  The plan's TSC framing didn't fit: TSC uses each coordinator's own wage, not the company wage.

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { loadConfig, saveConfig } from "../supabase.js";
 import FinancialTool from "./FinancialTool.jsx";
 
-export default function ToolPage({ userRole }) {
+export default function ToolPage({ userRole, onSignOut }) {
   const [initialConfig, setInitialConfig] = useState(undefined);
 
   useEffect(() => {
@@ -16,6 +16,7 @@ export default function ToolPage({ userRole }) {
       initialConfig={initialConfig}
       onSave={saveConfig}
       userRole={userRole}
+      onSignOut={onSignOut}
     />
   );
 }

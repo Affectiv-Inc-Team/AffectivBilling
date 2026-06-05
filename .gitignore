@@ -7,4 +7,5 @@ package.json
 .env.local
 coverage/
 playwright-report/
+test-results/
 .claude/worktrees/

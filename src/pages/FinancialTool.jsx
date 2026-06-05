@@ -2400,7 +2400,7 @@ function calcSLCo({ annualRevGrossRaw, annualLaborRaw, totalHomes, totalClients,
 // ════════════════════════════════════════════════════════════════════
 // MAIN APP
 // ════════════════════════════════════════════════════════════════════
-export default function App({ initialConfig, onSave, userRole, companyName: legacyCompanyName }) {
+export default function App({ initialConfig, onSave, userRole, onSignOut, companyName: legacyCompanyName }) {
   const [config, setConfig] = useState(() => migrateConfig(initialConfig));
   const [saveStatus, setSaveStatus] = useState("idle");
   const [activeKey, setActiveKey] = useState("WHOLE_COMPANY"); // "WHOLE_COMPANY" | service line id
@@ -2878,6 +2878,14 @@ export default function App({ initialConfig, onSave, userRole, companyName: lega
                 }}>
                   {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "✓ Saved" : saveStatus === "error" ? "✗ Error" : "Save"}
                 </button>
+              )}
+              {onSignOut && (
+                <button onClick={onSignOut} style={{
+                  padding:"7px 14px", borderRadius:8, cursor:"pointer",
+                  fontWeight:700, fontSize:11, fontFamily:"'Sora',sans-serif",
+                  letterSpacing:0.5, border:"1px solid #c8d4e4",
+                  background:"#fff", color:"#5a7498",
+                }}>Sign Out</button>
               )}
             </div>
           </div>

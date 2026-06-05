@@ -39,9 +39,12 @@ export default function App() {
   const derivedRole   = deriveRole(profile);
   const effectiveRole = IS_DEV && devRole ? devRole : derivedRole;
 
+  // On sign-out, onAuthStateChange fires and re-renders back to LoginPage.
+  const handleSignOut = () => supabase.auth.signOut();
+
   return (
     <>
-      <ToolPage userRole={effectiveRole} />
+      <ToolPage userRole={effectiveRole} onSignOut={handleSignOut} />
       {IS_DEV && (
         <div style={{
           position: 'fixed', bottom: 16, right: 16, zIndex: 9999,
