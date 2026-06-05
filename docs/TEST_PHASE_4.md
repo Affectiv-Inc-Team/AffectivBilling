@@ -1,7 +1,11 @@
 # Phase 4 — E2E Tests
 
-**Status: 🔲 Not started**
+**Status: ✅ Complete** (2026-06-05, branch `feat/test-phase-4`)
 **Prerequisite:** Phase 3 complete
+
+> Implementation notes & deviations from this plan (login has no URL change, super-admin test
+> user, `--mode e2e` env isolation, Flow 3 retargeted, and the app-crashing `rates` bug the
+> suite caught) are recorded in [TEST_STATUS.md](TEST_STATUS.md#phase-4-findings--what-the-e2e-suite-surfaced).
 
 ---
 
@@ -238,10 +242,10 @@ errors, run `supabase db reset` to re-apply migrations and seed.
 
 ## Acceptance criteria
 
-- [ ] `playwright.config.js` written and `npx playwright install chromium` run
-- [ ] `auth.spec.js` — all 4 auth flow tests passing
-- [ ] `financial-tool.spec.js` — all 3 critical flow tests passing
-- [ ] Tests pass with a clean `supabase db reset` (no dependency on stale local state)
-- [ ] CI E2E job added to `.github/workflows/test.yml`, runs on `main` pushes only
-- [ ] Playwright HTML report uploaded as CI artifact on failure
-- [ ] `npm run test:e2e` documented in README
+- [x] `playwright.config.js` written and `npx playwright install chromium` run
+- [x] `auth.spec.js` — all 4 auth flow tests passing
+- [x] `financial-tool.spec.js` — all 3 critical flow tests passing
+- [x] Tests pass with a clean `supabase db reset` (no dependency on stale local state)
+- [x] CI E2E job added to `.github/workflows/test.yml`, runs on `main` pushes only
+- [x] Playwright HTML report uploaded as CI artifact on failure
+- [x] `npm run test:e2e` documented in README

@@ -714,6 +714,7 @@ function ParticipantFlatRow({ p, coordId, coordinators, onUpdate, onReassign, on
 export function TSCCoordinatorsTab({ config, onUpdate, userRole }) {
   const summary = calcTSCService(config);
   const canEdit = canEditServiceLines(userRole);
+  const rates = { ...DEFAULT_TSC_RATES, ...(config.rates ?? {}) };
 
   const updateCoord = (coordId, field, value) =>
     onUpdate({
@@ -815,6 +816,7 @@ export function TSCParticipantsTab({ config, onUpdate, userRole }) {
   const totalUnitsPlanDev = allParticipants.reduce((a, p) => a + (p.unitsPlanDev ?? 0), 0);
   const canEdit = canEditServiceLines(userRole);
   const noCoords = (config.coordinators ?? []).length === 0;
+  const rates = { ...DEFAULT_TSC_RATES, ...(config.rates ?? {}) };
 
   const updateParticipant = (coordId, pId, field, value) => onUpdate({
     ...config,

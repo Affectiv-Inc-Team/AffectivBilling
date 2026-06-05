@@ -42,3 +42,34 @@ jobs:
       # `supabase status` at runtime (never committed); the publishable key and
       # localhost URL are set in vitest.integration.config.js.
       - run: npm run test:integration
+
+  # End-to-end browser tests (Playwright + Chromium). Slow and occasionally
+  # flaky, so they run on push to main only and gate behind unit + integration.
+  # The dev server is started by Playwright's webServer in `--mode e2e`, which
+  # loads .env.e2e (local Supabase). global-setup.js provisions the test user.
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [unit, integration]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - run: npx playwright install chromium --with-deps
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: supabase db reset
+      - run: npm run test:e2e
+        env:
+          CI: true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
