@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { loginAs, addServiceLine } from './fixtures/auth.js';
 import { E2E_EMAIL, E2E_PASSWORD } from './fixtures/credentials.js';
+import { resetSeedCompany } from './fixtures/seed.js';
 
 // Tab/sub-tab "buttons" are <div onPointerDown> wrapping a pointerEvents:none
 // <button>, so a normal click fails Playwright's actionability check. Match the
@@ -12,6 +13,14 @@ async function clickTab(page, labelRegex) {
 }
 
 test.describe('Financial tool — critical flows', () => {
+  // Tests run serially on one worker and share the seed company. A test that
+  // Saves (Flow 2) persists its service lines to Supabase, which would leave
+  // the picker's TSC option disabled ("(added)") for later tests. Reset the
+  // seed company to baseline before each test so none inherits another's state.
+  test.beforeEach(async () => {
+    await resetSeedCompany();
+  });
+
   // ── Flow 1: add a TSC service line and model a caseload ──────────────────
   // The core product loop. If this breaks, nothing works.
   test('add TSC service line and model a participant caseload', async ({ page }) => {
