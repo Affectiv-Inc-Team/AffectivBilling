@@ -37,7 +37,7 @@
  */
 
 import { useState } from "react";
-import { wageDisplayMode, canSeeCompanyDollars, canEditServiceLines } from "../lib/access.js";
+import { wageDisplayMode, canSeeCompanyDollars, canEditServiceLines, canSeeControl } from "../lib/access.js";
 
 // ──────────────────────────────────────────────────────────────────────
 // Rate constants (mirror the post-9/1/2025 Idaho catalog)
@@ -1404,6 +1404,23 @@ export function TSCScenarioTab({ config, onUpdate, userRole }) {
   const canEdit   = canEditServiceLines(userRole);
   const showDollars = canSeeCompanyDollars(userRole);
   const ro = !canEdit;
+
+  const { base, scenario, delta } = calcTSCScenario(config);
+  const bev = calcTSCBreakEven(config);
+  const caseloadCountVal = sc.caseloadCount ?? base.totalCaseload;
+
+  // Reimbursement rate overrides — compact left-column panel (mirrors Home Mix Editor)
+  const rates = { ...DEFAULT_TSC_RATES, ...(config.rates ?? {}) };
+  const [ratesOpen, setRatesOpen] = useState(true);
+  const canEditRates = canEdit;
+  const setRate = (key, val) =>
+    onUpdate({ ...config, rates: { ...rates, [key]: val } });
+  const G9007_CAP = 48;
+  const allPlanDev = (config.coordinators ?? []).flatMap(c =>
+    (c.participants ?? []).map(p => p.unitsPlanDev ?? 0));
+  const maxPlanDev = allPlanDev.length ? Math.max(...allPlanDev) : 0;
+  const nApproaching = allPlanDev.filter(u => u >= 40).length;
+  const $rate = n => `$${(n ?? 0).toFixed(2)}`;
 
   const updateScenario = (field, val) =>
     onUpdate({ ...config, scenario: { ...sc, [field]: val } });

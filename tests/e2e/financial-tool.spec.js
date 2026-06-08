@@ -86,4 +86,24 @@ test.describe('Financial tool — critical flows', () => {
     await clickTab(page, /Labor Efficiency/i);
     await expect(page.getByText('$25.00/hr').first()).toBeVisible();
   });
+
+  // ── Flow 4: the 🔬 Scenario sub-tab renders ──────────────────────────────
+  // Regression guard for a ReferenceError that blanked the whole app when an
+  // editor opened the TSC Scenario tab (undeclared base/scenario/delta/rates/
+  // bev/… — same class PR #24 fixed for the other TSC tabs). The Phase 4 suite
+  // never opened this sub-tab, which is how the crash shipped.
+  test('TSC Scenario sub-tab renders without crashing', async ({ page }) => {
+    await loginAs(page, E2E_EMAIL, E2E_PASSWORD);
+    await addServiceLine(page, /targeted service coordination/i);
+
+    // A coordinator + participant make the scenario calc and rate panel exercise
+    // the previously-undeclared paths rather than the empty-state shortcut.
+    await page.getByRole('button', { name: /\+ add coordinator/i }).click();
+    await page.getByRole('button', { name: /\+ add participant/i }).click();
+
+    // Opening this sub-tab used to throw before the component declared its vars.
+    await clickTab(page, /Scenario/i);
+    await expect(page.getByText(/scenario modeling/i)).toBeVisible();
+    await expect(page.getByText(/break-even analysis/i)).toBeVisible();
+  });
 });
