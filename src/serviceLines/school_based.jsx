@@ -922,7 +922,7 @@ export function SchoolBasedPLTab({ config, userRole }) {
         <span style={{ fontSize: 9, color: "#94a3b8", marginLeft: 6 }}>{disciplineLabel(cl.discipline)} · {tierLabel(cl.discipline, cl.tier)}</span>
       </span>
       {showDollars && <span style={{ textAlign: "right", color: "#D4A520" }}>{$k(cl.metrics.annualRev)}</span>}
-      {showDollars && <span style={{ textAlign: "right" }}>{$k(cl.metrics.annualLabor)}</span>}
+      {showDollars && <span style={{ textAlign: "right", color: "#334155" }}>{$k(cl.metrics.annualLabor)}</span>}
       {showDollars && <span style={{ textAlign: "right", color: cl.metrics.gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(cl.metrics.gross)}</span>}
       <span style={{ textAlign: "right", color: cl.metrics.grossMargin > 0.3 ? "#22c55e" : cl.metrics.grossMargin > 0.15 ? "#f59e0b" : "#cf6e6e" }}>
         {pct(cl.metrics.grossMargin)}
@@ -938,7 +938,7 @@ export function SchoolBasedPLTab({ config, userRole }) {
       <div key={`sub_${label}`} style={{ ...rowStyle, background: "#f7f9fc", fontWeight: 700, borderTop: "1px solid #d0dae8" }}>
         <span style={{ color: "#475569" }}>{label} subtotal</span>
         {showDollars && <span style={{ textAlign: "right", color: "#D4A520" }}>{$k(rev)}</span>}
-        {showDollars && <span style={{ textAlign: "right" }}>{$k(labor)}</span>}
+        {showDollars && <span style={{ textAlign: "right", color: "#334155" }}>{$k(labor)}</span>}
         {showDollars && <span style={{ textAlign: "right", color: gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(gross)}</span>}
         <span style={{ textAlign: "right", color: rev > 0 && gross / rev > 0.3 ? "#22c55e" : "#f59e0b" }}>{rev > 0 ? pct(gross / rev) : "—"}</span>
       </div>
