@@ -1452,7 +1452,7 @@ export function SchoolBasedScenarioTab({ config, onUpdate, userRole }) {
                   onChange={e => updateScenario(field, +e.target.value)}
                   readOnly={ro}
                   style={{ ...numInput, width: 56, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
-                <span style={{ fontSize: 11, ...M }}>{unit}</span>
+                <span style={{ fontSize: 11, color: "#334155", ...M }}>{unit}</span>
               </div>
             </div>
           ))}
