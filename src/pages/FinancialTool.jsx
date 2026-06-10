@@ -7,6 +7,7 @@ import { ratesForLine } from "../data/idahoRates.js";
 import { TSCRosterTab, TSCCoordinatorsTab, TSCParticipantsTab, TSCProductivityTab, TSCPLTab, TSCStaffingTab, TSCScenarioTab, calcTSCService } from "../serviceLines/tsc.jsx";
 import { ChildrensDDARosterTab, ChildrensDDAProductivityTab, ChildrensDDAPLTab, ChildrensDDARateScheduleTab, calcChildrensDDAService } from "../serviceLines/childrens_dda.jsx";
 import { CSERosterTab, CSEProductivityTab, CSEPLTab, calcCSEService } from "../serviceLines/cse.jsx";
+import { SchoolBasedRosterTab, SchoolBasedProductivityTab, SchoolBasedPLTab, SchoolBasedRateScheduleTab, SchoolBasedStaffingTab, SchoolBasedScenarioTab, calcSchoolBasedService } from "../serviceLines/school_based.jsx";
 import { budgetRowVisibility, canAddServiceLine, canEditServiceLines, canSeeCompanyDollars, canSeeControl, canSeeTopNumbers, editMode, wageDisplayMode, ROLE_TIERS } from "../lib/access.js";
 
 import { LOGO } from "../assets/logo.js";
@@ -2354,6 +2355,14 @@ const SUB_TABS = {
     { id: "cse_productivity", label: "📈 Productivity" },
     { id: "cse_pl",           label: "💵 P&L" },
   ],
+  SCHOOL_BASED: [
+    { id: "school_roster",       label: "👥 Roster" },
+    { id: "school_productivity", label: "📈 Productivity" },
+    { id: "school_pl",           label: "💵 P&L" },
+    { id: "school_rates",        label: "📋 Rate Schedule" },
+    { id: "school_staffing",     label: "🏢 Staffing" },
+    { id: "school_scenario",     label: "🔬 Scenario" },
+  ],
 };
 
 function getSubTabsFor(slType) {
@@ -2415,8 +2424,8 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
   useEffect(() => {
     const slType = activeKey === "WHOLE_COMPANY" ? "WHOLE_COMPANY" : activeSLType;
     const defaults = getSubTabsFor(slType);
-    const GATED = new Set(['company', 'reshab_pl', 'hourly_pl', 'portfolio', 'tsc_pl', 'cse_pl', 'chdda_pl']);
-    const SENIOR_GATED = new Set(['tsc_scenario']);
+    const GATED = new Set(['company', 'reshab_pl', 'hourly_pl', 'portfolio', 'tsc_pl', 'cse_pl', 'chdda_pl', 'school_pl']);
+    const SENIOR_GATED = new Set(['tsc_scenario', 'school_scenario']);
     const first = defaults.find(t =>
       (!GATED.has(t.id) || canSeeCompanyDollars(userRole)) &&
       (!SENIOR_GATED.has(t.id) || canEditServiceLines(userRole))
@@ -2630,6 +2639,7 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
   const tscSL         = company?.serviceLines.find(sl => sl.type === SERVICE_LINE_TYPES.TSC             && !sl.archived);
   const childrensddaSL = company?.serviceLines.find(sl => sl.type === SERVICE_LINE_TYPES.CHILDRENS_DDA  && !sl.archived);
   const cseSL          = company?.serviceLines.find(sl => sl.type === SERVICE_LINE_TYPES.VOC_SERVICES   && !sl.archived);
+  const schoolSL       = company?.serviceLines.find(sl => sl.type === SERVICE_LINE_TYPES.SCHOOL_BASED   && !sl.archived);
 
   const indHomes = [
     ...expandHomeTypes(dailySL?.config?.homes ?? []),
@@ -2725,14 +2735,19 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
     [cseSL]
   );
 
+  const schoolSummary = useMemo(
+    () => schoolSL ? calcSchoolBasedService(schoolSL.config) : { totalAnnualRev: 0, totalAnnualLabor: 0, clinicianCount: 0, totalCaseload: 0 },
+    [schoolSL]
+  );
+
   const co = useMemo(() => {
     const totalHomes   = indHomes.length;
     const totalClients = indHomes.reduce((a, h) => a + (h.nHigh || 0) + (h.nIntense || 0), 0);
     const dailyRev     = indHomeMetrics.reduce((a, h) => a + h.metrics.rev, 0);
     const dailyLabor   = indHomeMetrics.reduce((a, h) => a + h.metrics.labor, 0);
-    const annualRevGross    = dailyRev * 365 + hourlyTotals.annualRev + tscSummary.totalAnnualRev + childrensddaSummary.totalAnnualRev + cseSummary.totalAnnualRev;
+    const annualRevGross    = dailyRev * 365 + hourlyTotals.annualRev + tscSummary.totalAnnualRev + childrensddaSummary.totalAnnualRev + cseSummary.totalAnnualRev + schoolSummary.totalAnnualRev;
     const annualRevNet      = annualRevGross * (occupancy / 100);
-    const annualDirectLabor = (dailyLabor * 365 + hourlyTotals.annualLabor + tscSummary.totalAnnualLabor + childrensddaSummary.totalAnnualLabor + cseSummary.totalAnnualLabor) * (occupancy / 100);
+    const annualDirectLabor = (dailyLabor * 365 + hourlyTotals.annualLabor + tscSummary.totalAnnualLabor + childrensddaSummary.totalAnnualLabor + cseSummary.totalAnnualLabor + schoolSummary.totalAnnualLabor) * (occupancy / 100);
     const payrollBurden     = annualDirectLabor * 0.22;
     const totalLabor        = annualDirectLabor + payrollBurden;
     const mgmtTotal         = mgmt.reduce((a, m) => a + (m.salary || 0), 0) * 1.22;
@@ -2764,6 +2779,12 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
         labor: tscSummary.totalAnnualLabor * occFactor,
         detail: `${tscSummary.coordinatorCount} coords · ${tscSummary.totalCaseload} clients`,
       }] : []),
+      ...(schoolSummary.totalAnnualRev > 0 ? [{
+        id: 'school', label: 'School-Based Services',
+        rev:   schoolSummary.totalAnnualRev,
+        labor: schoolSummary.totalAnnualLabor * occFactor,
+        detail: `${schoolSummary.clinicianCount} clinicians · ${schoolSummary.totalCaseload} students`,
+      }] : []),
     ];
     return {
       totalHomes, totalClients,
@@ -2772,7 +2793,7 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
       ebitda, ebitdaMargin, stateTax, federalTax, totalTax, netIncome, netMargin,
       slBreakdown,
     };
-  }, [indHomeMetrics, indHomes, occupancy, mgmt, overhead, entityType, ownerRate, rates, mgmtFeePct, billingFeePct, hourlyTotals, tscSummary, childrensddaSummary, cseSummary]);
+  }, [indHomeMetrics, indHomes, occupancy, mgmt, overhead, entityType, ownerRate, rates, mgmtFeePct, billingFeePct, hourlyTotals, tscSummary, childrensddaSummary, cseSummary, schoolSummary]);
 
   // Hourly handlers
   const updateHourly = (id, f, v) => setHourlyPx(p => p.map(h => h.id === id ? { ...h, [f]: v } : h));
@@ -2800,8 +2821,8 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
 
   // ── Service line strip data ──
   const visibleSLs = company.serviceLines.filter(sl => !sl.archived);
-  const GATED_TABS = new Set(['company', 'reshab_pl', 'hourly_pl', 'portfolio', 'tsc_pl', 'cse_pl', 'chdda_pl']);
-  const SENIOR_GATED_TABS = new Set(['tsc_scenario']);
+  const GATED_TABS = new Set(['company', 'reshab_pl', 'hourly_pl', 'portfolio', 'tsc_pl', 'cse_pl', 'chdda_pl', 'school_pl']);
+  const SENIOR_GATED_TABS = new Set(['tsc_scenario', 'school_scenario']);
   const subTabs = (isWholeCompany
     ? applyTabOrder(getSubTabsFor("WHOLE_COMPANY"), company.shared.wholeCompanySubTabOrder)
     : applyTabOrder(getSubTabsFor(activeSLType), activeSL?.subTabOrder)
@@ -3135,6 +3156,48 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
                       mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}
                       title="Annual P&L — TSC (Coordination)" userRole={userRole}/>
                     <TSCPLTab config={activeSL.config} userRole={userRole}/>
+                  </div>
+                );
+              })()}
+
+              {/* SCHOOL_BASED tabs */}
+              {activeSLType === SERVICE_LINE_TYPES.SCHOOL_BASED && activeSL && subTab === "school_roster" && (
+                <SchoolBasedRosterTab config={activeSL.config}
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}
+                  userRole={userRole}/>
+              )}
+              {activeSLType === SERVICE_LINE_TYPES.SCHOOL_BASED && activeSL && subTab === "school_productivity" &&
+                <SchoolBasedProductivityTab config={activeSL.config} userRole={userRole}/>}
+              {activeSLType === SERVICE_LINE_TYPES.SCHOOL_BASED && activeSL && subTab === "school_rates" && (
+                <SchoolBasedRateScheduleTab config={activeSL.config}
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}
+                  userRole={userRole}/>
+              )}
+              {activeSLType === SERVICE_LINE_TYPES.SCHOOL_BASED && activeSL && subTab === "school_staffing" && (
+                <SchoolBasedStaffingTab config={activeSL.config}
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}
+                  userRole={userRole}/>
+              )}
+              {activeSLType === SERVICE_LINE_TYPES.SCHOOL_BASED && activeSL && subTab === "school_scenario" && canEditServiceLines(userRole) && (
+                <SchoolBasedScenarioTab config={activeSL.config}
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}
+                  userRole={userRole}/>
+              )}
+              {activeSLType === SERVICE_LINE_TYPES.SCHOOL_BASED && activeSL && subTab === "school_pl" && canSeeCompanyDollars(userRole) && (() => {
+                const revShare = co.annualRevGross > 0 ? schoolSummary.totalAnnualRev / co.annualRevGross : 1;
+                const slCo = calcSLCo({ annualRevGrossRaw:schoolSummary.totalAnnualRev,
+                  annualLaborRaw:schoolSummary.totalAnnualLabor, totalHomes:0,
+                  totalClients:schoolSummary.totalCaseload, occupancy, mgmtFeePct, billingFeePct,
+                  entityType, ownerRate, revShare, fullMgmtTotal:co.mgmtTotal, fullOverheadTotal:co.overheadTotal });
+                return (
+                  <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                    <CompanyPL co={slCo} mgmt={mgmt} overhead={overhead}
+                      onMgmt={(id,v)=>setMgmt(p=>p.map(m=>m.id===id?{...m,salary:v}:m))}
+                      onOvhd={(id,v)=>setOverhead(p=>p.map(o=>o.id===id?{...o,amount:v}:o))}
+                      entityType={entityType} ownerRate={ownerRate}
+                      mgmtFeePct={mgmtFeePct} billingFeePct={billingFeePct}
+                      title="Annual P&L — School-Based Services" userRole={userRole}/>
+                    <SchoolBasedPLTab config={activeSL.config} userRole={userRole}/>
                   </div>
                 );
               })()}

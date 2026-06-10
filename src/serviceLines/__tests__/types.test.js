@@ -41,8 +41,8 @@ describe("SERVICE_LINE_TYPES", () => {
 // ──────────────────────────────────────────────────────────────────────
 
 describe("getActiveTypes", () => {
-  it("returns exactly 5 types", () => {
-    expect(getActiveTypes()).toHaveLength(5);
+  it("returns exactly 6 types", () => {
+    expect(getActiveTypes()).toHaveLength(6);
   });
 
   it("returns RES_HAB_DAILY", () => {
@@ -63,6 +63,10 @@ describe("getActiveTypes", () => {
 
   it("returns CHILDRENS_DDA", () => {
     expect(getActiveTypes()).toContain("CHILDRENS_DDA");
+  });
+
+  it("returns SCHOOL_BASED", () => {
+    expect(getActiveTypes()).toContain("SCHOOL_BASED");
   });
 
   it("every returned type has status 'active' in SERVICE_LINE_DEFS", () => {
@@ -127,6 +131,13 @@ describe("getDefaultConfig", () => {
     expect(Array.isArray(cfg.participants)).toBe(true);
   });
 
+  it("SCHOOL_BASED default config has clinicians array and school year", () => {
+    const cfg = getDefaultConfig("SCHOOL_BASED");
+    expect(Array.isArray(cfg.clinicians)).toBe(true);
+    expect(cfg.clinicians).toHaveLength(0);
+    expect(cfg.schoolYear.weeksPerYear).toBe(36);
+  });
+
   it("returns empty object for unknown type without throwing", () => {
     expect(() => getDefaultConfig("UNKNOWN_TYPE")).not.toThrow();
     expect(getDefaultConfig("UNKNOWN_TYPE")).toEqual({});
@@ -182,6 +193,17 @@ describe("getGroupedPickerOptions", () => {
     );
     expect(group).toBeDefined();
     expect(group.types.map((t) => t.type)).toContain("RES_HAB_DAILY");
+  });
+
+  it("SCHOOL_BASED appears in the MIXED_MODALITY group with active status", () => {
+    const groups = getGroupedPickerOptions();
+    const group = groups.find(
+      (g) => g.archetype === ARCHETYPES.MIXED_MODALITY
+    );
+    expect(group).toBeDefined();
+    const school = group.types.find((t) => t.type === "SCHOOL_BASED");
+    expect(school).toBeDefined();
+    expect(school.status).toBe("active");
   });
 
   it("each type entry has type, label, shortLabel, description, and status", () => {
