@@ -91,8 +91,7 @@ export function therapyRateKeyFor(discipline, tier) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Factories
 // ─────────────────────────────────────────────────────────────────────────────
-let _sbUid = 0;
-const sbUid = () => ++_sbUid;
+const sbUid = () => Math.random().toString(36).slice(2, 10);
 
 export function mkStudent(name = 'New Student') {
   return {
@@ -176,22 +175,24 @@ export function calcSchoolStudent(s, clinician = {}, rates = _defaultRates, scho
   const therapyHrWk = therapyKey ? (svc.therapy?.hrPerWk ?? 0) : 0;
   const therapyRevWk = therapyHrWk * 4 * (therapyKey ? R(therapyKey) : 0);
 
-  // Psychotherapy (per visit) — visit lengths fix the clinician time
-  const v30 = svc.psycho?.v30PerWk ?? 0;
-  const v45 = svc.psycho?.v45PerWk ?? 0;
-  const v60 = svc.psycho?.v60PerWk ?? 0;
+  // Psychotherapy (per visit) — BEHAVIORAL clinicians only
+  const isBehavioral = clinician.discipline === 'BEHAVIORAL';
+  const v30 = isBehavioral ? (svc.psycho?.v30PerWk ?? 0) : 0;
+  const v45 = isBehavioral ? (svc.psycho?.v45PerWk ?? 0) : 0;
+  const v60 = isBehavioral ? (svc.psycho?.v60PerWk ?? 0) : 0;
   const psychoRevWk = v30 * R('psycho_30') + v45 * R('psycho_45') + v60 * R('psycho_60');
   const psychoHrWk  = v30 * 0.5 + v45 * 0.75 + v60 * 1.0;
 
-  // Psych eval (90791) — annual 15-min units, independent of weekly cadence
-  const evalUnitsYr = svc.psychEval?.unitsPerYear ?? 0;
+  // Psych eval (90791) — BEHAVIORAL clinicians only
+  const evalUnitsYr = isBehavioral ? (svc.psychEval?.unitsPerYear ?? 0) : 0;
   const evalRevYr   = evalUnitsYr * R('psych_eval');
   const evalHrsYr   = evalUnitsYr / 4;
 
-  // CBRS skills building — group hours bill in full but share clinician time
-  const cbrsIndHrWk = svc.cbrsInd?.hrPerWk ?? 0;
-  const cbrsGrpHrWk = svc.cbrsGrp?.hrPerWk ?? 0;
-  const cbrsGrpSize = Math.max(1, svc.cbrsGrp?.groupSize ?? 4);
+  // CBRS skills building — CBRS clinicians only; group hours bill in full but share clinician time
+  const isCBRS = clinician.discipline === 'CBRS';
+  const cbrsIndHrWk = isCBRS ? (svc.cbrsInd?.hrPerWk ?? 0) : 0;
+  const cbrsGrpHrWk = isCBRS ? (svc.cbrsGrp?.hrPerWk ?? 0) : 0;
+  const cbrsGrpSize = isCBRS ? Math.max(1, svc.cbrsGrp?.groupSize ?? 4) : 1;
   const cbrsRevWk   = cbrsIndHrWk * 4 * R('cbrs_ind') + cbrsGrpHrWk * 4 * R('cbrs_grp');
   const cbrsHrWk    = cbrsIndHrWk + cbrsGrpHrWk / cbrsGrpSize;
 
@@ -226,9 +227,10 @@ export function calcSchoolClinician(cl, payrollBurdenPct = 22, rates = _defaultR
   const weeklyHrs         = weeklyServiceHrs + adminHrsPerWeek;
 
   // Clinicians are hourly and paid for service weeks only (school year + ESY)
-  const burden      = 1 + (payrollBurdenPct ?? 22) / 100;
-  const annualLabor = weeklyHrs * weeks * (cl.hourlyWage ?? 30) * burden;
-  const gross       = annualRev - annualLabor;
+  const burden          = 1 + (payrollBurdenPct ?? 22) / 100;
+  const annualLaborRaw  = weeklyHrs * weeks * (cl.hourlyWage ?? 30);
+  const annualLabor     = annualLaborRaw * burden;
+  const gross           = annualRev - annualLabor;
 
   return {
     sx,
@@ -238,6 +240,7 @@ export function calcSchoolClinician(cl, payrollBurdenPct = 22, rates = _defaultR
     weeklyBilledHrs,
     adminHrsPerWeek,
     weeklyHrs,
+    annualLaborRaw,
     annualLabor,
     gross,
     grossMargin:   annualRev > 0 ? gross / annualRev : 0,
@@ -254,7 +257,11 @@ export function calcSchoolAdminStaff(adminStaff = []) {
     const annualCost = annualBase * (1 + (m.benefitsPct ?? 22) / 100);
     return { ...m, annualBase, annualCost };
   });
-  return { staff, totalAnnualCost: staff.reduce((a, s) => a + s.annualCost, 0) };
+  return {
+    staff,
+    totalAnnualCost: staff.reduce((a, s) => a + s.annualCost, 0),
+    totalAnnualBase: staff.reduce((a, s) => a + s.annualBase, 0),
+  };
 }
 
 export function calcSchoolBasedService(config = {}) {
@@ -268,22 +275,32 @@ export function calcSchoolBasedService(config = {}) {
     metrics: calcSchoolClinician(cl, payrollBurdenPct, rates, schoolYear, productivity),
   }));
 
-  const totalCaseload  = clinicians.reduce((a, cl) => a + cl.metrics.caseloadSize, 0);
-  const totalAnnualRev = clinicians.reduce((a, cl) => a + cl.metrics.annualRev, 0);
-  const totalAnnualLab = clinicians.reduce((a, cl) => a + cl.metrics.annualLabor, 0);
+  const totalCaseload    = clinicians.reduce((a, cl) => a + cl.metrics.caseloadSize, 0);
+  const totalAnnualRev   = clinicians.reduce((a, cl) => a + cl.metrics.annualRev, 0);
+  const totalClinicianLab    = clinicians.reduce((a, cl) => a + cl.metrics.annualLabor, 0);
+  const totalClinicianLabRaw = clinicians.reduce((a, cl) => a + cl.metrics.annualLaborRaw, 0);
 
   const sup = config.supervision ?? { count: 0, salary: 70000 };
-  const supervisionCost = (sup.count ?? 0) * (sup.salary ?? 70000) * (1 + payrollBurdenPct / 100);
-  const adminStaffCost  = calcSchoolAdminStaff(config.adminStaff ?? []).totalAnnualCost;
+  const supBase         = (sup.count ?? 0) * (sup.salary ?? 70000);
+  const supervisionCost = supBase * (1 + payrollBurdenPct / 100);
 
-  const totalGross = totalAnnualRev - totalAnnualLab - supervisionCost - adminStaffCost;
+  const adminCalc      = calcSchoolAdminStaff(config.adminStaff ?? []);
+  const adminStaffCost = adminCalc.totalAnnualCost;
+
+  // totalAnnualLabor: post-burden, all sources (for tab displays and line P&L)
+  const totalAnnualLabor = totalClinicianLab + supervisionCost + adminStaffCost;
+  // totalAnnualLaborRaw: pre-burden equivalent of all sources (for company roll-up)
+  const totalAnnualLaborRaw = totalClinicianLabRaw + supBase + adminCalc.totalAnnualBase;
+
+  const totalGross = totalAnnualRev - totalAnnualLabor;
 
   return {
     clinicians,
     clinicianCount: clinicians.length,
     totalCaseload,
     totalAnnualRev,
-    totalAnnualLabor: totalAnnualLab,
+    totalAnnualLabor,
+    totalAnnualLaborRaw,
     supervisionCost,
     adminStaffCost,
     totalGross,
@@ -321,8 +338,9 @@ export function calcSchoolScenario(config = {}) {
 
   const scenarioConfig = {
     ...config,
+    // weeksPerYear slider represents TOTAL weeks (school + ESY); zero out esyWeeks to avoid double-counting
     schoolYear: sc.weeksPerYear != null
-      ? { ...(config.schoolYear ?? {}), weeksPerYear: sc.weeksPerYear }
+      ? { ...(config.schoolYear ?? {}), weeksPerYear: sc.weeksPerYear, esyWeeks: 0 }
       : config.schoolYear,
     clinicians: (config.clinicians ?? []).map(cl => ({
       ...cl,
@@ -333,7 +351,8 @@ export function calcSchoolScenario(config = {}) {
   // Rate adjustment scales revenue only; labor is wage-driven and unchanged
   const run = calcSchoolBasedService(scenarioConfig);
   const scenarioAnnualRev = run.totalAnnualRev * rateAdj;
-  const scenarioGross     = scenarioAnnualRev - run.totalAnnualLabor - run.supervisionCost - run.adminStaffCost;
+  // totalAnnualLabor already includes supervisionCost + adminStaffCost
+  const scenarioGross     = scenarioAnnualRev - run.totalAnnualLabor;
 
   const scenario = {
     totalAnnualRev:   scenarioAnnualRev,
@@ -793,8 +812,9 @@ export function SchoolBasedRosterTab({ config, onUpdate, userRole }) {
 // Productivity tab
 // ─────────────────────────────────────────────────────────────────────────────
 export function SchoolBasedProductivityTab({ config, userRole }) {
-  const summary = calcSchoolBasedService(config);
-  const prod    = config.productivity ?? {};
+  const summary      = calcSchoolBasedService(config);
+  const prod         = config.productivity ?? {};
+  const effBillable  = Math.max(0, 100 - (prod.absenceRate ?? 10) - (prod.documentationTimePct ?? 15) - (prod.travelBetweenSchoolsPct ?? 10));
 
   if (summary.clinicianCount === 0) {
     return (
@@ -829,8 +849,8 @@ export function SchoolBasedProductivityTab({ config, userRole }) {
         </div>
         <div>
           <div style={labelStyle}>Effective billable %</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "#22c55e", ...M }}>
-            {(100 - (prod.absenceRate ?? 10) - (prod.documentationTimePct ?? 15) - (prod.travelBetweenSchoolsPct ?? 10)).toFixed(0)}%
+          <div style={{ fontSize: 20, fontWeight: 800, color: effBillable > 0 ? "#22c55e" : "#cf6e6e", ...M }}>
+            {effBillable.toFixed(0)}%
           </div>
         </div>
         <div>
@@ -1003,7 +1023,7 @@ export function SchoolBasedPLTab({ config, userRole }) {
         }}>
           <span>Total</span>
           {showDollars && <span style={{ textAlign: "right" }}>{$k(summary.totalAnnualRev)}</span>}
-          {showDollars && <span style={{ textAlign: "right", color: "#e4eaf2" }}>{$k(summary.totalAnnualLabor + summary.supervisionCost + summary.adminStaffCost)}</span>}
+          {showDollars && <span style={{ textAlign: "right", color: "#e4eaf2" }}>{$k(summary.totalAnnualLabor)}</span>}
           {showDollars && <span style={{ textAlign: "right", color: summary.totalGross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(summary.totalGross)}</span>}
           <span style={{ textAlign: "right" }}>{pct(summary.totalMargin)}</span>
         </div>
@@ -1339,7 +1359,7 @@ export function SchoolBasedScenarioTab({ config, onUpdate, userRole }) {
 
   const { base, scenario, delta } = calcSchoolScenario(config);
   const caseloadCountVal = sc.caseloadCount ?? base.totalCaseload;
-  const weeksVal         = sc.weeksPerYear ?? (config.schoolYear?.weeksPerYear ?? 36);
+  const weeksVal         = sc.weeksPerYear ?? schoolYearWeeks(config.schoolYear ?? {});
 
   const overrides = config.rateOverrides ?? {};
   const [ratesOpen, setRatesOpen] = useState(true);

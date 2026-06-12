@@ -363,10 +363,13 @@ export const SERVICE_LINE_DEFS = {
       schoolYear: { weeksPerYear: 36, esyWeeks: 0 },
       productivity: { billableHrsPerDay: 5, absenceRate: 10, documentationTimePct: 15, travelBetweenSchoolsPct: 10 },
       supervision: { count: 0, salary: 70000 },
+      adminStaff: [],
+      scenario: { rateAdjPct: 0, caseloadCount: null, productivityAdjPct: 0, weeksPerYear: null },
       payrollBurdenPct: 22,
       defaultHourlyWage: 30,
       defaultDiscipline: 'SPEECH',
       defaultTier: 'PROFESSIONAL',
+      rateOverrides: {},
     }),
   },
   [T.SELF_DIRECT]: {

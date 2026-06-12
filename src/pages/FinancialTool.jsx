@@ -2369,6 +2369,10 @@ function getSubTabsFor(slType) {
   return SUB_TABS[slType] || [];
 }
 
+// Tab IDs that require canSeeCompanyDollars / canEditServiceLines — single source of truth
+const DOLLAR_GATED_TABS  = new Set(['company', 'reshab_pl', 'hourly_pl', 'portfolio', 'tsc_pl', 'cse_pl', 'chdda_pl', 'school_pl']);
+const SENIOR_GATED_TABS  = new Set(['tsc_scenario', 'school_scenario']);
+
 function getDefaultSubTab(slType) {
   const tabs = getSubTabsFor(slType);
   return tabs[0]?.id || "placeholder";
@@ -2424,11 +2428,9 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
   useEffect(() => {
     const slType = activeKey === "WHOLE_COMPANY" ? "WHOLE_COMPANY" : activeSLType;
     const defaults = getSubTabsFor(slType);
-    const GATED = new Set(['company', 'reshab_pl', 'hourly_pl', 'portfolio', 'tsc_pl', 'cse_pl', 'chdda_pl', 'school_pl']);
-    const SENIOR_GATED = new Set(['tsc_scenario', 'school_scenario']);
     const first = defaults.find(t =>
-      (!GATED.has(t.id) || canSeeCompanyDollars(userRole)) &&
-      (!SENIOR_GATED.has(t.id) || canEditServiceLines(userRole))
+      (!DOLLAR_GATED_TABS.has(t.id) || canSeeCompanyDollars(userRole)) &&
+      (!SENIOR_GATED_TABS.has(t.id) || canEditServiceLines(userRole))
     );
     setSubTab(first?.id ?? 'placeholder');
   }, [activeKey, activeSLType, userRole]);
@@ -2747,7 +2749,7 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
     const dailyLabor   = indHomeMetrics.reduce((a, h) => a + h.metrics.labor, 0);
     const annualRevGross    = dailyRev * 365 + hourlyTotals.annualRev + tscSummary.totalAnnualRev + childrensddaSummary.totalAnnualRev + cseSummary.totalAnnualRev + schoolSummary.totalAnnualRev;
     const annualRevNet      = annualRevGross * (occupancy / 100);
-    const annualDirectLabor = (dailyLabor * 365 + hourlyTotals.annualLabor + tscSummary.totalAnnualLabor + childrensddaSummary.totalAnnualLabor + cseSummary.totalAnnualLabor + schoolSummary.totalAnnualLabor) * (occupancy / 100);
+    const annualDirectLabor = (dailyLabor * 365 + hourlyTotals.annualLabor + tscSummary.totalAnnualLabor + childrensddaSummary.totalAnnualLabor + cseSummary.totalAnnualLabor + (schoolSummary.totalAnnualLaborRaw ?? 0)) * (occupancy / 100);
     const payrollBurden     = annualDirectLabor * 0.22;
     const totalLabor        = annualDirectLabor + payrollBurden;
     const mgmtTotal         = mgmt.reduce((a, m) => a + (m.salary || 0), 0) * 1.22;
@@ -2779,7 +2781,7 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
         labor: tscSummary.totalAnnualLabor * occFactor,
         detail: `${tscSummary.coordinatorCount} coords · ${tscSummary.totalCaseload} clients`,
       }] : []),
-      ...(schoolSummary.totalAnnualRev > 0 ? [{
+      ...((schoolSummary.totalAnnualRev > 0 || (schoolSummary.totalAnnualLaborRaw ?? 0) > 0) ? [{
         id: 'school', label: 'School-Based Services',
         rev:   schoolSummary.totalAnnualRev,
         labor: schoolSummary.totalAnnualLabor * occFactor,
@@ -2821,13 +2823,11 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
 
   // ── Service line strip data ──
   const visibleSLs = company.serviceLines.filter(sl => !sl.archived);
-  const GATED_TABS = new Set(['company', 'reshab_pl', 'hourly_pl', 'portfolio', 'tsc_pl', 'cse_pl', 'chdda_pl', 'school_pl']);
-  const SENIOR_GATED_TABS = new Set(['tsc_scenario', 'school_scenario']);
   const subTabs = (isWholeCompany
     ? applyTabOrder(getSubTabsFor("WHOLE_COMPANY"), company.shared.wholeCompanySubTabOrder)
     : applyTabOrder(getSubTabsFor(activeSLType), activeSL?.subTabOrder)
   ).filter(t =>
-    (!GATED_TABS.has(t.id) || canSeeCompanyDollars(userRole)) &&
+    (!DOLLAR_GATED_TABS.has(t.id) || canSeeCompanyDollars(userRole)) &&
     (!SENIOR_GATED_TABS.has(t.id) || canEditServiceLines(userRole))
   );
 
@@ -3186,7 +3186,7 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
               {activeSLType === SERVICE_LINE_TYPES.SCHOOL_BASED && activeSL && subTab === "school_pl" && canSeeCompanyDollars(userRole) && (() => {
                 const revShare = co.annualRevGross > 0 ? schoolSummary.totalAnnualRev / co.annualRevGross : 1;
                 const slCo = calcSLCo({ annualRevGrossRaw:schoolSummary.totalAnnualRev,
-                  annualLaborRaw:schoolSummary.totalAnnualLabor, totalHomes:0,
+                  annualLaborRaw:schoolSummary.totalAnnualLaborRaw ?? 0, totalHomes:0,
                   totalClients:schoolSummary.totalCaseload, occupancy, mgmtFeePct, billingFeePct,
                   entityType, ownerRate, revShare, fullMgmtTotal:co.mgmtTotal, fullOverheadTotal:co.overheadTotal });
                 return (

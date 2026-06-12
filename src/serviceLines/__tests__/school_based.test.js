@@ -316,17 +316,21 @@ describe("calcSchoolBasedService", () => {
     expect(r.totalAnnualLabor).toBeGreaterThan(0);
   });
 
-  it("adds supervision and admin staff to gross but not to totalAnnualLabor", () => {
+  it("rolls supervision and admin into totalAnnualLabor; totalAnnualLaborRaw is pre-burden", () => {
     const cfg = twoClinicianConfig();
     cfg.supervision = { count: 1, salary: 70000 };
     cfg.adminStaff = [mkSchoolAdminStaffMember()];
     const r = calcSchoolBasedService(cfg);
     expect(r.supervisionCost).toBeCloseTo(70000 * 1.22, 2);
     expect(r.adminStaffCost).toBeCloseTo(55000 * 1.22, 2);
-    expect(r.totalGross).toBeCloseTo(r.totalAnnualRev - r.totalAnnualLabor - r.supervisionCost - r.adminStaffCost, 2);
-    // company roll-up labor excludes overhead staff (DDA precedent)
+    // totalAnnualLabor is now all-in (clinicians + supervision + admin)
     const clinicianLabor = r.clinicians.reduce((a, c) => a + c.metrics.annualLabor, 0);
-    expect(r.totalAnnualLabor).toBeCloseTo(clinicianLabor, 2);
+    expect(r.totalAnnualLabor).toBeCloseTo(clinicianLabor + r.supervisionCost + r.adminStaffCost, 2);
+    // totalGross uses the combined total
+    expect(r.totalGross).toBeCloseTo(r.totalAnnualRev - r.totalAnnualLabor, 2);
+    // totalAnnualLaborRaw is pre-burden equivalent for company roll-up
+    const clinicianLaborRaw = r.clinicians.reduce((a, c) => a + c.metrics.annualLaborRaw, 0);
+    expect(r.totalAnnualLaborRaw).toBeCloseTo(clinicianLaborRaw + 70000 + 55000, 2);
   });
 
   it("flows rate overrides through to revenue", () => {
