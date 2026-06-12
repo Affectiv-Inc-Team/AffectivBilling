@@ -842,7 +842,7 @@ export function ChildrensDDAPLTab({ config, userRole }) {
         <span style={{ fontSize: 9, color: "#94a3b8", marginLeft: 6 }}>{TIER_LABELS[pv.tier] ?? pv.tier}</span>
       </span>
       {showDollars && <span style={{ textAlign: "right", color: "#D4A520" }}>{$k(pv.metrics.annualRev)}</span>}
-      {showDollars && <span style={{ textAlign: "right" }}>{$k(pv.metrics.annualLabor)}</span>}
+      {showDollars && <span style={{ textAlign: "right", color: "#334155" }}>{$k(pv.metrics.annualLabor)}</span>}
       {showDollars && <span style={{ textAlign: "right", color: pv.metrics.gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(pv.metrics.gross)}</span>}
       <span style={{ textAlign: "right", color: pv.metrics.grossMargin > 0.3 ? "#22c55e" : pv.metrics.grossMargin > 0.15 ? "#f59e0b" : "#cf6e6e" }}>
         {pct(pv.metrics.grossMargin)}
@@ -858,7 +858,7 @@ export function ChildrensDDAPLTab({ config, userRole }) {
       <div key={`sub_${label}`} style={{ ...rowStyle, background: "#f7f9fc", fontWeight: 700, borderTop: "1px solid #d0dae8" }}>
         <span style={{ color: "#475569" }}>{label} subtotal</span>
         {showDollars && <span style={{ textAlign: "right", color: "#D4A520" }}>{$k(rev)}</span>}
-        {showDollars && <span style={{ textAlign: "right" }}>{$k(labor)}</span>}
+        {showDollars && <span style={{ textAlign: "right", color: "#334155" }}>{$k(labor)}</span>}
         {showDollars && <span style={{ textAlign: "right", color: gross > 0 ? "#22c55e" : "#cf6e6e" }}>{$k(gross)}</span>}
         <span style={{ textAlign: "right", color: rev > 0 && gross / rev > 0.3 ? "#22c55e" : "#f59e0b" }}>{rev > 0 ? pct(gross / rev) : "—"}</span>
       </div>

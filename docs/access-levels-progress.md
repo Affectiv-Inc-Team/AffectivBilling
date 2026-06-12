@@ -186,7 +186,7 @@ The Portfolio tab is now restricted entirely to tiers 1–3; it does not appear 
 ---
 
 ### Service line P&L tabs hidden for tiers 4–8 ✅
-All five service line P&L tabs (`reshab_pl`, `hourly_pl`, `tsc_pl`, `cse_pl`, `chdda_pl`) now follow the same pattern as the Portfolio tab:
+All six service line P&L tabs (`reshab_pl`, `hourly_pl`, `tsc_pl`, `cse_pl`, `chdda_pl`, `school_pl`) now follow the same pattern as the Portfolio tab:
 - Added to `GATED_TABS` set — filtered from `subTabs` for tiers 4–8.
 - Render guards (`canSeeCompanyDollars(userRole)`) added to each P&L render site.
 
@@ -206,6 +206,16 @@ The TSC Scenario tab (`tsc_scenario`) is a financial planning tool restricted to
 - `canAddServiceLine(role)` added to `access.js` — returns true for tiers 1–4.
 - The `+ Add Service Line` button is wrapped with `canAddServiceLine(userRole)`.
 - Tiers 5–8 cannot add new service lines.
+
+---
+
+### School-Based Services line gated on activation ✅ (2026-06-10)
+The new School-Based Services line (`SCHOOL_BASED`, six tabs) ships with the established gates:
+- `school_pl` added to both `GATED` / `GATED_TABS` sets — P&L hidden for tiers 4–8, render site guarded with `canSeeCompanyDollars(userRole)`.
+- `school_scenario` added to both `SENIOR_GATED` / `SENIOR_GATED_TABS` sets — Scenario restricted to tiers 1–4, render site guarded with `canEditServiceLines(userRole)`.
+- Operational tabs (`school_roster`, `school_productivity`, `school_rates`, `school_staffing`) visible to all tiers per spec; edit controls gated with `canEditServiceLines`, dollar stats with `canSeeCompanyDollars`, and the per-clinician wage input with `wageDisplayMode` (dollars 1–6, read-only 7, hidden 8) inside the components.
+- Verified against all 8 tiers with the dev role dropdown.
+- Spec updated in `docs/access-levels-and-rights.md` (Scenario lines generalized to "Scenario tabs (TSC, School-Based)"; School-Based P&L added to the hidden P&L list; Rule 2 wage examples extended).
 
 ---
 

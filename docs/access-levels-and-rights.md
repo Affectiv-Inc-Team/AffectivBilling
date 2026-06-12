@@ -73,7 +73,7 @@ The matrix below covers the four visibility dimensions that matter most: company
 - **Portfolio tab**: hidden entirely from the navigation for tiers 4–8 (not masked — the tab does not appear)
 
 ### Rule 2 — Wages
-**Tiers 1–6** can see wages in dollars wherever they appear: the sidebar wage slider, per-coordinator hourly wage in TSC, per-home labor cost in Res Hab Mix Editor, graveyard wage, etc.
+**Tiers 1–6** can see wages in dollars wherever they appear: the sidebar wage slider, per-coordinator hourly wage in TSC, per-clinician hourly wage in School-Based Services, per-home labor cost in Res Hab Mix Editor, graveyard wage, etc.
 
 **Tier 7** (Scheduler / Regional Assistant) can see wages and overtime **as percentages only** — average wage as % of revenue, overtime hours as % of total labor, labor cost as % of revenue. No raw dollar wage figures are shown. This lets them do their job (managing schedules with cost-awareness) without exposing individual or aggregate wage dollars.
 
@@ -179,10 +179,10 @@ This scoping is enforced by the same `licensee_companies` assignment mechanism d
 ### Tier 4 — Regional Director
 - **Header KPIs:** Visible — percentage chips (EBITDA Mgn %, Net Margin %) and client count chips. No raw dollar chips.
 - **Whole Company P&L:** Hidden — does not appear in navigation (same gate as Portfolio).
-- **Service line P&L tabs:** Hidden — Res Hab P&L, Hourly P&L, TSC P&L, Children's DDA P&L, and Voc Services P&L tabs do not appear.
+- **Service line P&L tabs:** Hidden — Res Hab P&L, Hourly P&L, TSC P&L, Children's DDA P&L, Voc Services P&L, and School-Based P&L tabs do not appear.
 - **Portfolio tab:** Hidden — does not appear in navigation.
-- **Service line operational tabs:** All visible (roster, productivity, staffing, etc.).
-- **TSC Scenario tab:** Visible — Regional Directors can run scenario modeling.
+- **Service line operational tabs:** All visible (roster, productivity, staffing, rate schedule, etc.).
+- **Scenario tabs (TSC, School-Based):** Visible — Regional Directors can run scenario modeling.
 - **Budget Builder:** No header cards. Their own row in $, lines below in %, lines above hidden.
 - **Labor Efficiency tab:** Ratio/% content fully visible. Dollar metric tiles and 5-year projection hidden (dollar columns gated to tiers 1–3).
 - **Sidebar:** Wage, occupancy, Res Hab rate overrides visible. Entity type, owner rate, fees hidden.
@@ -196,7 +196,7 @@ This scoping is enforced by the same `licensee_companies` assignment mechanism d
 - **Whole Company P&L:** Hidden — does not appear in navigation.
 - **Service line P&L tabs:** Hidden — P&L tabs do not appear.
 - **Portfolio tab:** Hidden — does not appear in navigation.
-- **TSC Scenario tab:** Hidden — scenario modeling is a financial planning function restricted to tiers 1–4.
+- **Scenario tabs (TSC, School-Based):** Hidden — scenario modeling is a financial planning function restricted to tiers 1–4.
 - **Service line operational tabs:** All visible except as noted above. Focuses operationally on the service lines they run.
 - **Budget Builder:** No header cards. Their own row in $, lines below in %, lines above hidden.
 - **Labor Efficiency tab:** Ratio/% content visible. Dollar tiles and 5-year projection hidden.
@@ -211,7 +211,7 @@ This scoping is enforced by the same `licensee_companies` assignment mechanism d
 - **Whole Company P&L:** Hidden — does not appear in navigation.
 - **Service line P&L tabs:** Hidden — P&L tabs do not appear.
 - **Portfolio tab:** Hidden — does not appear in navigation.
-- **TSC Scenario tab:** Hidden — scenario modeling is a financial planning function restricted to tiers 1–4.
+- **Scenario tabs (TSC, School-Based):** Hidden — scenario modeling is a financial planning function restricted to tiers 1–4.
 - **Service line operational tabs:** Visible except as noted above — HR cares about staffing across all lines.
 - **Budget Builder:** No header cards. Their own row in $, lines below in %, lines above hidden.
 - **Labor Efficiency tab:** Ratio/% content visible. Dollar tiles and 5-year projection hidden.
@@ -226,7 +226,7 @@ This scoping is enforced by the same `licensee_companies` assignment mechanism d
 - **Whole Company P&L:** Hidden — does not appear in navigation.
 - **Service line P&L tabs:** Hidden — P&L tabs do not appear.
 - **Portfolio tab:** Hidden — does not appear in navigation.
-- **TSC Scenario tab:** Hidden — scenario modeling is a financial planning function restricted to tiers 1–4.
+- **Scenario tabs (TSC, School-Based):** Hidden — scenario modeling is a financial planning function restricted to tiers 1–4.
 - **Service line operational tabs:** Visible except as noted above. Productivity tabs (e.g., TSC Productivity) visible — utilization is their domain.
 - **Budget Builder:** No header cards. Their own row in $, lines below in %, lines above hidden.
 - **Labor Efficiency tab:** Ratio/% content visible. Dollar tiles and 5-year projection hidden.
@@ -242,7 +242,7 @@ This scoping is enforced by the same `licensee_companies` assignment mechanism d
 - **Whole Company P&L:** Hidden — does not appear in navigation.
 - **Service line P&L tabs:** Hidden — P&L tabs do not appear.
 - **Portfolio tab:** Hidden — does not appear in navigation.
-- **TSC Scenario tab:** Hidden — scenario modeling is a financial planning function restricted to tiers 1–4.
+- **Scenario tabs (TSC, School-Based):** Hidden — scenario modeling is a financial planning function restricted to tiers 1–4.
 - **Service line operational tabs:** They see only the service line they operate within. Within that, they see operational state (occupancy, scheduling, labor-efficiency color states) but no dollar amounts.
 - **Budget Builder:** No header cards. Their own row in $ only. Everything else is invisible.
 - **Labor Efficiency tab:** Visible (ratio/% content only — labor ratio bar, sweep chart, staffing hours). Dollar metric tiles and 5-year projection are hidden entirely (`canSeeCompanyDollars` is false for tier 8).
