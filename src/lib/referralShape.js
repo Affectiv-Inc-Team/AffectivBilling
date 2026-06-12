@@ -122,6 +122,14 @@ export const CONTACT_KINDS = [
   { value: 'poa',       label: 'Power of attorney' },
 ];
 
+// Kinds offered in the repeatable contacts list. Guardian / POA are captured by
+// their own dedicated fields in section 6, so they're intentionally omitted here.
+export const REPEATABLE_CONTACT_KINDS = [
+  { value: 'family',    label: 'Family' },
+  { value: 'emergency', label: 'Emergency' },
+  { value: 'other',     label: 'Other' },
+];
+
 export const OUTCOMES = [
   { value: 'enrolled',     label: 'Enrolled' },
   { value: 'declined',     label: 'Declined' },

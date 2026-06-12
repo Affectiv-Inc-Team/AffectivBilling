@@ -8,8 +8,9 @@ import {
   buildDisplayLabel, isSaveable, softWarnings, labelFor, daysInStage,
   SOURCE_TYPES, INTAKE_METHODS, PRIORITIES, ALL_STAGES, PIPELINE_STAGES,
   SERVICES, SERVICE_LEVELS, PAY_SOURCES, LIVING_SITUATIONS, RISK_INDICATORS,
-  CONTACT_KINDS, OUTCOMES,
+  REPEATABLE_CONTACT_KINDS, OUTCOMES,
 } from "../lib/referralShape.js";
+import { COMMON_MEDICATIONS, MEDICATION_FREQUENCIES } from "../data/medications.js";
 
 const M = { fontFamily: "'DM Mono',monospace" };
 
@@ -33,7 +34,7 @@ function emptyDraft() {
     tsc: { name: "", agency: "", phone: "", email: "" },
     authorized_units: "", target_start_date: "",
     diagnoses: "", behavior_notes: "", risk_indicators: [], medical_needs: "",
-    mobility_adl: "", medications: "", psychotropic: false, communication_needs: "",
+    mobility_adl: "", medications: [], psychotropic: false, communication_needs: "",
     self_guardian: undefined,
     guardian: { name: "", relationship: "", phone: "", email: "", address: "" },
     poa: "", housing_needed: undefined, preferred_location: "",
@@ -76,11 +77,17 @@ function Field({ label, children }) {
   );
 }
 
-function Text({ label, value, onChange, type = "text", placeholder }) {
+function Text({ label, value, onChange, type = "text", placeholder, suggestions }) {
+  const listId = suggestions ? `dl-${label.replace(/\W+/g, "-").toLowerCase()}` : undefined;
   return (
     <Field label={label}>
-      <input type={type} value={value ?? ""} placeholder={placeholder}
+      <input type={type} value={value ?? ""} placeholder={placeholder} list={listId}
         onChange={e => onChange(e.target.value)} style={inputStyle} />
+      {suggestions && (
+        <datalist id={listId}>
+          {suggestions.map(s => <option key={s} value={s} />)}
+        </datalist>
+      )}
     </Field>
   );
 }
@@ -98,7 +105,7 @@ function Select({ label, value, onChange, options, blank = "—" }) {
   return (
     <Field label={label}>
       <select value={value ?? ""} onChange={e => onChange(e.target.value)} style={inputStyle}>
-        <option value="">{blank}</option>
+        {blank !== null && <option value="">{blank}</option>}
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </Field>
@@ -359,7 +366,8 @@ function ReferralForm({ role, companyId, existing, onSaved }) {
           </div>
         </div>
         <Row>
-          <Select label="Service level / acuity" value={draft.service_level} onChange={v => set("service_level", v)} options={SERVICE_LEVELS} />
+          <Text label="Service level / acuity" value={draft.service_level} onChange={v => set("service_level", v)}
+            suggestions={SERVICE_LEVELS.map(o => o.label)} placeholder="Traditional, Blended, Intense…" />
           <Select label="Pay source" value={draft.pay_source} onChange={v => set("pay_source", v)} options={PAY_SOURCES} />
           <Text label="Waiver / program" value={draft.waiver} onChange={v => set("waiver", v)} />
         </Row>
@@ -392,11 +400,9 @@ function ReferralForm({ role, companyId, existing, onSaved }) {
         <Row>
           <Text label="Medical / nursing needs" value={draft.medical_needs} onChange={v => set("medical_needs", v)} />
           <Text label="Mobility & ADL needs" value={draft.mobility_adl} onChange={v => set("mobility_adl", v)} />
-        </Row>
-        <Row>
-          <Text label="Medications" value={draft.medications} onChange={v => set("medications", v)} />
           <Text label="Communication needs" value={draft.communication_needs} onChange={v => set("communication_needs", v)} />
         </Row>
+        <RepeatableMedications medications={draft.medications} onChange={list => set("medications", list)} />
       </Section>
 
       <Section title="6 · Guardianship & contacts" open={open.guardian} onToggle={() => toggleOpen("guardian")}>
@@ -470,7 +476,7 @@ function RepeatableContacts({ contacts, onChange }) {
       {contacts.map((c, i) => (
         <div key={i} style={{ background: "#fff", borderRadius: 8, border: "1px solid #e3dcc6", padding: 10, marginTop: 8 }}>
           <Row>
-            <Select label="Kind" value={c.kind} onChange={v => upd(i, "kind", v)} options={CONTACT_KINDS} blank="Family" />
+            <Select label="Kind" value={c.kind} onChange={v => upd(i, "kind", v)} options={REPEATABLE_CONTACT_KINDS} blank={null} />
             <Text label="Name" value={c.name} onChange={v => upd(i, "name", v)} />
             <Text label="Relationship" value={c.relationship} onChange={v => upd(i, "relationship", v)} />
           </Row>
@@ -481,6 +487,37 @@ function RepeatableContacts({ contacts, onChange }) {
           <div style={{ display: "flex", gap: 14, marginTop: 8, alignItems: "center" }}>
             <CheckRow label="Primary contact" checked={c.is_primary} onChange={v => upd(i, "is_primary", v)} />
             <CheckRow label="OK to share info" checked={c.ok_to_share} onChange={v => upd(i, "ok_to_share", v)} />
+            <button type="button" onClick={() => rm(i)} style={{ marginLeft: "auto", fontSize: 11, color: "#b04040", background: "none", border: "none", cursor: "pointer", ...M }}>Remove</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RepeatableMedications({ medications, onChange }) {
+  const list = Array.isArray(medications) ? medications : [];
+  const add = () => onChange([...list, { name: "", dosage: "", frequency: "", purpose: "" }]);
+  const upd = (i, k, v) => onChange(list.map((m, j) => (j === i ? { ...m, [k]: v } : m)));
+  const rm = i => onChange(list.filter((_, j) => j !== i));
+  return (
+    <div style={{ borderTop: "1px dashed #d5c898", paddingTop: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ ...labelStyle, color: "#5a3800", marginBottom: 0 }}>Medications</span>
+        <button type="button" onClick={add} style={{ fontSize: 11, color: "#C9921A", background: "none", border: "none", cursor: "pointer", fontWeight: 700, ...M }}>+ Add Medication</button>
+      </div>
+      {list.length === 0 && <div style={{ fontSize: 10.5, color: "#9a8050", marginTop: 6 }}>No medications added.</div>}
+      {list.map((m, i) => (
+        <div key={i} style={{ background: "#fff", borderRadius: 8, border: "1px solid #e3dcc6", padding: 10, marginTop: 8 }}>
+          <Row>
+            <Text label="Medication" value={m.name} onChange={v => upd(i, "name", v)} suggestions={COMMON_MEDICATIONS} placeholder="Start typing a name…" />
+            <Text label="Dosage" value={m.dosage} onChange={v => upd(i, "dosage", v)} placeholder="e.g. 10 mg" />
+          </Row>
+          <Row>
+            <Text label="Frequency" value={m.frequency} onChange={v => upd(i, "frequency", v)} suggestions={MEDICATION_FREQUENCIES} placeholder="e.g. Twice daily (BID)" />
+            <Text label="Purpose" value={m.purpose} onChange={v => upd(i, "purpose", v)} placeholder="e.g. mood stabilization" />
+          </Row>
+          <div style={{ display: "flex", marginTop: 8 }}>
             <button type="button" onClick={() => rm(i)} style={{ marginLeft: "auto", fontSize: 11, color: "#b04040", background: "none", border: "none", cursor: "pointer", ...M }}>Remove</button>
           </div>
         </div>
