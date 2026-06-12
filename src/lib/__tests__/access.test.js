@@ -10,6 +10,8 @@ import {
   canSeeTopNumbers,
   canEditServiceLines,
   canAddServiceLine,
+  canSeeReferrals,
+  canUnmaskSSN,
 } from "../access.js";
 
 const { OWNER, CEO, FINANCE, REGIONAL_DIRECTOR: RD, PROGRAM_MANAGER: PM, HR_MANAGER: HR, SCHEDULER: SCHED, HOUSE_LEAD: HL } = ROLES;
@@ -243,5 +245,45 @@ describe("canAddServiceLine", () => {
     expect(canAddServiceLine(HR)).toBe(false);
     expect(canAddServiceLine(SCHED)).toBe(false);
     expect(canAddServiceLine(HL)).toBe(false);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// canSeeReferrals — floor is PROGRAM_MANAGER (tier 5)
+// ──────────────────────────────────────────────────────────────────────
+
+describe("canSeeReferrals", () => {
+  it("returns true for tiers 1–5 (OWNER … PROGRAM_MANAGER)", () => {
+    expect(canSeeReferrals(OWNER)).toBe(true);
+    expect(canSeeReferrals(CEO)).toBe(true);
+    expect(canSeeReferrals(FINANCE)).toBe(true);
+    expect(canSeeReferrals(RD)).toBe(true);
+    expect(canSeeReferrals(PM)).toBe(true);
+  });
+
+  it("returns false below the floor (HR_MANAGER and down)", () => {
+    expect(canSeeReferrals(HR)).toBe(false);
+    expect(canSeeReferrals(SCHED)).toBe(false);
+    expect(canSeeReferrals(HL)).toBe(false);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// canUnmaskSSN — restricted to tiers 1–3
+// ──────────────────────────────────────────────────────────────────────
+
+describe("canUnmaskSSN", () => {
+  it("returns true for tiers 1–3 (OWNER, CEO, FINANCE)", () => {
+    expect(canUnmaskSSN(OWNER)).toBe(true);
+    expect(canUnmaskSSN(CEO)).toBe(true);
+    expect(canUnmaskSSN(FINANCE)).toBe(true);
+  });
+
+  it("returns false for tiers 4–8, including Regional Director", () => {
+    expect(canUnmaskSSN(RD)).toBe(false);
+    expect(canUnmaskSSN(PM)).toBe(false);
+    expect(canUnmaskSSN(HR)).toBe(false);
+    expect(canUnmaskSSN(SCHED)).toBe(false);
+    expect(canUnmaskSSN(HL)).toBe(false);
   });
 });
