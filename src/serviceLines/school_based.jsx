@@ -1185,8 +1185,17 @@ function RateTable({ overrides, baseOverrides, canEdit, setRate, resetRate }) {
 
 export function SchoolBasedRateScheduleTab({ config, onUpdate, userRole }) {
   const [selectedDistrictId, setSelectedDistrictId] = useState(null); // null = Base
+  const [renamingId, setRenamingId]  = useState(null);
+  const [renameVal,  setRenameVal]   = useState('');
   const canEdit   = canEditServiceLines(userRole);
   const districts = config.districts ?? [];
+
+  const startRename = (d) => { setRenamingId(d.id); setRenameVal(d.name); };
+  const commitRename = (id) => {
+    const trimmed = renameVal.trim();
+    if (trimmed) onUpdate({ ...config, districts: districts.map(d => d.id === id ? { ...d, name: trimmed } : d) });
+    setRenamingId(null);
+  };
 
   // Base overrides (apply to all districts)
   const baseOverrides = config.rateOverrides ?? {};
@@ -1234,31 +1243,58 @@ export function SchoolBasedRateScheduleTab({ config, onUpdate, userRole }) {
     }
   };
 
-  const tabBtn = (id, label, active) => (
-    <div key={id} style={{ display: "flex", alignItems: "center", gap: 0 }}>
-      <button onClick={() => setSelectedDistrictId(id)} style={{
-        padding: "5px 14px", fontSize: 11, cursor: "pointer",
-        borderRadius: id ? (canEdit ? "20px 0 0 20px" : 20) : 20, ...M,
-        border: active ? "1px solid #5a3800" : "1px solid #d0dae8",
-        background: active ? "#5a3800" : "#fff",
-        color: active ? "#fff" : "#475569",
-        fontWeight: active ? 700 : 400,
-      }}>{label}</button>
-      {id && canEdit && (
-        <button onClick={() => {
-          onUpdate({ ...config, districts: districts.filter(d => d.id !== id) });
-          if (selectedDistrictId === id) setSelectedDistrictId(null);
-        }} style={{
-          padding: "5px 7px", fontSize: 10, cursor: "pointer",
-          borderRadius: "0 20px 20px 0", ...M,
-          border: active ? "1px solid #5a3800" : "1px solid #d0dae8",
-          borderLeft: "none",
-          background: active ? "#5a3800" : "#fff",
-          color: active ? "#ffb" : "#cf6e6e",
-        }}>✕</button>
-      )}
-    </div>
-  );
+  const tabBtn = (id, label, active) => {
+    const dist = id ? districts.find(d => d.id === id) : null;
+    const isRenaming = id && renamingId === id;
+    return (
+      <div key={id} style={{ display: "flex", alignItems: "center", gap: 0 }}>
+        {isRenaming ? (
+          <input
+            autoFocus
+            value={renameVal}
+            onChange={e => setRenameVal(e.target.value)}
+            onBlur={() => commitRename(id)}
+            onKeyDown={e => { if (e.key === 'Enter') commitRename(id); if (e.key === 'Escape') setRenamingId(null); }}
+            style={{
+              padding: "4px 10px", fontSize: 11, borderRadius: "20px 0 0 20px", ...M,
+              border: "1px solid #5a3800", background: "#5a3800", color: "#fff",
+              fontWeight: 700, width: Math.max(80, renameVal.length * 7 + 20),
+              outline: "2px solid #c8a040",
+            }}
+          />
+        ) : (
+          <button onClick={() => setSelectedDistrictId(id)} style={{
+            padding: "5px 14px", fontSize: 11, cursor: "pointer",
+            borderRadius: id ? (canEdit ? "20px 0 0 20px" : 20) : 20, ...M,
+            border: active ? "1px solid #5a3800" : "1px solid #d0dae8",
+            background: active ? "#5a3800" : "#fff",
+            color: active ? "#fff" : "#475569",
+            fontWeight: active ? 700 : 400,
+          }}>{label}</button>
+        )}
+        {id && canEdit && !isRenaming && active && (
+          <button onClick={() => startRename(dist)} title="Rename district" style={{
+            padding: "5px 6px", fontSize: 10, cursor: "pointer",
+            border: "1px solid #5a3800", borderLeft: "none", borderRight: "none",
+            background: "#5a3800", color: "#ffda80", ...M,
+          }}>✎</button>
+        )}
+        {id && canEdit && (
+          <button onClick={() => {
+            onUpdate({ ...config, districts: districts.filter(d => d.id !== id) });
+            if (selectedDistrictId === id) setSelectedDistrictId(null);
+          }} style={{
+            padding: "5px 7px", fontSize: 10, cursor: "pointer",
+            borderRadius: "0 20px 20px 0", ...M,
+            border: active ? "1px solid #5a3800" : "1px solid #d0dae8",
+            borderLeft: "none",
+            background: active ? "#5a3800" : "#fff",
+            color: active ? "#ffb" : "#cf6e6e",
+          }}>✕</button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -1289,6 +1325,9 @@ export function SchoolBasedRateScheduleTab({ config, onUpdate, userRole }) {
           <button onClick={() => {
             const newDist = mkDistrict(`District ${districts.length + 1}`);
             onUpdate({ ...config, districts: [...districts, newDist] });
+            setSelectedDistrictId(newDist.id);
+            setRenamingId(newDist.id);
+            setRenameVal(newDist.name);
           }} style={{
             padding: "5px 12px", fontSize: 11, cursor: "pointer", borderRadius: 20, ...M,
             border: "1px dashed #c8d4e4", background: "#fff", color: "#5a7498",
