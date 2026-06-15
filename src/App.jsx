@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { supabase, getProfile } from "./supabase.js";
-import { ROLES, ROLE_LABELS } from "./lib/access.js";
+import { ROLES, ROLE_LABELS, canSeeReferrals } from "./lib/access.js";
 import LoginPage from "./pages/LoginPage.jsx";
 import ToolPage from "./pages/ToolPage.jsx";
 import posthog from "./lib/posthog.js";
+import ReferralTracker from "./pages/ReferralTracker.jsx";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -17,6 +18,7 @@ export default function App() {
   const [session, setSession] = useState(undefined); // undefined = loading
   const [profile, setProfile] = useState(null);
   const [devRole, setDevRole] = useState(null);       // null = use derived role
+  const [module, setModule] = useState("tool");        // 'tool' | 'referrals'
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -53,9 +55,36 @@ export default function App() {
     supabase.auth.signOut();
   };
 
+  const showReferrals = canSeeReferrals(effectiveRole) && module === "referrals";
+
   return (
     <>
-      <ToolPage userRole={effectiveRole} onSignOut={handleSignOut} />
+      {showReferrals ? (
+        <ReferralTracker
+          userRole={effectiveRole}
+          onSignOut={handleSignOut}
+          onSwitchModule={() => setModule("tool")}
+        />
+      ) : (
+        <ToolPage userRole={effectiveRole} onSignOut={handleSignOut} />
+      )}
+
+      {canSeeReferrals(effectiveRole) && module === "tool" && (
+        <button
+          type="button"
+          onClick={() => setModule("referrals")}
+          style={{
+            position: "fixed", bottom: 16, left: 16, zIndex: 9999,
+            padding: "9px 14px", borderRadius: 8, border: "none",
+            background: "#D4A520", color: "#fff", fontSize: 12, fontWeight: 700,
+            cursor: "pointer", letterSpacing: 0.5, fontFamily: "'DM Mono',monospace",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+          }}
+        >
+          Referral Tracker →
+        </button>
+      )}
+
       {IS_DEV && (
         <div style={{
           position: 'fixed', bottom: 16, right: 16, zIndex: 9999,

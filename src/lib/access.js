@@ -95,3 +95,12 @@ export function canEditServiceLines(role) { return tier(role) <= 4; }
 
 // Rule 9 — Add Service Line button visible to tiers 1–4
 export function canAddServiceLine(role) { return tier(role) <= 4; }
+
+// Rule 10 — Referral & Intake Tracker
+// Module visible from the access floor upward; SSN unmask restricted further.
+// (The DB enforces the SSN floor server-side in referral_reveal_ssn; this gates the UI.)
+export const REFERRAL_ACCESS_FLOOR_TIER = 5; // PROGRAM_MANAGER and up
+export const SSN_UNMASK_FLOOR_TIER     = 3; // FINANCE and up
+
+export function canSeeReferrals(role) { return tier(role) <= REFERRAL_ACCESS_FLOOR_TIER; }
+export function canUnmaskSSN(role)    { return tier(role) <= SSN_UNMASK_FLOOR_TIER; }
