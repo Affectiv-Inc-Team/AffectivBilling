@@ -65,7 +65,7 @@ const inputStyle = {
 };
 const labelStyle = {
   fontSize: 9, color: "#7a6030", textTransform: "uppercase", letterSpacing: 1.1,
-  fontWeight: 600, marginBottom: 4, display: "block", ...M,
+  fontWeight: 600, marginBottom: 4, display: "block",
 };
 
 function Field({ label, children }) {
@@ -81,7 +81,7 @@ function Text({ label, value, onChange, type = "text", placeholder, suggestions 
   const listId = suggestions ? `dl-${label.replace(/\W+/g, "-").toLowerCase()}` : undefined;
   return (
     <Field label={label}>
-      <input type={type} value={value ?? ""} placeholder={placeholder} list={listId}
+      <input type={type} value={type === "date" ? (value ?? "").slice(0, 10) : (value ?? "")} placeholder={placeholder} list={listId}
         onChange={e => onChange(e.target.value)} style={inputStyle} />
       {suggestions && (
         <datalist id={listId}>
@@ -145,7 +145,7 @@ function Section({ title, hint, open, onToggle, children }) {
       </button>
       {open && (
         <div style={{ padding: "4px 14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-          {hint && <div style={{ fontSize: 10.5, color: "#9a8050" }}>{hint}</div>}
+          {hint && <div style={{ fontSize: 10.5, color: "#6b4c10" }}>{hint}</div>}
           {children}
         </div>
       )}
@@ -189,7 +189,7 @@ function SSNField({ role, referralId, value, onChange }) {
         )}
       </div>
       {!canUnmask && (
-        <span style={{ fontSize: 9.5, color: "#9a8050", marginTop: 4, display: "block" }}>
+        <span style={{ fontSize: 9.5, color: "#6b4c10", marginTop: 4, display: "block" }}>
           Your role can store but not unmask a full SSN.
         </span>
       )}
@@ -207,7 +207,7 @@ function ReferralList({ items, onSelect, onNew }) {
         + New Referral
       </button>
       {items.length === 0 && (
-        <div style={{ padding: 16, fontSize: 12, color: "#9a8050", textAlign: "center" }}>
+        <div style={{ padding: 16, fontSize: 12, color: "#6b4c10", textAlign: "center" }}>
           No referrals yet. Capture one with a single detail.
         </div>
       )}
@@ -435,7 +435,7 @@ function ReferralForm({ role, companyId, existing, onSaved }) {
           <Text label="Next follow-up date" type="date" value={draft.next_followup_date} onChange={v => set("next_followup_date", v)} />
         </Row>
         {existing && <ActivityLog referral={existing} />}
-        {!existing && <div style={{ fontSize: 10.5, color: "#9a8050" }}>Activity log & status history appear once the referral is saved.</div>}
+        {!existing && <div style={{ fontSize: 10.5, color: "#6b4c10" }}>Activity log & status history appear once the referral is saved.</div>}
       </Section>
 
       <Section title="10 · Outcome / conversion" open={open.outcome} onToggle={() => toggleOpen("outcome")}>
@@ -475,8 +475,12 @@ function RepeatableContacts({ contacts, onChange }) {
       </div>
       {contacts.map((c, i) => (
         <div key={i} style={{ background: "#fff", borderRadius: 8, border: "1px solid #e3dcc6", padding: 10, marginTop: 8 }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+            {REPEATABLE_CONTACT_KINDS.map(k => (
+              <Chip key={k.value} active={c.kind === k.value} onClick={() => upd(i, "kind", k.value)}>{k.label}</Chip>
+            ))}
+          </div>
           <Row>
-            <Select label="Kind" value={c.kind} onChange={v => upd(i, "kind", v)} options={REPEATABLE_CONTACT_KINDS} blank={null} />
             <Text label="Name" value={c.name} onChange={v => upd(i, "name", v)} />
             <Text label="Relationship" value={c.relationship} onChange={v => upd(i, "relationship", v)} />
           </Row>
@@ -506,7 +510,7 @@ function RepeatableMedications({ medications, onChange }) {
         <span style={{ ...labelStyle, color: "#5a3800", marginBottom: 0 }}>Medications</span>
         <button type="button" onClick={add} style={{ fontSize: 11, color: "#C9921A", background: "none", border: "none", cursor: "pointer", fontWeight: 700, ...M }}>+ Add Medication</button>
       </div>
-      {list.length === 0 && <div style={{ fontSize: 10.5, color: "#9a8050", marginTop: 6 }}>No medications added.</div>}
+      {list.length === 0 && <div style={{ fontSize: 10.5, color: "#6b4c10", marginTop: 6 }}>No medications added.</div>}
       {list.map((m, i) => (
         <div key={i} style={{ background: "#fff", borderRadius: 8, border: "1px solid #e3dcc6", padding: 10, marginTop: 8 }}>
           <Row>
@@ -540,10 +544,10 @@ function ActivityLog({ referral }) {
   return (
     <div>
       <span style={labelStyle}>Activity log</span>
-      {items.length === 0 && <div style={{ fontSize: 11, color: "#9a8050" }}>No activity yet.</div>}
+      {items.length === 0 && <div style={{ fontSize: 11, color: "#6b4c10" }}>No activity yet.</div>}
       {items.map(a => (
         <div key={a.id} style={{ fontSize: 11, color: "#5a4a20", padding: "5px 0", borderBottom: "1px solid #ece4cf" }}>
-          <span style={{ color: "#9a8050", ...M }}>{new Date(a.created_at).toLocaleString()}</span> — {a.body}
+          <span style={{ color: "#6b4c10", ...M }}>{new Date(a.created_at).toLocaleString()}</span> — {a.body}
         </div>
       ))}
     </div>
@@ -615,7 +619,7 @@ export default function ReferralTracker({ userRole, onSignOut, onSwitchModule })
         {mode === "edit" && companyId ? (
           <ReferralForm key={selected?.id ?? "new"} role={userRole} companyId={companyId} existing={selected} onSaved={handleSaved} />
         ) : (
-          <div style={{ flex: 1, padding: 40, textAlign: "center", color: "#9a8050", fontSize: 13, background: "#f8f6f0", borderRadius: 11, border: "1px solid #d0dae8" }}>
+          <div style={{ flex: 1, padding: 40, textAlign: "center", color: "#6b4c10", fontSize: 13, background: "#f8f6f0", borderRadius: 11, border: "1px solid #d0dae8" }}>
             Select a referral or capture a new one. A single detail is enough to save.
           </div>
         )}
