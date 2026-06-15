@@ -9,27 +9,35 @@ import { canSeeCompanyDollars, wageDisplayMode, canEditServiceLines } from '../l
 // Exported so the rate schedule tab can display and FinancialTool can reference.
 // ─────────────────────────────────────────────────────────────────────────────
 export const SCHOOL_RATE_TABLE = [
-  { group: 'Behavioral Health',    key: 'psych_eval',     code: '90791', modifier: 'SCHOOL',    unit: '15min', description: 'Psychiatric Diagnostic Evaluation',  tier: 'Licensed clinician', defaultRate: 36.34 },
-  { group: 'Behavioral Health',    key: 'psycho_30',      code: '90832', modifier: 'SCHOOL',    unit: 'visit', description: 'Psychotherapy 30 min',               tier: 'Licensed clinician', defaultRate: 68.96 },
-  { group: 'Behavioral Health',    key: 'psycho_45',      code: '90834', modifier: 'SCHOOL',    unit: 'visit', description: 'Psychotherapy 45 min',               tier: 'Licensed clinician', defaultRate: 91.03 },
-  { group: 'Behavioral Health',    key: 'psycho_60',      code: '90837', modifier: 'SCHOOL',    unit: 'visit', description: 'Psychotherapy 60 min',               tier: 'Licensed clinician', defaultRate: 134.77 },
-  { group: 'Speech Therapy',       key: 'speech_asst',    code: '92507', modifier: 'HM',        unit: '15min', description: 'Speech/Hearing Therapy – Individual', tier: 'Assistant',          defaultRate: 13.69 },
-  { group: 'Speech Therapy',       key: 'speech_prof',    code: '92507', modifier: 'HO',        unit: '15min', description: 'Speech/Hearing Therapy – Individual', tier: 'Professional',       defaultRate: 16.10 },
-  { group: 'Physical Therapy',     key: 'pt_prof',        code: '97110', modifier: 'HO',        unit: '15min', description: 'Individual Physical Therapy',        tier: 'Professional',       defaultRate: 24.60 },
-  { group: 'Physical Therapy',     key: 'pt_asst',        code: '97110', modifier: 'CQ',        unit: '15min', description: 'Individual Physical Therapy',        tier: 'PT Assistant',       defaultRate: 20.91 },
-  { group: 'Occupational Therapy', key: 'ot_tech',        code: '97530', modifier: '',          unit: '15min', description: 'Individual Occupational Therapy',    tier: 'Tech',               defaultRate: 6.23 },
-  { group: 'Occupational Therapy', key: 'ot_prof',        code: '97530', modifier: 'HO_S',      unit: '15min', description: 'Individual Occupational Therapy',    tier: 'Professional',       defaultRate: 29.33 },
-  { group: 'CBRS Skills Building', key: 'cbrs_ind',       code: 'H2017', modifier: 'SCHOOL',    unit: '15min', description: 'Skills Building / CBRS – Individual', tier: 'CBRS Specialist',    defaultRate: 15.44 },
-  { group: 'CBRS Skills Building', key: 'cbrs_grp',       code: 'H2017', modifier: 'SCHOOL_HQ', unit: '15min', description: 'Skills Building / CBRS – Group',      tier: 'CBRS Specialist',    defaultRate: 3.86 },
-  { group: 'Transportation',       key: 'transport_mile', code: 'A0080', modifier: 'SCHOOL',    unit: 'mile',  description: 'Transportation by School',           tier: '—',                  defaultRate: 0.44 },
+  { group: 'Behavioral Health',           key: 'psych_eval',      code: '90791', modifier: 'SCHOOL',  unit: '15min', description: 'Psychiatric Diagnostic Evaluation',         tier: 'Licensed clinician',    defaultRate: 36.34 },
+  { group: 'Behavioral Health',           key: 'psycho_30',       code: '90832', modifier: 'SCHOOL',  unit: 'visit', description: 'Psychotherapy 30 min',                      tier: 'Licensed clinician',    defaultRate: 68.96 },
+  { group: 'Behavioral Health',           key: 'psycho_45',       code: '90834', modifier: 'SCHOOL',  unit: 'visit', description: 'Psychotherapy 45 min',                      tier: 'Licensed clinician',    defaultRate: 91.03 },
+  { group: 'Behavioral Health',           key: 'psycho_60',       code: '90837', modifier: 'SCHOOL',  unit: 'visit', description: 'Psychotherapy 60 min',                      tier: 'Licensed clinician',    defaultRate: 134.77 },
+  // Behavioral Intervention – Individual (H2014) — from Children's DDA CHIS schedule, post-9/1/2025
+  { group: 'Behavior Intervention – Ind', key: 'bi_ind_tech',     code: 'H2014', modifier: 'HA',      unit: '15min', description: 'Behavior Intervention – Individual',        tier: 'Technician',            defaultRate: 13.54 },
+  { group: 'Behavior Intervention – Ind', key: 'bi_ind_spec',     code: 'H2014', modifier: 'HN',      unit: '15min', description: 'Behavior Intervention – Individual',        tier: 'Specialist',            defaultRate: 15.48 },
+  { group: 'Behavior Intervention – Ind', key: 'bi_ind_prof',     code: 'H2014', modifier: 'HO',      unit: '15min', description: 'Behavior Intervention – Individual',        tier: 'Professional',          defaultRate: 21.34 },
+  { group: 'Behavior Intervention – Ind', key: 'bi_ind_ebmpara',  code: 'H2014', modifier: 'TF',      unit: '15min', description: 'Behavior Intervention – Individual',        tier: 'EBM Paraprofessional',  defaultRate: 14.34 },
+  { group: 'Behavior Intervention – Ind', key: 'bi_ind_ebmspec',  code: 'H2014', modifier: 'TF HN',   unit: '15min', description: 'Behavior Intervention – Individual',        tier: 'EBM Specialist',        defaultRate: 18.51 },
+  { group: 'Behavior Intervention – Ind', key: 'bi_ind_ebmprof',  code: 'H2014', modifier: 'TF HO',   unit: '15min', description: 'Behavior Intervention – Individual',        tier: 'EBM Professional',      defaultRate: 24.68 },
+  { group: 'Speech Therapy',              key: 'speech_asst',     code: '92507', modifier: 'HM',      unit: '15min', description: 'Speech/Hearing Therapy – Individual',       tier: 'Assistant',             defaultRate: 13.69 },
+  { group: 'Speech Therapy',              key: 'speech_prof',     code: '92507', modifier: 'HO',      unit: '15min', description: 'Speech/Hearing Therapy – Individual',       tier: 'Professional',          defaultRate: 16.10 },
+  { group: 'Physical Therapy',            key: 'pt_prof',         code: '97110', modifier: 'HO',      unit: '15min', description: 'Individual Physical Therapy',               tier: 'Professional',          defaultRate: 24.60 },
+  { group: 'Physical Therapy',            key: 'pt_asst',         code: '97110', modifier: 'CQ',      unit: '15min', description: 'Individual Physical Therapy',               tier: 'PT Assistant',          defaultRate: 20.91 },
+  { group: 'Occupational Therapy',        key: 'ot_tech',         code: '97530', modifier: '',        unit: '15min', description: 'Individual Occupational Therapy',           tier: 'Tech',                  defaultRate: 6.23 },
+  { group: 'Occupational Therapy',        key: 'ot_prof',         code: '97530', modifier: 'HO_S',    unit: '15min', description: 'Individual Occupational Therapy',           tier: 'Professional',          defaultRate: 29.33 },
+  { group: 'CBRS Skills Building',        key: 'cbrs_ind',        code: 'H2017', modifier: 'SCHOOL',  unit: '15min', description: 'Skills Building / CBRS – Individual',      tier: 'CBRS Specialist',       defaultRate: 15.44 },
+  { group: 'CBRS Skills Building',        key: 'cbrs_grp',        code: 'H2017', modifier: 'SCHOOL_HQ',unit:'15min', description: 'Skills Building / CBRS – Group',           tier: 'CBRS Specialist',       defaultRate: 3.86 },
+  { group: 'Transportation',              key: 'transport_mile',  code: 'A0080', modifier: 'SCHOOL',  unit: 'mile',  description: 'Transportation by School',                  tier: '—',                     defaultRate: 0.44 },
 ];
 
 // Pre-built default rates object from the table
 const _defaultRates = {};
 SCHOOL_RATE_TABLE.forEach(r => { _defaultRates[r.key] = r.defaultRate; });
 
-function effectiveRates(overrides = {}) {
-  return { ..._defaultRates, ...overrides };
+function effectiveRates(baseOverrides = {}, districtId = null, districts = []) {
+  const dist = districtId ? districts.find(d => d.id === districtId) : null;
+  return { ..._defaultRates, ...baseOverrides, ...(dist?.rateOverrides ?? {}) };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -72,6 +80,17 @@ export const DISCIPLINES = {
       SPECIALIST: { label: 'CBRS Specialist', therapyRateKey: null },
     },
   },
+  BEHAVIOR_INTERVENTION: {
+    label: 'Behavior Intervention',
+    tiers: {
+      TECH:         { label: 'Technician (HA)',           therapyRateKey: 'bi_ind_tech' },
+      SPECIALIST:   { label: 'Specialist (HN)',           therapyRateKey: 'bi_ind_spec' },
+      PROFESSIONAL: { label: 'Professional (HO)',         therapyRateKey: 'bi_ind_prof' },
+      EBM_PARA:     { label: 'EBM Paraprofessional (TF)', therapyRateKey: 'bi_ind_ebmpara' },
+      EBM_SPEC:     { label: 'EBM Specialist (TF HN)',    therapyRateKey: 'bi_ind_ebmspec' },
+      EBM_PROF:     { label: 'EBM Professional (TF HO)',  therapyRateKey: 'bi_ind_ebmprof' },
+    },
+  },
 };
 
 export function disciplineTiers(discipline) {
@@ -97,10 +116,12 @@ export function mkStudent(name = 'New Student') {
   return {
     id: `sbs_${sbUid()}`,
     name,
+    schoolId: null,
     services: {
       therapy:   { hrPerWk: 1 },                              // SPEECH / PT / OT, 15-min units
       psycho:    { v30PerWk: 0, v45PerWk: 0, v60PerWk: 0 },   // per-visit psychotherapy
       psychEval: { unitsPerYear: 0 },                         // 90791, 15-min units (4 ≈ 1-hr eval)
+      biInd:     { hrPerWk: 0 },                              // BEHAVIOR_INTERVENTION, H2014 individual
       cbrsInd:   { hrPerWk: 0 },
       cbrsGrp:   { hrPerWk: 0, groupSize: 4 },
       transport: { milesPerWk: 0 },                           // revenue add-on, no clinician hours
@@ -117,8 +138,17 @@ export function mkClinician(name = 'New Clinician', discipline = 'SPEECH', tier 
     hourlyWage,
     adminHrsPerWeek: 5,
     schoolName: '',
+    districtId: null,
     students: [],
   };
+}
+
+export function mkDistrict(name = 'New District') {
+  return { id: `sbdist_${sbUid()}`, name, rateOverrides: {} };
+}
+
+export function mkSchool(name = 'New School', districtId = null) {
+  return { id: `sbsch_${sbUid()}`, name, districtId };
 }
 
 export function mkSchoolAdminStaffMember(role = 'Scheduler') {
@@ -135,6 +165,12 @@ export function mkSchoolAdminStaffMember(role = 'Scheduler') {
 export function defaultSchoolBasedConfig() {
   return {
     clinicians: [],
+    districts: [
+      { id: 'dist_bonneville',  name: 'Bonneville',      rateOverrides: {} },
+      { id: 'dist_jefferson',   name: 'Jefferson County', rateOverrides: {} },
+      { id: 'dist_madison',     name: 'Madison',          rateOverrides: {} },
+    ],
+    schools: [],
     schoolYear: { weeksPerYear: 36, esyWeeks: 0 },
     productivity: {
       billableHrsPerDay: 5,        // display-only
@@ -171,9 +207,16 @@ export function calcSchoolStudent(s, clinician = {}, rates = _defaultRates, scho
   const R = key => rates[key] ?? _defaultRates[key] ?? 0;
 
   // Discipline therapy (15-min units at the clinician's discipline+tier rate)
+  // Covers SPEECH, PT, OT, and BEHAVIOR_INTERVENTION (all use therapyRateKey)
   const therapyKey = therapyRateKeyFor(clinician.discipline, clinician.tier);
-  const therapyHrWk = therapyKey ? (svc.therapy?.hrPerWk ?? 0) : 0;
+  const isBehaviorIntervention = clinician.discipline === 'BEHAVIOR_INTERVENTION';
+  const isTherapyDiscipline = therapyKey !== null && !isBehaviorIntervention;
+  const therapyHrWk = isTherapyDiscipline ? (svc.therapy?.hrPerWk ?? 0) : 0;
   const therapyRevWk = therapyHrWk * 4 * (therapyKey ? R(therapyKey) : 0);
+
+  // Behavior Intervention (H2014 individual) — BEHAVIOR_INTERVENTION clinicians only
+  const biIndHrWk  = isBehaviorIntervention ? (svc.biInd?.hrPerWk ?? 0) : 0;
+  const biIndRevWk = biIndHrWk * 4 * (therapyKey ? R(therapyKey) : 0);
 
   // Psychotherapy (per visit) — BEHAVIORAL clinicians only
   const isBehavioral = clinician.discipline === 'BEHAVIORAL';
@@ -200,12 +243,12 @@ export function calcSchoolStudent(s, clinician = {}, rates = _defaultRates, scho
   const milesWk = svc.transport?.milesPerWk ?? 0;
   const transportRevWk = milesWk * R('transport_mile');
 
-  const weeklyRev = therapyRevWk + psychoRevWk + cbrsRevWk + transportRevWk;
+  const weeklyRev = therapyRevWk + biIndRevWk + psychoRevWk + cbrsRevWk + transportRevWk;
   const annualRev = (weeklyRev * weeks + evalRevYr) * attendance;
 
   // Hours the student receives vs. clinician time required (groups shared)
-  const billedHrsPerWk    = (therapyHrWk + psychoHrWk + cbrsIndHrWk + cbrsGrpHrWk + evalHrsYr / Math.max(1, weeks)) * attendance;
-  const clinicianHrsPerWk = (therapyHrWk + psychoHrWk + cbrsHrWk + evalHrsYr / Math.max(1, weeks)) * attendance;
+  const billedHrsPerWk    = (therapyHrWk + biIndHrWk + psychoHrWk + cbrsIndHrWk + cbrsGrpHrWk + evalHrsYr / Math.max(1, weeks)) * attendance;
+  const clinicianHrsPerWk = (therapyHrWk + biIndHrWk + psychoHrWk + cbrsHrWk + evalHrsYr / Math.max(1, weeks)) * attendance;
 
   return {
     weeklyRev,
@@ -216,8 +259,9 @@ export function calcSchoolStudent(s, clinician = {}, rates = _defaultRates, scho
   };
 }
 
-export function calcSchoolClinician(cl, payrollBurdenPct = 22, rates = _defaultRates, schoolYear = {}, productivity = {}) {
-  const sx = (cl.students ?? []).map(s => calcSchoolStudent(s, cl, rates, schoolYear, productivity));
+export function calcSchoolClinician(cl, payrollBurdenPct = 22, rates = _defaultRates, schoolYear = {}, productivity = {}, baseOverrides = {}, districts = []) {
+  const clinicianRates = effectiveRates(baseOverrides, cl.districtId ?? null, districts);
+  const sx = (cl.students ?? []).map(s => calcSchoolStudent(s, cl, clinicianRates, schoolYear, productivity));
   const weeks = schoolYearWeeks(schoolYear);
 
   const annualRev         = sx.reduce((a, s) => a + s.annualRev, 0);
@@ -266,13 +310,15 @@ export function calcSchoolAdminStaff(adminStaff = []) {
 
 export function calcSchoolBasedService(config = {}) {
   const payrollBurdenPct = config.payrollBurdenPct ?? 22;
-  const rates        = effectiveRates(config.rateOverrides ?? {});
+  const baseOverrides = config.rateOverrides ?? {};
+  const districts    = config.districts ?? [];
+  const rates        = effectiveRates(baseOverrides);
   const schoolYear   = config.schoolYear ?? {};
   const productivity = config.productivity ?? {};
 
   const clinicians = (config.clinicians ?? []).map(cl => ({
     ...cl,
-    metrics: calcSchoolClinician(cl, payrollBurdenPct, rates, schoolYear, productivity),
+    metrics: calcSchoolClinician(cl, payrollBurdenPct, rates, schoolYear, productivity, baseOverrides, districts),
   }));
 
   const totalCaseload    = clinicians.reduce((a, cl) => a + cl.metrics.caseloadSize, 0);
@@ -330,6 +376,7 @@ export function calcSchoolScenario(config = {}) {
                    v45PerWk: (s.services?.psycho?.v45PerWk ?? 0) * volAdj,
                    v60PerWk: (s.services?.psycho?.v60PerWk ?? 0) * volAdj },
       psychEval: { ...(s.services?.psychEval ?? {}), unitsPerYear: (s.services?.psychEval?.unitsPerYear ?? 0) * volAdj },
+      biInd:     { ...(s.services?.biInd ?? {}),     hrPerWk:      (s.services?.biInd?.hrPerWk ?? 0) * volAdj },
       cbrsInd:   { ...(s.services?.cbrsInd ?? {}),   hrPerWk:      (s.services?.cbrsInd?.hrPerWk ?? 0) * volAdj },
       cbrsGrp:   { ...(s.services?.cbrsGrp ?? {}),   hrPerWk:      (s.services?.cbrsGrp?.hrPerWk ?? 0) * volAdj },
       transport: { ...(s.services?.transport ?? {}), milesPerWk:   (s.services?.transport?.milesPerWk ?? 0) * volAdj },
@@ -505,6 +552,17 @@ function SchoolStudentRow({ s, clinician, rates, schoolYear, productivity, onUpd
               </>
             )}
 
+            {d === 'BEHAVIOR_INTERVENTION' && (
+              <div>
+                <div style={{ ...labelStyle, color: "#3b5fc0", marginBottom: 6 }}>Behavior Intervention (H2014)</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <SvcInput label="BI Ind hr/wk" sublabel={`H2014 ${DISCIPLINES.BEHAVIOR_INTERVENTION?.tiers?.[clinician.tier]?.label ?? ''}`} ro={ro}
+                    value={svc.biInd?.hrPerWk ?? 0} max={20}
+                    onChange={v => upd("biInd", { hrPerWk: v })}/>
+                </div>
+              </div>
+            )}
+
             {d === 'CBRS' && (
               <div>
                 <div style={{ ...labelStyle, color: "#3b5fc0", marginBottom: 6 }}>Skills Building / CBRS (H2017)</div>
@@ -541,7 +599,7 @@ function SchoolStudentRow({ s, clinician, rates, schoolYear, productivity, onUpd
 // ─────────────────────────────────────────────────────────────────────────────
 // Clinician card
 // ─────────────────────────────────────────────────────────────────────────────
-function SchoolClinicianCard({ cl, payrollBurdenPct, rates, schoolYear, productivity, onUpdate, onRemove, onAddStudent, onUpdateStudent, onRemoveStudent, userRole, canEdit }) {
+function SchoolClinicianCard({ cl, payrollBurdenPct, rates, schoolYear, productivity, districts, onUpdate, onRemove, onAddStudent, onUpdateStudent, onRemoveStudent, userRole, canEdit }) {
   const [expanded, setExpanded] = useState(true);
   const m = calcSchoolClinician(cl, payrollBurdenPct, rates, schoolYear, productivity);
   const ro = !canEdit;
@@ -609,6 +667,19 @@ function SchoolClinicianCard({ cl, payrollBurdenPct, rates, schoolYear, producti
             style={{ ...textInput, width: 90, fontSize: 11, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
         </div>
 
+        {(districts ?? []).length > 0 && (
+          <div>
+            <div style={labelStyle}>District</div>
+            <select value={cl.districtId ?? ''}
+              onChange={e => onUpdate(cl.id, { districtId: e.target.value || null })}
+              disabled={ro}
+              style={{ ...textInput, fontSize: 11, padding: "3px 6px", pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}>
+              <option value="">None</option>
+              {(districts ?? []).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+        )}
+
         {canEdit && <button onClick={() => onRemove(cl.id)} style={{
           border: "1px solid #e8d4d4", background: "#fff5f5",
           color: "#a14848", padding: "4px 10px", borderRadius: 5,
@@ -659,6 +730,7 @@ export function SchoolBasedRosterTab({ config, onUpdate, userRole }) {
   const summary  = calcSchoolBasedService(config);
   const rates    = effectiveRates(config.rateOverrides ?? {});
   const canEdit  = canEditServiceLines(userRole);
+  const districts = config.districts ?? [];
   const ro       = !canEdit;
 
   const clinicians   = config.clinicians ?? [];
@@ -789,6 +861,7 @@ export function SchoolBasedRosterTab({ config, onUpdate, userRole }) {
             rates={rates}
             schoolYear={schoolYear}
             productivity={productivity}
+            districts={districts}
             onUpdate={updateClinician}
             onRemove={removeClinician}
             onAddStudent={addStudent}
@@ -1039,79 +1112,39 @@ export function SchoolBasedPLTab({ config, userRole }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Rate Schedule tab — unit-aware (15-min, per-visit, and per-mile codes)
+// Rate Schedule tab — unit-aware, district-aware
 // ─────────────────────────────────────────────────────────────────────────────
 const UNIT_LABELS = { '15min': '15 min', visit: 'visit', mile: 'mile' };
 
-export function SchoolBasedRateScheduleTab({ config, onUpdate, userRole }) {
-  const overrides    = config.rateOverrides ?? {};
-  const hasOverrides = Object.keys(overrides).length > 0;
-  const canEdit      = canEditServiceLines(userRole);
-  const ro           = !canEdit;
-
-  const setRate = (key, val) => onUpdate({ ...config, rateOverrides: { ...overrides, [key]: val } });
-  const resetRate = (key) => {
-    const { [key]: _removed, ...rest } = overrides;
-    onUpdate({ ...config, rateOverrides: rest });
-  };
-  const resetAll = () => onUpdate({ ...config, rateOverrides: {} });
-
+function RateTable({ overrides, baseOverrides, canEdit, setRate, resetRate }) {
   const groups = {};
   SCHOOL_RATE_TABLE.forEach(r => {
     if (!groups[r.group]) groups[r.group] = [];
     groups[r.group].push(r);
   });
-
+  const ro = !canEdit;
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h3 style={{ ...M, fontSize: 14, color: "#5a3800", margin: 0, letterSpacing: 1, textTransform: "uppercase" }}>
-          Idaho School-Based Rate Schedule
-        </h3>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <div style={{ fontSize: 10, color: "#64748b", ...M }}>
-            {hasOverrides ? `${Object.keys(overrides).length} rate${Object.keys(overrides).length !== 1 ? 's' : ''} overridden` : 'All rates at Idaho defaults'}
-          </div>
-          {hasOverrides && canEdit && (
-            <button onClick={resetAll} style={{
-              padding: "4px 10px", fontSize: 10, cursor: "pointer",
-              border: "1px solid #d0dae8", borderRadius: 5, background: "#fff", ...M,
-            }}>Reset all to defaults</button>
-          )}
-        </div>
-      </div>
-
-      <div style={{ fontSize: 10, color: "#64748b", ...M, marginBottom: 16, lineHeight: 1.6 }}>
-        Rates are post-9/1/2025 (post-4% reduction). Billing units are mixed: therapies, CBRS, and the psych eval bill
-        per 15-minute unit; psychotherapy bills per visit; transportation bills per mile. Edit any rate to override it
-        for scenario modeling. Overridden rates are highlighted in amber. Click ↩ to reset an individual rate.
-      </div>
-
+    <>
       {Object.entries(groups).map(([groupName, rows]) => (
         <div key={groupName} style={{ marginBottom: 20 }}>
           <div style={{
             padding: "7px 12px", background: "#141d2c", color: "#D4A520",
             borderRadius: "6px 6px 0 0", fontSize: 11, fontWeight: 700, ...M,
           }}>{groupName}</div>
-
           <div style={{
             display: "grid",
             gridTemplateColumns: "0.6fr 0.9fr 2.2fr 1.2fr 0.6fr 0.9fr 0.7fr",
             padding: "6px 12px", background: "#eef1f6",
             borderBottom: "1px solid #d0dae8", ...labelStyle,
           }}>
-            <span>Code</span>
-            <span>Modifier</span>
-            <span>Description</span>
-            <span>Tier</span>
+            <span>Code</span><span>Modifier</span><span>Description</span><span>Tier</span>
             <span style={{ textAlign: "right" }}>Unit</span>
             <span style={{ textAlign: "right" }}>Rate / unit</span>
             <span style={{ textAlign: "right" }}>Rate / hr</span>
           </div>
-
           {rows.map(r => {
             const isOverridden = r.key in overrides;
-            const activeRate   = isOverridden ? overrides[r.key] : r.defaultRate;
+            const activeRate   = isOverridden ? overrides[r.key] : (baseOverrides?.[r.key] ?? r.defaultRate);
             return (
               <div key={r.key} style={{
                 display: "grid",
@@ -1126,8 +1159,7 @@ export function SchoolBasedRateScheduleTab({ config, onUpdate, userRole }) {
                 <span style={{ color: "#475569", fontSize: 10 }}>{r.tier}</span>
                 <span style={{ textAlign: "right", color: "#64748b", fontSize: 10 }}>{UNIT_LABELS[r.unit] ?? r.unit}</span>
                 <div style={{ display: "flex", gap: 4, alignItems: "center", justifyContent: "flex-end" }}>
-                  <input
-                    type="number" min={0} max={300} step={0.01}
+                  <input type="number" min={0} max={300} step={0.01}
                     value={activeRate}
                     onChange={e => setRate(r.key, +e.target.value)}
                     readOnly={ro}
@@ -1147,11 +1179,141 @@ export function SchoolBasedRateScheduleTab({ config, onUpdate, userRole }) {
           })}
         </div>
       ))}
+    </>
+  );
+}
+
+export function SchoolBasedRateScheduleTab({ config, onUpdate, userRole }) {
+  const [selectedDistrictId, setSelectedDistrictId] = useState(null); // null = Base
+  const canEdit   = canEditServiceLines(userRole);
+  const districts = config.districts ?? [];
+
+  // Base overrides (apply to all districts)
+  const baseOverrides = config.rateOverrides ?? {};
+
+  // Current district object (if a district tab is selected)
+  const activeDist = selectedDistrictId ? districts.find(d => d.id === selectedDistrictId) : null;
+  // Overrides being edited for the active view
+  const activeOverrides = activeDist ? (activeDist.rateOverrides ?? {}) : baseOverrides;
+  const hasOverrides    = Object.keys(activeOverrides).length > 0;
+
+  const setRate = (key, val) => {
+    if (activeDist) {
+      onUpdate({
+        ...config,
+        districts: districts.map(d =>
+          d.id === activeDist.id ? { ...d, rateOverrides: { ...d.rateOverrides, [key]: val } } : d
+        ),
+      });
+    } else {
+      onUpdate({ ...config, rateOverrides: { ...baseOverrides, [key]: val } });
+    }
+  };
+
+  const resetRate = (key) => {
+    if (activeDist) {
+      const { [key]: _r, ...rest } = activeDist.rateOverrides ?? {};
+      onUpdate({
+        ...config,
+        districts: districts.map(d => d.id === activeDist.id ? { ...d, rateOverrides: rest } : d),
+      });
+    } else {
+      const { [key]: _r, ...rest } = baseOverrides;
+      onUpdate({ ...config, rateOverrides: rest });
+    }
+  };
+
+  const resetAll = () => {
+    if (activeDist) {
+      onUpdate({
+        ...config,
+        districts: districts.map(d => d.id === activeDist.id ? { ...d, rateOverrides: {} } : d),
+      });
+    } else {
+      onUpdate({ ...config, rateOverrides: {} });
+    }
+  };
+
+  const tabBtn = (id, label, active) => (
+    <div key={id} style={{ display: "flex", alignItems: "center", gap: 0 }}>
+      <button onClick={() => setSelectedDistrictId(id)} style={{
+        padding: "5px 14px", fontSize: 11, cursor: "pointer",
+        borderRadius: id ? (canEdit ? "20px 0 0 20px" : 20) : 20, ...M,
+        border: active ? "1px solid #5a3800" : "1px solid #d0dae8",
+        background: active ? "#5a3800" : "#fff",
+        color: active ? "#fff" : "#475569",
+        fontWeight: active ? 700 : 400,
+      }}>{label}</button>
+      {id && canEdit && (
+        <button onClick={() => {
+          onUpdate({ ...config, districts: districts.filter(d => d.id !== id) });
+          if (selectedDistrictId === id) setSelectedDistrictId(null);
+        }} style={{
+          padding: "5px 7px", fontSize: 10, cursor: "pointer",
+          borderRadius: "0 20px 20px 0", ...M,
+          border: active ? "1px solid #5a3800" : "1px solid #d0dae8",
+          borderLeft: "none",
+          background: active ? "#5a3800" : "#fff",
+          color: active ? "#ffb" : "#cf6e6e",
+        }}>✕</button>
+      )}
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <h3 style={{ ...M, fontSize: 14, color: "#5a3800", margin: 0, letterSpacing: 1, textTransform: "uppercase" }}>
+          Idaho School-Based Rate Schedule
+        </h3>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ fontSize: 10, color: "#64748b", ...M }}>
+            {hasOverrides
+              ? `${Object.keys(activeOverrides).length} rate${Object.keys(activeOverrides).length !== 1 ? 's' : ''} overridden${activeDist ? ` for ${activeDist.name}` : ''}`
+              : activeDist ? `${activeDist.name} — all rates inherit base` : 'All rates at Idaho defaults'}
+          </div>
+          {hasOverrides && canEdit && (
+            <button onClick={resetAll} style={{
+              padding: "4px 10px", fontSize: 10, cursor: "pointer",
+              border: "1px solid #d0dae8", borderRadius: 5, background: "#fff", ...M,
+            }}>Reset {activeDist ? `${activeDist.name}` : 'all'} to defaults</button>
+          )}
+        </div>
+      </div>
+
+      {/* District selector */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
+        {tabBtn(null, 'Base (all districts)', selectedDistrictId === null)}
+        {districts.map(d => tabBtn(d.id, d.name, selectedDistrictId === d.id))}
+        {canEdit && (
+          <button onClick={() => {
+            const newDist = mkDistrict(`District ${districts.length + 1}`);
+            onUpdate({ ...config, districts: [...districts, newDist] });
+          }} style={{
+            padding: "5px 12px", fontSize: 11, cursor: "pointer", borderRadius: 20, ...M,
+            border: "1px dashed #c8d4e4", background: "#fff", color: "#5a7498",
+          }}>+ Add district</button>
+        )}
+      </div>
+
+      <div style={{ fontSize: 10, color: "#64748b", ...M, marginBottom: 16, lineHeight: 1.6 }}>
+        {activeDist
+          ? `Editing ${activeDist.name} district rates. District overrides layer on top of base rates. Rates that differ from base are highlighted amber.`
+          : 'Base rates apply to all clinicians with no district, or as the default before district overrides. Overridden rates are highlighted amber. Click ↩ to reset.'}
+      </div>
+
+      <RateTable
+        overrides={activeOverrides}
+        baseOverrides={activeDist ? baseOverrides : null}
+        canEdit={canEdit}
+        setRate={setRate}
+        resetRate={resetRate}/>
 
       <div style={{ padding: 12, background: "#f7f9fc", border: "1px solid #d0dae8", borderRadius: 8, fontSize: 10, color: "#64748b", ...M, lineHeight: 1.7, marginTop: 4 }}>
         <strong>Source:</strong> Idaho Medicaid school-based services fee schedule, effective 9/1/2025. Rates reflect the statewide 4% reduction.
         HM = Assistant. HO = Professional. CQ = PT Assistant. HO_S = OT Professional. SCHOOL_HQ = group service.
         Hourly equivalents are shown only for 15-minute-unit codes; per-visit and per-mile codes have no hourly basis.
+        Assign clinicians to districts in the Roster tab to apply district-specific rates.
       </div>
     </div>
   );
@@ -1512,6 +1674,231 @@ export function SchoolBasedScenarioTab({ config, onUpdate, userRole }) {
           revenue and labor — useful for modeling ESY expansion or calendar changes.
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Participants tab — District → School → Student hierarchy
+// ─────────────────────────────────────────────────────────────────────────────
+export function SchoolBasedParticipantsTab({ config, onUpdate, userRole }) {
+  const [openDistricts, setOpenDistricts] = useState({});
+  const [openSchools, setOpenSchools] = useState({});
+  const [schoolsPanelOpen, setSchoolsPanelOpen] = useState(false);
+
+  const canEdit    = canEditServiceLines(userRole);
+  const ro         = !canEdit;
+  const districts  = config.districts ?? [];
+  const schools    = config.schools ?? [];
+  const clinicians = config.clinicians ?? [];
+
+  // Collect all students with their owning clinician
+  const allStudents = clinicians.flatMap(cl =>
+    (cl.students ?? []).map(s => ({ ...s, clinicianId: cl.id, clinicianName: cl.name }))
+  );
+
+  const toggleDistrict = id => setOpenDistricts(o => ({ ...o, [id]: !o[id] }));
+  const toggleSchool   = id => setOpenSchools(o => ({ ...o, [id]: !o[id] }));
+
+  const addSchool = () =>
+    onUpdate({ ...config, schools: [...schools, mkSchool(`School ${schools.length + 1}`, null)] });
+  const updateSchool = (schId, partial) =>
+    onUpdate({ ...config, schools: schools.map(sc => sc.id === schId ? { ...sc, ...partial } : sc) });
+  const removeSchool = (schId) =>
+    onUpdate({ ...config, schools: schools.filter(sc => sc.id !== schId) });
+
+  const updateStudentSchool = (studentId, schoolId) =>
+    onUpdate({
+      ...config,
+      clinicians: clinicians.map(cl => ({
+        ...cl,
+        students: (cl.students ?? []).map(s =>
+          s.id === studentId ? { ...s, schoolId: schoolId || null } : s
+        ),
+      })),
+    });
+
+  const renderStudentRow = (student) => (
+    <div key={student.id} style={{
+      display: "grid", gridTemplateColumns: "1.6fr 1.4fr 1fr 1fr",
+      padding: "8px 12px", borderBottom: "1px solid #f1f5f9",
+      alignItems: "center", fontSize: 11, ...M,
+    }}>
+      <span style={{ color: "#334155", fontWeight: 600 }}>{student.name}</span>
+      <div>
+        <select
+          value={student.schoolId ?? ''}
+          onChange={e => updateStudentSchool(student.id, e.target.value)}
+          disabled={ro}
+          style={{ ...textInput, fontSize: 11, padding: "3px 6px", width: "100%", pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}>
+          <option value="">No school assigned</option>
+          {schools.map(sc => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
+        </select>
+      </div>
+      <span style={{ color: "#64748b", fontSize: 10, textAlign: "right" }}>{student.clinicianName}</span>
+      <span style={{ color: "#94a3b8", fontSize: 10, textAlign: "right" }}>
+        {(() => {
+          const svc = student.services ?? {};
+          const hrs = (svc.therapy?.hrPerWk ?? 0) + (svc.biInd?.hrPerWk ?? 0) +
+                      (svc.cbrsInd?.hrPerWk ?? 0) + (svc.cbrsGrp?.hrPerWk ?? 0);
+          return hrs > 0 ? `${hrs.toFixed(1)} hr/wk` : 'no services';
+        })()}
+      </span>
+    </div>
+  );
+
+  const renderSchoolSection = (school) => {
+    const studentsHere = allStudents.filter(s => s.schoolId === school.id);
+    const open = openSchools[school.id] !== false;
+    return (
+      <div key={school.id} style={{ marginBottom: 8, border: "1px solid #d0dae8", borderRadius: 8, overflow: "hidden" }}>
+        <div onClick={() => toggleSchool(school.id)}
+          style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#f0f4fa", cursor: "pointer" }}>
+          <span style={{ fontSize: 11, color: "#5a3800" }}>{open ? "▼" : "▶"}</span>
+          <span style={{ fontWeight: 700, fontSize: 12, color: "#5a3800", ...M }}>{school.name}</span>
+          <span style={{ fontSize: 10, color: "#64748b", ...M }}>{studentsHere.length} student{studentsHere.length !== 1 ? 's' : ''}</span>
+        </div>
+        {open && (
+          studentsHere.length === 0
+            ? <div style={{ padding: "12px 14px", fontSize: 11, color: "#94a3b8", ...M }}>No students assigned to this school.</div>
+            : (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1.4fr 1fr 1fr", padding: "6px 12px", background: "#eef1f6", ...labelStyle }}>
+                  <span>Student</span><span>School</span>
+                  <span style={{ textAlign: "right" }}>Clinician</span>
+                  <span style={{ textAlign: "right" }}>Services</span>
+                </div>
+                {studentsHere.map(renderStudentRow)}
+              </>
+            )
+        )}
+      </div>
+    );
+  };
+
+  const renderDistrictSection = (dist) => {
+    const distSchools = schools.filter(sc => sc.districtId === dist.id);
+    const open = openDistricts[dist.id] !== false;
+    const total = allStudents.filter(s => distSchools.some(sc => sc.id === s.schoolId)).length;
+    return (
+      <div key={dist.id} style={{ marginBottom: 16, border: "1px solid #c8d4e4", borderRadius: 10, overflow: "hidden" }}>
+        <div onClick={() => toggleDistrict(dist.id)}
+          style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#141d2c", cursor: "pointer" }}>
+          <span style={{ fontSize: 12, color: "#D4A520" }}>{open ? "▼" : "▶"}</span>
+          <span style={{ fontWeight: 700, fontSize: 13, color: "#D4A520", ...M }}>{dist.name}</span>
+          <span style={{ fontSize: 10, color: "#8ab4c8", ...M }}>
+            {distSchools.length} school{distSchools.length !== 1 ? 's' : ''} · {total} student{total !== 1 ? 's' : ''}
+          </span>
+        </div>
+        {open && (
+          <div style={{ padding: "10px 12px", background: "#fff" }}>
+            {distSchools.length === 0
+              ? <div style={{ fontSize: 11, color: "#94a3b8", ...M, padding: "8px 0" }}>No schools assigned to {dist.name}.</div>
+              : distSchools.map(renderSchoolSection)
+            }
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const unassignedSchools   = schools.filter(sc => !sc.districtId);
+  const unassignedStudents  = allStudents.filter(s => !s.schoolId);
+
+  return (
+    <div>
+      {/* Schools management panel */}
+      <div style={{ ...card, marginBottom: 20 }}>
+        <button onClick={() => setSchoolsPanelOpen(o => !o)} style={{
+          background: "none", border: "none", cursor: "pointer", padding: 0,
+          display: "flex", alignItems: "center", gap: 6,
+          fontSize: 9, color: "#9a8050", letterSpacing: 2, textTransform: "uppercase", fontWeight: 700, ...M,
+        }}>
+          <span style={{ fontSize: 11, transition: "transform 200ms", transform: schoolsPanelOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+          Manage Schools ({schools.length})
+        </button>
+        {schoolsPanelOpen && (
+          <div style={{ marginTop: 12 }}>
+            {schools.length === 0 && (
+              <div style={{ fontSize: 11, color: "#94a3b8", ...M, marginBottom: 10 }}>
+                No schools yet. Add schools below, then assign them to districts.
+              </div>
+            )}
+            {schools.map(sc => (
+              <div key={sc.id} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
+                <input type="text" value={sc.name}
+                  onChange={e => updateSchool(sc.id, { name: e.target.value })}
+                  readOnly={ro}
+                  style={{ ...textInput, width: 180, fontSize: 12, pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}/>
+                <select value={sc.districtId ?? ''}
+                  onChange={e => updateSchool(sc.id, { districtId: e.target.value || null })}
+                  disabled={ro}
+                  style={{ ...textInput, fontSize: 11, padding: "3px 6px", pointerEvents: ro ? "none" : "auto", opacity: ro ? 0.65 : 1 }}>
+                  <option value="">No district</option>
+                  {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+                {canEdit && (
+                  <button onClick={() => removeSchool(sc.id)} style={{
+                    border: "none", background: "transparent", cursor: "pointer", color: "#cf6e6e", fontSize: 14, padding: 4,
+                  }}>✕</button>
+                )}
+              </div>
+            ))}
+            {canEdit && (
+              <button onClick={addSchool} style={{
+                marginTop: 6, padding: "5px 12px", background: "#fff",
+                border: "1px dashed #c8d4e4", borderRadius: 6,
+                color: "#5a3800", cursor: "pointer", fontSize: 11, fontWeight: 600, ...M,
+              }}>+ Add school</button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Summary stats */}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
+        <Stat label="Total students" value={allStudents.length} />
+        <Stat label="Schools" value={schools.length} />
+        <Stat label="Districts" value={districts.length} />
+        {unassignedStudents.length > 0 && (
+          <Stat label="No school" value={unassignedStudents.length} color="#f59e0b" />
+        )}
+      </div>
+
+      {/* District → School → Student hierarchy */}
+      {districts.map(renderDistrictSection)}
+
+      {unassignedSchools.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ ...labelStyle, marginBottom: 8 }}>Schools without a district</div>
+          {unassignedSchools.map(renderSchoolSection)}
+        </div>
+      )}
+
+      {unassignedStudents.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ ...labelStyle, marginBottom: 8, color: "#f59e0b" }}>
+            Students not assigned to a school ({unassignedStudents.length})
+          </div>
+          <div style={{ border: "1px solid #d0dae8", borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1.4fr 1fr 1fr", padding: "6px 12px", background: "#eef1f6", ...labelStyle }}>
+              <span>Student</span><span>School</span>
+              <span style={{ textAlign: "right" }}>Clinician</span>
+              <span style={{ textAlign: "right" }}>Services</span>
+            </div>
+            {unassignedStudents.map(renderStudentRow)}
+          </div>
+        </div>
+      )}
+
+      {allStudents.length === 0 && (
+        <div style={{ ...card, textAlign: "center", padding: 40, color: "#64748b" }}>
+          <div style={{ fontSize: 13, marginBottom: 8 }}>No students yet.</div>
+          <div style={{ fontSize: 11, color: "#94a3b8" }}>
+            Add clinicians and students in the Roster tab, then organize them into schools and districts here.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
