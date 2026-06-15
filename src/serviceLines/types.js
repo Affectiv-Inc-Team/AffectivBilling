@@ -360,6 +360,12 @@ export const SERVICE_LINE_DEFS = {
     status: 'active',
     defaultConfig: () => ({
       clinicians: [],
+      districts: [
+        { id: 'dist_bonneville',  name: 'Bonneville',      rateOverrides: {} },
+        { id: 'dist_jefferson',   name: 'Jefferson County', rateOverrides: {} },
+        { id: 'dist_madison',     name: 'Madison',          rateOverrides: {} },
+      ],
+      schools: [],
       schoolYear: { weeksPerYear: 36, esyWeeks: 0 },
       productivity: { billableHrsPerDay: 5, absenceRate: 10, documentationTimePct: 15, travelBetweenSchoolsPct: 10 },
       supervision: { count: 0, salary: 70000 },

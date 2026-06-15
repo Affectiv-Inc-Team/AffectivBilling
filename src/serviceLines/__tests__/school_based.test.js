@@ -6,6 +6,8 @@ import {
   therapyRateKeyFor,
   mkClinician,
   mkStudent,
+  mkDistrict,
+  mkSchool,
   mkSchoolAdminStaffMember,
   defaultSchoolBasedConfig,
   schoolYearWeeks,
@@ -87,10 +89,13 @@ describe("factories", () => {
     expect(cfg.rateOverrides).toEqual({});
   });
 
-  it("SCHOOL_RATE_TABLE has 13 codes with units", () => {
-    expect(SCHOOL_RATE_TABLE).toHaveLength(13);
+  it("SCHOOL_RATE_TABLE has 19 codes with units (13 original + 6 H2014 BI individual)", () => {
+    expect(SCHOOL_RATE_TABLE).toHaveLength(19);
     const units = new Set(SCHOOL_RATE_TABLE.map(r => r.unit));
     expect(units).toEqual(new Set(["15min", "visit", "mile"]));
+    // H2014 individual codes are present
+    const h2014Keys = SCHOOL_RATE_TABLE.filter(r => r.code === 'H2014').map(r => r.key);
+    expect(h2014Keys).toEqual(['bi_ind_tech','bi_ind_spec','bi_ind_prof','bi_ind_ebmpara','bi_ind_ebmspec','bi_ind_ebmprof']);
   });
 });
 
@@ -414,5 +419,170 @@ describe("calcSchoolScenario", () => {
     expect(r.base.totalAnnualRev).toBe(0);
     expect(r.scenario.totalAnnualRev).toBe(0);
     expect(r.delta.totalGross).toBe(0);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// Task 1 — BEHAVIOR_INTERVENTION (H2014 individual) codes
+// ──────────────────────────────────────────────────────────────────────
+
+const BI_TECH = 13.54;
+const BI_SPEC = 15.48;
+const BI_PROF = 21.34;
+const BI_EBM_PARA = 14.34;
+const BI_EBM_SPEC = 18.51;
+const BI_EBM_PROF = 24.68;
+
+describe("BEHAVIOR_INTERVENTION discipline", () => {
+  it("DISCIPLINES registry includes all 6 BI tiers", () => {
+    const tiers = disciplineTiers("BEHAVIOR_INTERVENTION");
+    expect(tiers).toEqual(["TECH", "SPECIALIST", "PROFESSIONAL", "EBM_PARA", "EBM_SPEC", "EBM_PROF"]);
+  });
+
+  it("therapyRateKeyFor resolves each BI tier to the correct H2014 key", () => {
+    expect(therapyRateKeyFor("BEHAVIOR_INTERVENTION", "TECH")).toBe("bi_ind_tech");
+    expect(therapyRateKeyFor("BEHAVIOR_INTERVENTION", "SPECIALIST")).toBe("bi_ind_spec");
+    expect(therapyRateKeyFor("BEHAVIOR_INTERVENTION", "PROFESSIONAL")).toBe("bi_ind_prof");
+    expect(therapyRateKeyFor("BEHAVIOR_INTERVENTION", "EBM_PARA")).toBe("bi_ind_ebmpara");
+    expect(therapyRateKeyFor("BEHAVIOR_INTERVENTION", "EBM_SPEC")).toBe("bi_ind_ebmspec");
+    expect(therapyRateKeyFor("BEHAVIOR_INTERVENTION", "EBM_PROF")).toBe("bi_ind_ebmprof");
+  });
+
+  it("calcSchoolStudent computes H2014 TECH revenue for a BI clinician", () => {
+    const cl = mkClinician("BIT", "BEHAVIOR_INTERVENTION", "TECH");
+    const s  = { ...mkStudent(), services: { ...mkStudent().services, biInd: { hrPerWk: 2 } } };
+    const r  = calcSchoolStudent(s, cl);
+    // 2 hr/wk × 4 units/hr × BI_TECH rate × WEEKS × ATTEND
+    const expected = 2 * 4 * BI_TECH * WEEKS * ATTEND;
+    expect(r.annualRev).toBeCloseTo(expected, 2);
+    expect(r.clinicianHrsPerWk).toBeCloseTo(2 * ATTEND, 4);
+  });
+
+  it("calcSchoolStudent computes H2014 PROFESSIONAL revenue for a BI clinician", () => {
+    const cl = mkClinician("BIP", "BEHAVIOR_INTERVENTION", "PROFESSIONAL");
+    const s  = { ...mkStudent(), services: { ...mkStudent().services, biInd: { hrPerWk: 1 } } };
+    const r  = calcSchoolStudent(s, cl);
+    const expected = 1 * 4 * BI_PROF * WEEKS * ATTEND;
+    expect(r.annualRev).toBeCloseTo(expected, 2);
+  });
+
+  it("BI clinician earns no therapy revenue from therapy.hrPerWk (not a therapy discipline)", () => {
+    const cl = mkClinician("BIT", "BEHAVIOR_INTERVENTION", "TECH");
+    const s  = { ...mkStudent(), services: { ...mkStudent().services, therapy: { hrPerWk: 5 }, biInd: { hrPerWk: 0 } } };
+    const r  = calcSchoolStudent(s, cl);
+    expect(r.annualRev).toBe(0);
+  });
+
+  it("mkStudent now includes biInd field", () => {
+    const s = mkStudent();
+    expect(s.services.biInd).toEqual({ hrPerWk: 0 });
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// Task 2 — District-based rate schedule
+// ──────────────────────────────────────────────────────────────────────
+
+describe("district rate layering", () => {
+  it("defaultSchoolBasedConfig seeds 3 districts with empty overrides", () => {
+    const cfg = defaultSchoolBasedConfig();
+    expect(cfg.districts).toHaveLength(3);
+    expect(cfg.districts.map(d => d.name)).toEqual(["Bonneville", "Jefferson County", "Madison"]);
+    cfg.districts.forEach(d => expect(d.rateOverrides).toEqual({}));
+  });
+
+  it("defaultSchoolBasedConfig seeds empty schools array", () => {
+    expect(defaultSchoolBasedConfig().schools).toEqual([]);
+  });
+
+  it("mkDistrict creates a district with empty rateOverrides", () => {
+    const d = mkDistrict("Test District");
+    expect(d.name).toBe("Test District");
+    expect(d.rateOverrides).toEqual({});
+    expect(d.id).toMatch(/^sbdist_/);
+  });
+
+  it("mkClinician has districtId: null by default", () => {
+    const cl = mkClinician();
+    expect(cl.districtId).toBeNull();
+  });
+
+  it("district rateOverrides layer on top of base overrides for a clinician in that district", () => {
+    const dist = { id: "d1", name: "Bonneville", rateOverrides: { speech_prof: 20.00 } };
+    const cl = { ...mkClinician("S", "SPEECH", "PROFESSIONAL", 30), districtId: "d1", students: [] };
+    const cfg = {
+      ...defaultSchoolBasedConfig(),
+      clinicians: [cl],
+      districts: [dist],
+      rateOverrides: { speech_prof: 17.00 }, // base override
+    };
+    // Clinician in d1 should use d1's rate (20.00), not the base override (17.00)
+    const result = calcSchoolBasedService(cfg);
+    // Revenue is 0 (no students) but we verify the rate passes through
+    // Add a student to confirm revenue uses the district rate
+    const s = { ...mkStudent(), services: { ...mkStudent().services, therapy: { hrPerWk: 1 } } };
+    const clWithStudent = { ...cl, students: [s] };
+    const cfg2 = { ...cfg, clinicians: [clWithStudent] };
+    const r2 = calcSchoolBasedService(cfg2);
+    const expectedRev = 1 * 4 * 20.00 * WEEKS * ATTEND;
+    expect(r2.totalAnnualRev).toBeCloseTo(expectedRev, 1);
+  });
+
+  it("base rateOverrides apply to clinicians with no district", () => {
+    const cl = { ...mkClinician("S", "SPEECH", "PROFESSIONAL", 30), districtId: null };
+    const s  = { ...mkStudent(), services: { ...mkStudent().services, therapy: { hrPerWk: 1 } } };
+    const cfg = {
+      ...defaultSchoolBasedConfig(),
+      clinicians: [{ ...cl, students: [s] }],
+      rateOverrides: { speech_prof: 18.50 },
+    };
+    const r = calcSchoolBasedService(cfg);
+    const expected = 1 * 4 * 18.50 * WEEKS * ATTEND;
+    expect(r.totalAnnualRev).toBeCloseTo(expected, 1);
+  });
+
+  it("district override for one district does not affect another district's clinician", () => {
+    const dist1 = { id: "d1", name: "Bonneville",      rateOverrides: { speech_prof: 20.00 } };
+    const dist2 = { id: "d2", name: "Jefferson County", rateOverrides: {} };
+    const s = { ...mkStudent(), services: { ...mkStudent().services, therapy: { hrPerWk: 1 } } };
+    const cl1 = { ...mkClinician("S1", "SPEECH", "PROFESSIONAL", 30), districtId: "d1", students: [s] };
+    const cl2 = { ...mkClinician("S2", "SPEECH", "PROFESSIONAL", 30), districtId: "d2", students: [{ ...s, id: "sbs_other" }] };
+    const cfg = { ...defaultSchoolBasedConfig(), clinicians: [cl1, cl2], districts: [dist1, dist2] };
+    const r = calcSchoolBasedService(cfg);
+    const revCl1 = r.clinicians[0].metrics.annualRev;
+    const revCl2 = r.clinicians[1].metrics.annualRev;
+    const expected1 = 1 * 4 * 20.00 * WEEKS * ATTEND;
+    const expected2 = 1 * 4 * SPEECH_PROF * WEEKS * ATTEND;
+    expect(revCl1).toBeCloseTo(expected1, 1);
+    expect(revCl2).toBeCloseTo(expected2, 1);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// Task 3 — School / participant data model
+// ──────────────────────────────────────────────────────────────────────
+
+describe("school and participant factories", () => {
+  it("mkSchool creates a school with correct shape", () => {
+    const sc = mkSchool("Skyline Elementary", "dist_bonneville");
+    expect(sc.name).toBe("Skyline Elementary");
+    expect(sc.districtId).toBe("dist_bonneville");
+    expect(sc.id).toMatch(/^sbsch_/);
+  });
+
+  it("mkSchool defaults districtId to null", () => {
+    expect(mkSchool("Test").districtId).toBeNull();
+  });
+
+  it("mkStudent has schoolId: null by default", () => {
+    expect(mkStudent().schoolId).toBeNull();
+  });
+
+  it("schoolId on a student is preserved through calcSchoolBasedService", () => {
+    const s = { ...mkStudent("Alice"), schoolId: "sbsch_test" };
+    const cl = { ...mkClinician(), students: [s] };
+    const result = calcSchoolBasedService({ ...defaultSchoolBasedConfig(), clinicians: [cl] });
+    const studentOut = result.clinicians[0].students[0];
+    expect(studentOut.schoolId).toBe("sbsch_test");
   });
 });

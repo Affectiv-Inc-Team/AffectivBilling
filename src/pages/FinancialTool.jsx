@@ -7,7 +7,7 @@ import { ratesForLine } from "../data/idahoRates.js";
 import { TSCRosterTab, TSCCoordinatorsTab, TSCParticipantsTab, TSCProductivityTab, TSCPLTab, TSCStaffingTab, TSCScenarioTab, calcTSCService } from "../serviceLines/tsc.jsx";
 import { ChildrensDDARosterTab, ChildrensDDAProductivityTab, ChildrensDDAPLTab, ChildrensDDARateScheduleTab, calcChildrensDDAService } from "../serviceLines/childrens_dda.jsx";
 import { CSERosterTab, CSEProductivityTab, CSEPLTab, calcCSEService } from "../serviceLines/cse.jsx";
-import { SchoolBasedRosterTab, SchoolBasedProductivityTab, SchoolBasedPLTab, SchoolBasedRateScheduleTab, SchoolBasedStaffingTab, SchoolBasedScenarioTab, calcSchoolBasedService } from "../serviceLines/school_based.jsx";
+import { SchoolBasedRosterTab, SchoolBasedProductivityTab, SchoolBasedPLTab, SchoolBasedRateScheduleTab, SchoolBasedStaffingTab, SchoolBasedScenarioTab, SchoolBasedParticipantsTab, calcSchoolBasedService } from "../serviceLines/school_based.jsx";
 import { budgetRowVisibility, canAddServiceLine, canEditServiceLines, canSeeCompanyDollars, canSeeControl, canSeeTopNumbers, editMode, wageDisplayMode, ROLE_TIERS } from "../lib/access.js";
 
 import { LOGO } from "../assets/logo.js";
@@ -2357,12 +2357,13 @@ const SUB_TABS = {
     { id: "cse_pl",           label: "💵 P&L" },
   ],
   SCHOOL_BASED: [
-    { id: "school_roster",       label: "👥 Roster" },
-    { id: "school_productivity", label: "📈 Productivity" },
-    { id: "school_pl",           label: "💵 P&L" },
-    { id: "school_rates",        label: "📋 Rate Schedule" },
-    { id: "school_staffing",     label: "🏢 Staffing" },
-    { id: "school_scenario",     label: "🔬 Scenario" },
+    { id: "school_roster",        label: "👥 Roster" },
+    { id: "school_participants",  label: "🏫 Participants" },
+    { id: "school_productivity",  label: "📈 Productivity" },
+    { id: "school_pl",            label: "💵 P&L" },
+    { id: "school_rates",         label: "📋 Rate Schedule" },
+    { id: "school_staffing",      label: "🏢 Staffing" },
+    { id: "school_scenario",      label: "🔬 Scenario" },
   ],
 };
 
@@ -3187,6 +3188,11 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
               )}
               {activeSLType === SERVICE_LINE_TYPES.SCHOOL_BASED && activeSL && subTab === "school_staffing" && (
                 <SchoolBasedStaffingTab config={activeSL.config}
+                  onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}
+                  userRole={userRole}/>
+              )}
+              {activeSLType === SERVICE_LINE_TYPES.SCHOOL_BASED && activeSL && subTab === "school_participants" && (
+                <SchoolBasedParticipantsTab config={activeSL.config}
                   onUpdate={cfg => updateServiceLineConfig(activeSL.id, cfg)}
                   userRole={userRole}/>
               )}
