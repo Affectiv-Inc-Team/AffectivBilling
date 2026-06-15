@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import posthog from './lib/posthog.js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -26,6 +27,8 @@ export async function loadConfig() {
 
   if (error) {
     console.error('loadConfig error:', error);
+    posthog.captureException(error, { endpoint: 'loadConfig', error_code: error.code });
+    posthog.capture('config_load_failed', { error_message: error.message, error_code: error.code });
     return null;
   }
 
