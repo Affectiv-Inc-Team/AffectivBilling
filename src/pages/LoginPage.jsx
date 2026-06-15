@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../supabase.js";
 import { LOGO } from "../assets/logo.js";
+import posthog from "../lib/posthog.js";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,10 +14,17 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError(error.message);
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (authError) {
+      setError(authError.message);
       setLoading(false);
+      posthog.capture('user_sign_in_failed', { error_message: authError.message });
+    } else {
+      const user = data?.user;
+      if (user) {
+        posthog.identify(user.id, { email: user.email });
+        posthog.capture('user_signed_in', { login_method: 'email' });
+      }
     }
     // On success, App.jsx's onAuthStateChange fires and re-renders to ToolPage
   }

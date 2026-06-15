@@ -11,6 +11,7 @@ import { SchoolBasedRosterTab, SchoolBasedProductivityTab, SchoolBasedPLTab, Sch
 import { budgetRowVisibility, canAddServiceLine, canEditServiceLines, canSeeCompanyDollars, canSeeControl, canSeeTopNumbers, editMode, wageDisplayMode, ROLE_TIERS } from "../lib/access.js";
 
 import { LOGO } from "../assets/logo.js";
+import posthog from "../lib/posthog.js";
 
 
 /* ══════════════════════════════════════════════════════════
@@ -2433,6 +2434,9 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
       (!SENIOR_GATED_TABS.has(t.id) || canEditServiceLines(userRole))
     );
     setSubTab(first?.id ?? 'placeholder');
+    if (activeKey !== "WHOLE_COMPANY" && activeSLType) {
+      posthog.capture('service_line_viewed', { service_line_type: activeSLType });
+    }
   }, [activeKey, activeSLType, userRole]);
 
   // ── Update helpers ──
@@ -2622,16 +2626,19 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
         ),
       };
     });
+    posthog.capture('service_line_added', { service_line_type: type });
     if (newId) setActiveKey(newId);
   };
 
   const handleRemoveServiceLine = (slId) => {
     if (!company) return;
     if (!window.confirm("Remove this service line? Its data will be lost.")) return;
+    const removedSL = company.serviceLines.find(sl => sl.id === slId);
     updateCompany(company.id, co => ({
       ...co,
       serviceLines: co.serviceLines.filter(sl => sl.id !== slId),
     }));
+    posthog.capture('service_line_removed', { service_line_type: removedSL?.type });
     if (activeKey === slId) setActiveKey("WHOLE_COMPANY");
   };
 
@@ -2808,6 +2815,11 @@ export default function App({ initialConfig, onSave, userRole, onSignOut, compan
     setSaveStatus("saving");
     const ok = await onSave(config);
     setSaveStatus(ok ? "saved" : "error");
+    posthog.capture('model_saved', {
+      success: ok,
+      company_count: config.companies?.length ?? 0,
+      service_line_count: company?.serviceLines?.filter(sl => !sl.archived).length ?? 0,
+    });
     setTimeout(() => setSaveStatus("idle"), 2500);
   };
 

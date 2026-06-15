@@ -3,6 +3,7 @@ import { supabase, getProfile } from "./supabase.js";
 import { ROLES, ROLE_LABELS } from "./lib/access.js";
 import LoginPage from "./pages/LoginPage.jsx";
 import ToolPage from "./pages/ToolPage.jsx";
+import posthog from "./lib/posthog.js";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -23,10 +24,17 @@ export default function App() {
       if (session) getProfile().then(setProfile);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
-      if (session) getProfile().then(setProfile);
-      else setProfile(null);
+      if (session) {
+        getProfile().then(setProfile);
+        if (event === 'SIGNED_IN') {
+          posthog.identify(session.user.id, { email: session.user.email });
+        }
+      } else {
+        setProfile(null);
+        posthog.reset();
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -40,7 +48,10 @@ export default function App() {
   const effectiveRole = IS_DEV && devRole ? devRole : derivedRole;
 
   // On sign-out, onAuthStateChange fires and re-renders back to LoginPage.
-  const handleSignOut = () => supabase.auth.signOut();
+  const handleSignOut = () => {
+    posthog.capture('user_signed_out');
+    supabase.auth.signOut();
+  };
 
   return (
     <>
