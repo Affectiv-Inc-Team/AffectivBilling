@@ -2358,11 +2358,11 @@ const SUB_TABS = {
   ],
   SCHOOL_BASED: [
     { id: "school_roster",        label: "👥 Roster" },
+    { id: "school_participants",  label: "🏫 Participants" },
     { id: "school_productivity",  label: "📈 Productivity" },
     { id: "school_pl",            label: "💵 P&L" },
     { id: "school_rates",         label: "📋 Rate Schedule" },
     { id: "school_staffing",      label: "🏢 Staffing" },
-    { id: "school_participants",  label: "🏫 Participants" },
     { id: "school_scenario",      label: "🔬 Scenario" },
   ],
 };
